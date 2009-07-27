@@ -25,6 +25,15 @@ if (!empty($new_target)) {
 	}
 }
 
+$date_param = "";
+if (!empty($y) && !empty($m) && !empty($d)) {
+	$date_param = "&y=".$y."&m=".$m."&d=".$d;
+}
+$target_param = "";
+if (!empty($new_target)) {
+	$target_param = "&new_target=".$new_target;
+}
+
 include "../header.inc.php"; flush();
 
 if ($login && sizeof($MES)==0) {
@@ -72,7 +81,7 @@ function reload(o) {
 	var v = o.options[o.selectedIndex].value;
 	o.selectedIndex = 0;
 	if (v!="" && v!="null") {
-		location.href='./?new_target='+v;
+		location.href='./?new_target='+v+'<? print $date_param ?>';
 	}
 }
 function selectmonth(f) {
@@ -80,7 +89,7 @@ function selectmonth(f) {
 	var sp = "-"
 	var spv = v.split(sp);
 	if (v!="" && v!="null") {
-		location.href='./?y='+spv[0]+'&m='+spv[1]+'&d='+spv[2]+'';
+		location.href='./?y='+spv[0]+'&m='+spv[1]+'&d='+spv[2]+'<? print $target_param ?>';
 	}
 }
 //-->
@@ -289,23 +298,23 @@ print "<TABLE border=0 cellspacing=0 cellpadding=2 width=100%>\n";
 print "<TR>\n";
 
 print "<TD ALIGN=RIGHT VALIGN=MIDDLE WIDTH=3% NOWRAP>\n";
-print "<A HREF=\"./?y=".date("Y",$prevmonthstamp)."&m=".date("n",$prevmonthstamp)."&d=".date("j",$prevmonthstamp)."\"><IMG SRC=\"../image/right1.gif\" BORDER=0 ALT=\"前の月\"></A>";
+print "<A HREF=\"./?y=".date("Y",$prevmonthstamp)."&m=".date("n",$prevmonthstamp)."&d=".date("j",$prevmonthstamp).$target_param."\"><IMG SRC=\"../image/right1.gif\" BORDER=0 ALT=\"前の月\"></A>";
 print "</TD>";
 
 print "<TD ALIGN=CENTER VALIGN=MIDDLE WIDTH=10% NOWRAP>\n";
-print "<A HREF=\"./monthly.phtml?y=".date("Y",$firststamp)."&m=".date("n",$firststamp)."&d=".date("j",$firststamp)."\">";
+print "<A HREF=\"./monthly.phtml?y=".date("Y",$firststamp)."&m=".date("n",$firststamp)."&d=".date("j",$firststamp).$target_param."\">";
 print "".date("Y",$firststamp)."年".date("n",$firststamp)."月";
 print "</A>";
 print "</TD>";
 
 print "<TD ALIGN=LEFT VALIGN=MIDDLE WIDTH=5% NOWRAP>\n";
-print "<A HREF=\"./?y=".date("Y",$nextmonthstamp)."&m=".date("n",$nextmonthstamp)."&d=".date("j",$nextmonthstamp)."\"><IMG SRC=\"../image/left1.gif\" BORDER=0 ALT=\"次の月\"></A>";
+print "<A HREF=\"./?y=".date("Y",$nextmonthstamp)."&m=".date("n",$nextmonthstamp)."&d=".date("j",$nextmonthstamp).$target_param."\"><IMG SRC=\"../image/left1.gif\" BORDER=0 ALT=\"次の月\"></A>";
 print "</TD>\n";
 
 print "<FORM>";
 print "<TD ALIGN=RIGHT WIDTH=20% NOWRAP>";
-print "<A HREF=\"./?y=".date("Y",$prevweekstamp)."&m=".date("n",$prevweekstamp)."&d=".date("j",$prevweekstamp)."\"><IMG SRC=\"../image/right2.gif\" BORDER=0 ALT=\"前週\"></A>";
-print "<A HREF=\"./?y=".date("Y",$prevdaystamp)."&m=".date("n",$prevdaystamp)."&d=".date("j",$prevdaystamp)."\"><IMG SRC=\"../image/right1.gif\" BORDER=0 ALT=\"前日\"></A>";
+print "<A HREF=\"./?y=".date("Y",$prevweekstamp)."&m=".date("n",$prevweekstamp)."&d=".date("j",$prevweekstamp).$target_param."\"><IMG SRC=\"../image/right2.gif\" BORDER=0 ALT=\"前週\"></A>";
+print "<A HREF=\"./?y=".date("Y",$prevdaystamp)."&m=".date("n",$prevdaystamp)."&d=".date("j",$prevdaystamp).$target_param."\"><IMG SRC=\"../image/right1.gif\" BORDER=0 ALT=\"前日\"></A>";
 print "</TD>";
 
 print "<TD ALIGN=CENTER VALIGN=MIDDLE WIDTH=15% NOWRAP>\n";
@@ -327,16 +336,16 @@ print "</SELECT>";
 print "</TD>";
 
 print "<TD ALIGN=LEFT VALIGN=MIDDLE WIDTH=10% NOWRAP>";
-print "<A HREF=\"./?y=".date("Y",$nextdaystamp)."&m=".date("n",$nextdaystamp)."&d=".date("j",$nextdaystamp)."\"><IMG SRC=\"../image/left1.gif\" BORDER=0 ALT=\"翌日\"></A>";
-print "<A HREF=\"./?y=".date("Y",$nextweekstamp)."&m=".date("n",$nextweekstamp)."&d=".date("j",$nextweekstamp)."\"><IMG SRC=\"../image/left2.gif\" BORDER=0 ALT=\"翌週\"></A>";
+print "<A HREF=\"./?y=".date("Y",$nextdaystamp)."&m=".date("n",$nextdaystamp)."&d=".date("j",$nextdaystamp).$target_param."\"><IMG SRC=\"../image/left1.gif\" BORDER=0 ALT=\"翌日\"></A>";
+print "<A HREF=\"./?y=".date("Y",$nextweekstamp)."&m=".date("n",$nextweekstamp)."&d=".date("j",$nextweekstamp).$target_param."\"><IMG SRC=\"../image/left2.gif\" BORDER=0 ALT=\"翌週\"></A>";
 print "</TD>\n";
 print "</FORM>";
 
 print "<TD ALIGN=RIGHT WIDTH=40% NOWRAP>";
-print "<A HREF=\"./daily.phtml?y=".date("Y",$todaystamp)."&m=".date("n",$todaystamp)."&d=".date("j",$todaystamp)."\"><IMG SRC=\"./image/today.gif\" BORDER=0 ALT=\"今日\"></A>";
-print "<A HREF=\"./?y=".date("Y",$todaystamp)."&m=".date("n",$todaystamp)."&d=".date("j",$todaystamp)."\"><IMG SRC=\"./image/toweek.gif\" BORDER=0 ALT=\"今週\"></A>";
-print "<A HREF=\"./monthly.phtml?y=".date("Y",$firststamp)."&m=".date("n",$firststamp)."\"><IMG SRC=\"./image/monthly.gif\" BORDER=0 ALT=\"月表示\"></A>";
-print "<A HREF=\"./yearly.phtml?y=".date("Y",$firststamp)."&m=".date("n",$firststamp)."\"><IMG SRC=\"./image/yearly.gif\" BORDER=0 ALT=\"年表示\"></A>";
+print "<A HREF=\"./daily.phtml?y=".date("Y",$todaystamp)."&m=".date("n",$todaystamp)."&d=".date("j",$todaystamp).$target_param."\"><IMG SRC=\"./image/today.gif\" BORDER=0 ALT=\"今日\"></A>";
+print "<A HREF=\"./?y=".date("Y",$todaystamp)."&m=".date("n",$todaystamp)."&d=".date("j",$todaystamp).$target_param."\"><IMG SRC=\"./image/toweek.gif\" BORDER=0 ALT=\"今週\"></A>";
+print "<A HREF=\"./monthly.phtml?y=".date("Y",$firststamp)."&m=".date("n",$firststamp).$target_param."\"><IMG SRC=\"./image/monthly.gif\" BORDER=0 ALT=\"月表示\"></A>";
+print "<A HREF=\"./yearly.phtml?y=".date("Y",$firststamp)."&m=".date("n",$firststamp).$target_param."\"><IMG SRC=\"./image/yearly.gif\" BORDER=0 ALT=\"年表示\"></A>";
 print "</TD>";
 
 print "</TR>\n";
