@@ -1,0 +1,157 @@
+<?php
+#  header("Expires: Mon, 26 Jul 1997 05:00:00 GMT");             // Date in the past
+#  header("Last-Modified: " . gmdate("D, d M Y H:i:s") . " GMT"); // always modified
+#  header("Cache-Control: no-cache, must-revalidate");           // HTTP/1.1
+#  header("Pragma: no-cache");                                   // HTTP/1.0
+
+  /* 初期設定ファイルの読み込み */
+  include "../../config.inc.php";
+
+  /* 関数ライブラリの読み込み */
+  include "../../lib.inc.php";
+
+  /* デバッグ(html直接表示) = true */
+  $debug = false;
+
+  /* テーブルオープン */
+  $sql = "select * from ".$tbl." order by ".$seq;
+  $res_csv = pg_query($conn,$sql);
+  $csvrows = pg_num_rows($res_csv);
+  $csvcols = pg_num_fields($res_csv);
+
+  /* 件数確認 */
+  if ($csvrows<1) {
+    $MES[] = "データは登録されていません";
+  }
+
+  // エラー処理
+  if (sizeof($MES)>0) {
+    include ("../../header.inc.php");
+
+    print "<BR><B>CSV出力</B>\n";
+    print "<HR size=2 noshade>\n";
+    print "<TABLE width=\"100%\" height=\"40%\">\n";
+    print "  <form name=\"out\">\n";
+    print "  <TR>\n";
+    print "    <TH align=center valign=middle valign=top nowrap width=\"100%\">\n";
+
+    print "<BR><font color=red>";
+    for ($s=0;$s<sizeof($MES);$s++){
+      print $MES[$s];
+      print "<BR>\n";
+    }
+    print "</font><br>\n";
+    print "<A href=\"./\">一覧に戻る</A><br><br>";
+
+    print "    </TH>\n";
+    print "  </TR>\n";
+    print "  </form>\n";
+    print "</TABLE>\n";
+    print "<HR size=2 noshade>\n";
+
+    include ("../../footer.inc.php");
+  }
+
+  /* ヘッダー出力 */
+  if ( $debug ) {
+    include ("../../m_header.inc.php");
+
+    print "<BR><B>CSV出力</B>\n";
+    print "<HR size=2 noshade>\n";
+    print "<TABLE width=\"100%\" height=\"40%\">\n";
+    print "  <form name=\"update\">\n";
+    print "  <TR>\n";
+    print "    <TH align=center valign=middle valign=top nowrap width=\"100%\">\n";
+
+
+  } else {
+#    header("Content-Type: text/csv"); 
+
+    header("Content-Type: application/octet-stream\n"); 
+    header("Content-Type: application/download"); 
+    header("Content-Disposition: attachment; filename=\"".$tbl.".csv\""); 
+    header("Content-Disposition: filename=\"".$tbl.".csv\""); 
+    header("Content-Description: Generated Data");
+    header("Content-Transfer-Encoding: binary"); 
+#header("Content-Disposition: attachment; filename=\"file.tgz\""); 
+
+  }
+
+  $header = "";
+
+  for ($i=0; $i<$csvrows; $i++) {
+    // レコードの獲得
+    $row = pg_fetch_array($res_csv,$i);
+
+    $detail = "";
+
+    for ($j=0; $j<$csvcols; $j++) {
+      // フィールドの獲得
+      $fieldname = pg_field_name($res_csv, $j);
+      $fieldtype = pg_field_type($res_csv, $j);
+      $fieldsize = pg_field_size($res_csv, $j);
+
+      if ($i==0) {
+        if ($header<>"") { $header .= ","; }
+        $header .= "\"".$fieldname."\"";
+      }
+
+      if ($detail<>"") { $detail .= ","; }
+
+      switch($fieldtype) {
+        case "bool":
+          if ($row[$j]=='t') {
+            $row[$j] = "true";
+          } else {
+            $row[$j] = "false";
+          }
+          break;
+        case "varchar":
+          $s = mbereg_replace("'", "''",$row[$j]);
+          $s = mbereg_replace('"', "&quot;", $s);
+          $s = str_replace("\r\n", "", $s);
+          $detail .= "\"".$s."\"";
+          break;
+        case "int4":
+          $detail .= $row[$j];
+          break;
+        case "timestamp":
+          $detail .= "\"".date("Y-m-d H:i:s",datetime2timestamp($row[$j]))."\"";
+          break;
+        case "date":
+          $detail .= "\"".date("Y-m-d",datetime2timestamp($row[$j]))."\"";
+          break;
+        default:
+          $detail .= "\"".$row[$j]."\"";
+      }
+    }
+
+    if ($i==0) {
+      print $header."\n";
+      if ( $debug ) {
+        print "<BR>";
+      }
+    }
+
+    print $detail."\n";
+    if ( $debug ) {
+      print "<BR>";
+    }
+
+  }
+
+  if ( $debug ) {
+    print "<BR>";
+
+    print "<A href=\"./\">一覧に戻る</A><br><br>";
+    print "    </TH>\n";
+    print "  </TR>\n";
+    print "  </form>\n";
+    print "</TABLE>\n";
+    print "<HR size=2 noshade>\n";
+
+    include ("../../m_footer.inc.php");
+  }
+
+  /* データベースを閉じる */
+?>

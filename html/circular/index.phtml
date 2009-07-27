@@ -1,0 +1,339 @@
+<?php
+  include ("../config.inc.php");
+  include ("../lib.inc.php");
+
+  // 表示中のディレクトリエントリ
+  if (!empty($_POST["circular"]) || !empty($_GET["circular"])) {
+    $circular = $_REQUEST["circular"];
+    $headertext .= "Set-Cookie: circular_id=".$circular."; path=/;\n";
+  } else {
+    $circular = $_COOKIE["circular_id"];
+  }
+
+  // 前回設定値の保存と復旧(Cookie使用)
+  if (!empty($_POST["viewtype"]) || !empty($_GET["viewtype"])) {
+    $viewtype = $_REQUEST["viewtype"];
+    $headertext .= "Set-Cookie: circular_viewtype=".$viewtype."; path=/;\n";
+  } else {
+    $viewtype = $_COOKIE["circular_viewtype"];
+  }
+  if (!empty($_POST["viewrange"]) || !empty($_GET["viewrange"])) {
+    $viewrange = $_REQUEST["viewrange"];
+    $headertext .= "Set-Cookie: circular_viewrange=".$viewrange."; path=/;\n";
+  } else {
+    $viewrange = $_COOKIE["circular_viewrange"];
+  }
+  if (!empty($_POST["vieworder"]) || !empty($_GET["vieworder"])) {
+    $vieworder = $_REQUEST["vieworder"];
+    $headertext .= "Set-Cookie: circular_vieworder=".$vieworder."; path=/;\n";
+  } else {
+    $vieworder = $_COOKIE["circular_vieworder"];
+  }
+  if (empty($viewtype))  $viewtype  = "notread";
+  if (empty($viewrange)) $viewrange = "to";
+  if (empty($vieworder)) $vieworder = "desc";
+
+  if (!empty($_GET["kwd"])) {
+    $kwd = textsafe($_GET["kwd"]);
+    $headertext .= "Set-Cookie: circular_kwd=".urlencode($kwd)."; path=/;\n";
+  } else {
+    $kwd = "";
+    $headertext .= "Set-Cookie: circular_kwd=; path=/;\n";
+  }
+
+  // リンク用テキストの設定
+  $linktext  = "<A HREF=\"../../\" ALT=\"トップページ\" CLASS=\"BAR\">トップページ</A> &gt; ";
+  $linktext .= "<FONT COLOR=#FFFF00>回覧板</FONT> ";
+
+  // 検索機能の使用?
+  $search    = true;
+  $searchuri = "/circular/";
+
+  // ヘッダ表示
+  include ("../header.inc.php");
+
+  // 機能別メニュー内容の取得
+  include ("./menu.inc.php");
+
+  // 変数の初期値
+  if (empty($_GET["p"])) { $p = 1; } else { $p = $_GET["p"]; }
+
+  if ($login && sizeof($MES)==0) {
+    // 前処理
+#    $pagetext  = "";
+
+    // JavaScript 書き出し
+    $pagetext .= "
+<SCRIPT LANGUAGE = \"JavaScript\">
+<!--
+function remove(seqno) {
+  if (confirm(\"回覧を削除してもよろしいですか？\")) {
+    location.href='./remove/?no='+seqno;
+  }
+}
+//-->
+</SCRIPT>";
+
+    $pagetext .= "<TABLE BORDER=0 CELLSPACING=0 CELLPADDING=0 WIDTH=100%><TR><TD ALIGN=RIGHT><A HREF=\"./regist/\"><IMG SRC=\"../image/entrysadd.gif\" BORDER=0> 新しい回覧</A></TD></TR></TABLE>";
+
+    $pagetext .= "
+<TABLE BORDER=0 CELLSPACING=0 CELLPADDING=3 WIDTH=100%><TR>
+<FORM ACTION=\"/circular/\" METHOD=POST>
+";
+#    $pagetext .= "<TD ALIGN=LEFT>";
+#    // 表示種別
+#    $pagetext .= "<INPUT TYPE=RADIO NAME=\"viewtype\" VALUE=\"all\"";
+#    if ($viewtype=="all") $pagetext .= " CHECKED";
+#    $pagetext .= " ONCLICK=\"location.href='./?viewtype=all'\">全て";
+#    $pagetext .= "<INPUT TYPE=RADIO NAME=\"viewtype\" VALUE=\"notread\"";
+#    if ($viewtype=="notread") $pagetext .= " CHECKED";
+#    $pagetext .= " ONCLICK=\"location.href='./?viewtype=notread'\"><FONT COLOR=#FF3333>未読</FONT>";
+#    $pagetext .= "<INPUT TYPE=RADIO NAME=\"viewtype\" VALUE=\"hasread\"";
+#    if ($viewtype=="hasread") $pagetext .= " CHECKED";
+#    $pagetext .= " ONCLICK=\"location.href='./?viewtype=hasread'\"><FONT COLOR=#3333FF>既読</FONT>";
+
+#    $pagetext .= " <FONT COLOR=#666666>|</FONT> ";
+
+#    // 表示範囲
+#    $pagetext .= "<INPUT TYPE=RADIO NAME=\"viewrange\" VALUE=\"to\"";
+#    if ($viewrange=="to") $pagetext .= " CHECKED";
+#    $pagetext .= " ONCLICK=\"location.href='./?viewrange=to'\">受信<IMG SRC=\"../images/btn_circular.gif\" BORDER=0 ALIGN=ABSMIDDLE>";
+#    $pagetext .= "<INPUT TYPE=RADIO NAME=\"viewrange\" VALUE=\"from\"";
+#    if ($viewrange=="from") $pagetext .= " CHECKED";
+#    $pagetext .= " ONCLICK=\"location.href='./?viewrange=from'\">送信<IMG SRC=\"../images/btn_circular2.gif\" BORDER=0 ALIGN=ABSMIDDLE>";
+
+#    $pagetext .= "</TD>\n";
+
+    $pagetext .= "<TD ALIGN=RIGHT HEIGHT=22>";
+    // 昇順・降順選択
+    $pagetext .= "<INPUT TYPE=RADIO NAME=\"vieworder\" VALUE=\"asc\"";
+    if ($vieworder=="asc") $pagetext .= " CHECKED";
+    $pagetext .= " ONCLICK=\"location.href='./?vieworder=asc'\">昇順";
+    $pagetext .= "<INPUT TYPE=RADIO NAME=\"vieworder\" VALUE=\"desc\"";
+    if ($vieworder=="desc") $pagetext .= " CHECKED";
+    $pagetext .= " ONCLICK=\"location.href='./?vieworder=desc'\">降順\n";
+    $pagetext .= "</TD></TR>
+</FORM>
+</TABLE>\n";
+
+    $kwd = trim($kwd);
+
+    ## SQL生成
+    if ($viewrange=="to") {
+      // 自分宛の回覧の時のSQL
+      $sql  = "SELECT circulas.*, (circulas_ret.result_sign) AS res_sign FROM circulas LEFT JOIN (SELECT * FROM circulas_ret WHERE user_id ='$login_id') AS circulas_ret ON circulas.seqno = circulas_ret.refno WHERE ";
+      $sql .= " user_id_to ~* '(^|,)$login_id(,|$)' ";
+      if ($viewtype!="all") {
+        $sql .= "AND ";
+        if ($viewtype=="notread") {
+          $sql .= "(circulas_ret.result_sign='f' OR  circulas_ret.result_sign is null)";
+        } elseif ($viewtype=="hasread") {
+          $sql .= "circulas_ret.result_sign='t' ";
+        }
+      }
+      if ($vieworder=="asc") {
+        $sql .= "ORDER BY circulas.createstamp";
+      } else {
+        $sql .= "ORDER BY circulas.createstamp DESC";
+      }
+    } else {
+      // 結果待ちの回覧のSQL
+      $sql  = "SELECT * FROM circulas WHERE ";
+      $sql .= " user_id = '$login_id' ";
+      if ($viewtype!="all") {
+        $sql .= "AND ";
+        if ($viewtype=="notread") {
+          $sql .= "result_sign='f' ";
+        } elseif ($viewtype=="hasread") {
+          $sql .= "result_sign='t' ";
+        }
+      }
+      if ($vieworder=="asc") {
+        $sql .= "ORDER BY createstamp";
+      } else {
+        $sql .= "ORDER BY createstamp DESC";
+      }
+    }
+
+    $res = pg_query($conn, $sql);
+    $cnt = pg_num_rows($res);
+
+    if ($cnt>0) {
+      $allpages = floor($cnt/$circular_rows)+1;
+      if ($p>$allpages) $p = 1;
+
+      $s_row = ($p-1) * $circular_rows;
+      $e_row = $p * $circular_rows - 1;
+      if ($e_row>$cnt-1) {$e_row = $cnt-1;}
+      if ($cnt-1>$e_row) {$nextpage = true;}
+    }
+
+    // ヘッダー表示
+    $pagetext .= "<TABLE BORDER=0 CELLPADDING=0 CELLSPACING=0 WIDTH=100%><TR><TD>\n";
+    $pagetext .= "<TABLE BORDER=0 CELLPADDING=2 CELLSPACING=0 WIDTH=100%>\n";
+    $pagetext .= "<TR BGCOLOR=#999999 HEIGHT=22>";
+    $pagetext .= "<TH ALIGN=LEFT><FONT COLOR=#FFFFFF>件名</TH>";
+    $pagetext .= "<TH WIDTH=80 ALIGN=LEFT><FONT COLOR=#FFFFFF>状況</TH>";
+    $pagetext .= "<TH WIDTH=100 ALIGN=CENTER><FONT COLOR=#FFFFFF>発言者</TH>";
+    $pagetext .= "</TR>\n";
+
+    // 発言表示
+    if ($cnt>0) {
+      for ($i=$s_row;$i<=$e_row;$i++) {
+        if ($bg_sign) { $bg_color = $bg_dark; $bg_sign = false; }
+        else { $bg_color = $bg_light; $bg_sign = true; }
+
+        $row = pg_fetch_array($res,$i);
+
+        $pagetext .= "<TR BGCOLOR=$bg_color>\n";
+
+        $seqno   = $row["seqno"];
+        $subject = $row["subject"];
+        if ($subject=="") { $subject="(no subject)"; }
+        if (strlen($subject)>45) $subject = mb_strcut($subject,0,45)." ...";
+        $subject = str_highlight($kwd,$subject);
+
+        $pagetext .= "<TD NOWRAP>";
+        $pagetext .= "&nbsp;<A HREF=\"./result/?no=".$row["seqno"]."\">";
+        if ($row["user_id"]!=$login_id) {
+          $pagetext .= "<IMG SRC=\"../image/row_circular.gif\" BORDER=0 ALIGN=ABSMIDDLE> ";
+        } else {
+          $pagetext .= "<IMG SRC=\"../image/row_circular2.gif\" BORDER=0 ALIGN=ABSMIDDLE> ";
+        }
+
+        if (get_count("circulas_res","seqno=".$row["seqno"]." AND user_id='$login_id'")==0) {
+          $pagetext .= "<FONT COLOR=#FF0033>".$subject."</FONT>";
+        } else {
+          $pagetext .= $subject;
+        }
+
+#        if (($row["user_id"]!=$login_id && $row["res_sign"]!="t") || ($row["user_id"]==$login_id && $row["result_sign"]!="t")) {
+#          $pagetext .= "<FONT COLOR=#FF0033>".$subject."</FONT>";
+#        } else {
+#          $pagetext .= $subject;
+#        }
+
+        $pagetext .= "</A>";
+        $pagetext .= " <FONT COLOR=#666666>".date("n月j日 H:i",datetime2timestamp($row["createstamp"]))."";
+
+        $pagetext .= "</TD>";
+
+        $user_ids_to = split(",",$row["user_id_to"]);
+
+        $pagetext .= "<TD NOWRAP>";
+        if ($row["user_id"]==$login_id) {
+          if ($row["result_sign"]=="t") {
+            $pagetext .= "回覧済 <FONT COLOR=#666666>";
+          } else {
+            $pagetext .= "<FONT COLOR=#3333FF>回覧中</FONT> <FONT COLOR=#5555FF>";
+          }
+          $pagetext .= " ";
+
+          $sql_res = "SELECT count(*) AS count FROM circulas_ret WHERE refno=$seqno AND result_sign='t'";
+          $res_res = pg_query($conn, $sql_res);
+          $cnt_res = pg_num_rows($res_res);
+          if ($cnt_res==0) {
+            $pagetext .= "0";
+          } else {
+            $row_res = pg_fetch_array($res_res,0);
+            $pagetext .= number_format($row_res["count"]);
+          }
+          $pagetext .= "/";
+          $pagetext .= number_format(sizeof($user_ids_to));
+        } else {
+          if ($row["res_sign"]=="t") {
+            $pagetext .= "既読 <FONT COLOR=#666666>";
+          } else {
+            $pagetext .= "<FONT COLOR=#FF3333>未読</FONT> <FONT COLOR=#5555FF>";
+          }
+        }
+        $pagetext .= "</TD>";
+
+        $pagetext .= "<TD ALIGN=CENTER NOWRAP>";
+        if ($row["user_id"]<>"") {
+          $user_name = get_first("users","name_ryaku","id='".$row["user_id"]."'","不明");
+          $pagetext .= "<A HREF=\"../member/?id=".$row["user_id"]."\">".$user_name."</A>";
+        } else {
+          $pagetext .= "-\n";
+        }
+        $pagetext .= "</TD>";
+
+        $pagetext .= "</TR>\n";
+      }
+    } else {
+      // 発言なし
+      $pagetext .= "<TR>\n";
+      $pagetext .= "<TD COLSPAN=5 ALIGN=CENTER HEIGHT=22>回覧はありません</TD>\n";
+      $pagetext .= "</TR>\n";
+    }
+    $pagetext .= "</TABLE>\n";
+    $pagetext .= "</TD></TR></TABLE>\n";
+    $pagetext .= "</TD></TR></TABLE><br>\n";
+
+    // ページ情報の表示
+    if ($allpages>1) {
+      $pagetext .= "<CENTER>";
+
+      $r = 0;
+      $s_p = $p - 4;
+      $e_p = $p + 4;
+      if ($s_p<1) {
+        $r = 1-$s_p;
+        $s_p = $s_p + $r;
+        $e_p = $e_p + $r;
+      } elseif ($e_p>$allpages) {
+        $r = $e_p - $allpages;
+        $s_p = $s_p - $r;
+        $e_p = $e_p - $r;
+      }
+      if ($s_p < 1) $s_p = 1;
+      if ($e_p > $allpages) $e_p = $allpages;
+
+      if ($p>1) {
+        $pagetext .= "<A HREF=\"./?p=".($p-1)."\">";
+        $pagetext .= "前のページ";
+        $pagetext .= "</A>";
+      } else {
+        $pagetext .= "<FONT COLOR=#999999>前のページ</FONT>";
+      }
+
+      $pagetext .= "&nbsp;&nbsp;";
+
+      if ($s_p != 1) {
+        $pagetext .= "<A HREF=\"./p=".($s_p-1)."\">&lt;</A>&nbsp;";
+      }
+
+      for ($i=$s_p;$i<=$e_p;$i++){
+        if ($p!=$i) {
+          $pagetext .= "[<A HREF=\"./?p=".$i."\">".$i."</A>]";
+        } else {
+          $pagetext .= "[".$i."]";
+        }
+        $pagetext .= "&nbsp;";
+      }
+
+      if ($e_p != $allpages) {
+        $pagetext .= "<A HREF=\"./?p=".($e_p+1)."\">&gt;</A>";
+      }
+
+      $pagetext .= "&nbsp;";
+
+      if ($nextpage) {
+        $pagetext .= "<A HREF=\"./?p=".($p+1)."\">";
+        $pagetext .= "次のページ";
+        $pagetext .= "</A>";
+      } else {
+        $pagetext .= "<FONT COLOR=#999999>次のページ</FONT>";
+      }
+
+      $pagetext .= "&nbsp;";
+      $pagetext .= "</CENTER><BR>\n";
+    }
+  }
+
+
+  // 明細表示
+  include ("../detail.inc.php");
+  // フッタ表示
+  include ("../footer.inc.php");
+?>

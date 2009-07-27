@@ -1,0 +1,99 @@
+<?php
+  include ("../../config.inc.php"); include ("../../lib.inc.php");
+
+  include ("../template.inc.php");
+
+  $linktext  = "<A HREF=\"../../\" CLASS=\"BAR\">トップページ</A> &gt; ";
+  $linktext .= "<A HREF=\"../\" CLASS=\"BAR\">ワークフロー</A> &gt; ";
+  $linktext .= "<A HREF=\"./?no=$seqno\" CLASS=\"BAR\">案件の再稟議</A> &gt; ";
+  $linktext .= "<FONT COLOR=#FFFF00>案件の再稟議</FONT> ";
+
+  include ("../../login_check.inc.php");
+
+  if ($login && sizeof($MES)==0) {
+	  $seqno  = $_POST["seqno"];
+	  $body1  = textsafe($_POST["body1"]);
+	  $body4  = textsafe($_POST["body4"]);
+
+    // エラーチェック
+    if ($input1) {
+      if (trim($body1)=="") {
+        if ($sign1) $WMES[] = $title1."が入力されていません";
+      } elseif(strlen($body1)>10000) {
+        $WMES[] = $title1."が長すぎます。全角5000文字までで入力してください";
+        $body1 = mb_strcut($body1,0,10000);
+      }
+    }
+
+    if ($input4) {
+      if (trim($body4)=="") {
+        if ($sign4) $WMES[] = $title4."が入力されていません";
+      } elseif(strlen($body4)>10000) {
+        $WMES[] = $title4."が長すぎます。全角5000文字までで入力してください";
+        $body4 = mb_strcut($body4,0,10000);
+      }
+    }
+
+    // 案件データの確認
+    $sql = "SELECT * FROM workflow WHERE seqno=$seqno";
+    $res = pg_query($conn,$sql);
+    if (pg_num_rows($res)==0) {
+      $DMES[] = "案件情報が正しくないか既に削除されています";
+    } else {
+      $row = pg_fetch_array($res,0);
+      if ($row["user_id"]!=$login_id) {
+        $DMES[] = "あなたが登録した案件ではありません";
+      }
+    }
+
+    // 案件結果データの整理
+    if (sizeof($DMES)==0) {
+      // 関連データの消去
+      pg_query($conn, "DELETE FROM workflow_res WHERE seqno=$seqno");
+      pg_query($conn, "DELETE FROM workflow_ret WHERE refno=$seqno");
+
+      // 更新
+      $sql  = "UPDATE workflow SET ";
+      $sql .= "result_sign=null, ";
+      $sql .= "body1='".db_textsafe($body1)."', ";
+      $sql .= "body4='".db_textsafe($body4)."', ";
+      $sql .= "retry_sign = 't', ";
+      $sql .= "updatestamp='now()' ";
+      $sql .= "WHERE user_id='". $login_id ."' AND seqno=$seqno";
+
+      $res = pg_query($conn, $sql);
+      if ($res == false || pg_affected_rows($res)<1) {
+        $DMES[] = "再稟議案件の登録処理に失敗しました";
+      }
+    }
+
+    if (sizeof($WMES)==0 && sizeof($DMES)>0) {
+      // エラー時
+		  include("../../header.inc.php");
+
+      $pagetext .= "<BR><BR>";
+      $pagetext .= "<CENTER>";
+      $pagetext .= "<FONT COLOR=#FF0000>";
+      while (list($key,$val)=each($DMES)) {
+        $pagetext .= $val."<BR>";
+      }
+      $pagetext .= "<BR><FORM ACTION=\"./\" METHOD=POST>";
+      $pagetext .= "<INPUT TYPE=HIDDEN NAME=\"error\" VALUE=\"t\">";
+      $pagetext .= "<INPUT TYPE=HIDDEN NAME=\"no\" VALUE=\"$seqno\">";
+      $pagetext .= "<INPUT TYPE=HIDDEN NAME=\"body1\" VALUE=\"$body1\">";
+      $pagetext .= "<INPUT TYPE=HIDDEN NAME=\"body4\" VALUE=\"$body4\">";
+      $pagetext .= "<INPUT TYPE=SUBMIT VALUE=\"戻る\">";
+      $pagetext .= "</FORM>";
+      $pagetext .= "</FONT>";
+      $pagetext .= "</CENTER>";
+
+		  include("../../detail.inc.php");
+		  include("../../footer.inc.php");
+
+    } else {
+      // 正常時
+      $returl = "../";
+      Header("Location: ".$returl);
+    }
+  }
+?>

@@ -1,0 +1,575 @@
+<?
+include "../../config.inc.php";
+include "../../lib.inc.php";
+
+$linktext  = "<A HREF=\"../../\" CLASS=\"BAR\">トップページ</A> &gt; ";
+$linktext .= "<A HREF=\"../../schedule/\" CLASS=\"BAR\">予定表</A> &gt; ";
+if(!empty($q)) {
+	$linktext .= "<FONT COLOR=#FFFF00>イベントのコピー</FONT>";
+} elseif (empty($seqno)) {
+	$linktext .= "<FONT COLOR=#FFFF00>イベントの登録</FONT>";
+} else {
+	$linktext .= "<FONT COLOR=#FFFF00>イベントの確認</FONT>";
+}
+
+include("../../login_check.inc.php");
+
+if ($login && sizeof($MES)==0) {
+	// 共有先チェック
+	if ($id_to==""){
+	} else {
+		$touser = split(",",$id_to);
+		
+		if (!is_array($touser) || sizeof($touser)==0) {
+			$DMES[] = "共有先の相手が選択されていません";
+		}
+		
+		for($i=0;$i<sizeof($touser);$i++) {
+			$sql = "SELECT id FROM users where id='".$touser[$i]."'";
+			$res = pg_query($conn,$sql);
+			if (pg_num_rows($res) == 0){
+				$DMES[] = "共有先の相手が登録されていません";
+				break;
+			}
+			if ($id_to!="") { $id_to .= ","; };
+			$id_to .= $touser[$i];
+			
+			$findid=false;
+			if (sizeof($id_to_users)>0) {
+				reset($id_to_users);
+				while(list($key,$val)=each($id_to_users)) {
+					if ($val==$touser[$i]) {
+						$findid = true;
+						break;
+					}
+				}
+			}
+			$id_to_users[] = $touser[$i];
+			
+			if (!$findid) {
+				if ($tousers_new != "") { $tousers_new .= ","; }
+				$tousers_new .= $touser[$i];
+			}
+		}
+	}
+	
+	$title = textsafe($title);
+	$note  = textsafe($note);
+	
+	if ($seqno!="") {
+		$tit = "編集";
+		if ($errorthrou=="") {
+			$errorthrou = "false";
+		}
+	} else {
+		$tit = "新規";
+	}
+	
+	// エラーチェック
+	if (empty($from_y) or $from_y==""){
+		$DMES[] = "開始日を正しく入力して下さい";
+	} elseif (empty($from_m) or $from_m==""){
+		$DMES[] = "開始日を正しく入力して下さい";
+	} elseif (empty($from_d) or $from_d==""){
+		$DMES[] = "開始日を正しく入力して下さい";
+	}
+	if (sizeof($DMES)==0) {
+		if (checkdate($from_m,$from_d,$from_y)==false) {
+			$DMES[] = "開始日の指定が正しくありません";
+		}
+	}
+	
+	if (empty($to_y) or $to_y==""){
+		$DMES[] = "終了日を正しく入力して下さい";
+	} elseif (empty($to_m) or $to_m==""){
+		$DMES[] = "終了日を正しく入力して下さい";
+	} elseif (empty($to_d) or $to_d==""){
+		$DMES[] = "終了日を正しく入力して下さい";
+	}
+	if (sizeof($DMES)==0) {
+		if (checkdate($to_m,$to_d,$to_y)==false) {
+			$DMES[] = "終了日の指定が正しくありません";
+		}
+	}
+	
+	if (sizeof($DMES)==0) {
+		$from_date = $from_y."/".$from_m."/".$from_d;
+		$to_date   = $to_y."/".$to_m."/".$to_d;
+		$from_datestamp = date2timestamp($from_date);
+		$to_datestamp   = date2timestamp($to_date);
+		if ($from_datestamp > $to_datestamp) {
+			$DMES[] = "終了日は開始日以降の日付を設定して下さい";
+		}
+	}
+	
+	if ($from_hour==-1 and $from_minuts!=-1 or $from_hour!=-1 and $from_minuts==-1) {
+		$DMES[] = "開始時刻の指定が正しくありません";
+		$from_time = "";
+	} else {
+		if ($from_hour==-1 or $from_minuts==-1) {
+			$from_time = "";
+		} else {
+			$from_time = $from_date." ".$from_hour.":".$from_minuts.":00";
+			$from_timestamp = datetime2timestamp($from_time);
+		}
+	}
+	if ($to_hour==-1 and $to_minuts!=-1 or $to_hour!=-1 and $to_minuts==-1) {
+		$DMES[] = "終了時刻の指定が正しくありません";
+		$to_time = "";
+	} else {
+		if ($to_hour==-1 or $to_minuts==-1) {
+			$to_time = "";
+		} else {
+			$to_time = $to_date." ".$to_hour.":".$to_minuts.":00";
+			$to_timestamp = datetime2timestamp($to_time);
+		}
+	}
+	
+	if (sizeof($DMES)==0) {
+		if ($from_time != "" and $to_time != "") {
+			if ($from_date == $to_date and $from_hour==$to_hour and $from_minuts==$to_minuts) {
+				$DMES[] = "開始時刻と終了時刻が同一です";
+			} else {
+				if ($from_date == $to_date and $from_hour*60+$from_minuts > $to_hour*60+$to_minuts) {
+					$DMES[] = "終了時刻は開始時刻以降の時刻を設定してください";
+				}
+			}
+		}
+	}
+	
+	if (sizeof($DMES)==0) {
+		if (($tit == "新規" and $mine != "f") or ($tit == "編集")) { // 自身を除外時はチェックを除外
+		// ブッキングチェック
+		$sql  = "SELECT * FROM events WHERE (";
+		$sql .= "timefrom <> null and timeto <> null and ";
+		if ($from_time == "" and $to_time == "") {
+			// 日付オンリーのチェック
+			$sql .= "(datefrom > '".$from_date."' and dateto < '".$to_date."') or ";
+			$sql .= "(dateto > '".$from_date."' and dateto < '".$to_date."') or ";
+			$sql .= "(datefrom > '".$from_date."' and datefrom < '".$to_date."') or ";
+			$sql .= "(datefrom <= '".$from_date."' and dateto >= '".$to_date."')";
+		} elseif ($from_time != "" and $to_time == "") {
+			// 日付＋開始時刻オンリーのチェック
+			$sql .= "(timefrom > '".$from_time."' and dateto < '".$to_date."') or ";
+			$sql .= "(timeto > '".$from_time."' and dateto < '".$to_date."') or ";
+			$sql .= "(timefrom > '".$from_time."' and datefrom < '".$to_date."') or ";
+			$sql .= "(timefrom <= '".$from_time."' and dateto >= '".$to_date."')";
+		} elseif ($from_time == "" and $to_time != "") {
+			// 日付＋終了時刻オンリーのチェック
+			$sql .= "(datefrom > '".$from_date."' and timeto < '".$to_time."') or ";
+			$sql .= "(dateto > '".$from_date."' and timeto < '".$to_time."') or ";
+			$sql .= "(datefrom > '".$from_date."' and timefrom < '".$to_time."') or ";
+			$sql .= "(datefrom <= '".$from_date."' and timeto >= '".$to_time."')";
+		} else {
+			// 時刻チェック
+			$sql .= "((timefrom > '".$from_time."') and (timeto < '".$to_time."')) or ";
+			$sql .= "((timeto > '".$from_time."') and (timeto < '".$to_time."')) or ";
+			$sql .= "((timefrom > '".$from_time."') and (timefrom < '".$to_time."')) or ";
+			$sql .= "((timefrom <= '".$from_time."') and (timeto >= '".$to_time."'))";
+		}
+		$sql .= ") ";
+		
+		if ($seqno!="") {
+			$sql .= " and seqno<>".$seqno." ";
+		}
+		$res_check = pg_query($conn,$sql);
+		if (pg_num_rows($res_check)>0) {
+			$WMES[] = "指定された時刻には既に他のイベントスケジュールが登録されています";
+		}
+		}
+	}
+	
+	$STR = $title;
+	$LEN = strlen($STR);
+	if ($LEN == 0) {
+		$DMES[] = "タイトルが入力されていません";
+	}
+	
+	$STR = $note;
+	$LEN = strlen($STR);
+	if ($LEN == 0) {
+		$DMES[] = "内容が入力されていません";
+	}
+	
+	if (sizeof($DMES)==0) {
+		// 参加者のブッキングチェック
+		if (sizeof($id_to_users)>0) {
+			
+			for ($i=0;$i<sizeof($id_to_users);$i++){
+				$sql  = "SELECT * FROM schedules WHERE (";
+				$sql .= "(timefrom <> null and timeto <> null) and ";
+				if ($from_time == "" and $to_time == "") {
+					// 日付オンリーのチェック
+					$sql .= "(datefrom > '".$from_date."' and dateto < '".$to_date."') or ";
+					$sql .= "(dateto > '".$from_date."' and dateto < '".$to_date."') or ";
+					$sql .= "(datefrom > '".$from_date."' and datefrom < '".$to_date."') or ";
+					$sql .= "(datefrom <= '".$from_date."' and dateto >= '".$to_date."')";
+				} elseif ($from_time != "") {
+					// 日付＋開始時刻オンリーのチェック
+					$sql .= "(timefrom > '".$from_time."' and dateto < '".$to_date."') or ";
+					$sql .= "(timeto > '".$from_time."' and dateto < '".$to_date."') or ";
+					$sql .= "(timefrom > '".$from_time."' and datefrom < '".$to_date."') or ";
+					$sql .= "(timefrom <= '".$from_time."' and dateto >= '".$to_date."')";
+				} elseif ($to_time != "") {
+					// 日付＋終了時刻オンリーのチェック
+					$sql .= "(datefrom > '".$from_date."' and timeto < '".$to_time."') or ";
+					$sql .= "(dateto > '".$from_date."' and timeto < '".$to_time."') or ";
+					$sql .= "(datefrom > '".$from_date."' and timefrom < '".$to_time."') or ";
+					$sql .= "(datefrom <= '".$from_date."' and timeto >= '".$to_time."')";
+				} else {
+					// 時刻チェック
+					$sql .= "(timefrom > '".$from_time."' and timeto < '".$to_time."') or ";
+					$sql .= "(timeto > '".$from_time."' and timeto < '".$to_time."') or ";
+					$sql .= "(timefrom > '".$from_time."' and timefrom < '".$to_time."') or ";
+					$sql .= "(timefrom <= '".$from_time."' and timeto >= '".$to_time."')";
+				}
+				$sql .= ") and user_id='".$id_to_users[$i]."' ";
+				if ($seqno!="") {
+					$sql .= " and seqno<>".$seqno." and ref_seqno<>".$seqno;
+				}
+				$res_check = pg_query($conn,$sql);
+				
+				if (pg_num_rows($res_check)>0) {
+					
+					$sql = "SELECT * FROM users where id='".$id_to_users[$i]."'";
+					$res_user = pg_query($conn,$sql);
+					if (pg_num_rows($res_user)>0) {
+						$row_user = pg_fetch_array($res_user, 0);
+						$name_ryaku = $row_user["name_ryaku"];
+					} else {
+						$name_ryaku = "";
+					}
+					
+					$WMES[] = $name_ryaku."様 の指定された時刻に既に他のスケジュールが登録されています";
+					break;
+				}
+			}
+		}
+	}
+	
+	// DB更新
+	if (sizeof($DMES)==0 and (sizeof($WMES)==0 or $errorthrou=="true")) {
+		if ($tit == "新規"){
+			// 新規登録：スケジュール
+			if ($mine != "f") {
+				// seqno採番
+				$sql = "SELECT seqno FROM events ORDER BY seqno desc;";
+				$res = pg_query($conn, $sql);
+				
+				if (pg_num_rows($res)==0) {
+					$seqno = 1;
+				} else {
+					$row = pg_fetch_array($res, 0);
+					$seqno = $row["seqno"]+1;
+				}
+				
+				$sql  = "INSERT INTO events (";
+				$sql .= "seqno,user_id,update_user_id,datefrom,dateto,timefrom,timeto,title,note,disclosesign,shareflag,sharelist,createstamp,updatestamp";
+				$sql .= " ) VALUES (";
+				$sql .= "'".$seqno."',";
+				$sql .= "'".$login_id."',";
+				$sql .= "'".$login_id."',";
+				$sql .= "'".$from_date."',";
+				$sql .= "'".$to_date."',";
+				if ($from_time != "") {
+					$sql .= "'".$from_time."',";
+				} else {
+					$sql .= "null,";
+				}
+				if ($to_time != "") {
+					$sql .= "'".$to_time."',";
+				} else {
+					$sql .= "null,";
+				}
+				$sql .= "'".db_textsafe($title)."',";
+				$sql .= "'".db_textsafe($note)."',";
+				$sql .= "'".$disclosesign."',";
+				if (sizeof($id_to_users)>0) {
+					$sql .= "1,";
+				} else {
+					$sql .= "0,";
+				}
+				if (sizeof($id_to_users)>0) {
+					$sql .= "'".$tousers_new."',";
+				} else {
+					$sql .= "'',";
+				}
+				$sql .= "'now','now'";
+				$sql .= ")";
+				
+				$res = pg_query($conn,$sql);
+				
+				if ($res != false) {
+					$cnt = pg_affected_rows($res);
+				} else {
+					$cnt = 0;
+				}
+				if ($cnt==0) {
+					$DMES[] = "登録に失敗しました";
+				} else {
+					$org_seqno = $seqno;
+				}
+			}
+		} else {
+			// 更新処理
+			$org_seqno = $seqno;
+			
+			$sql  = "UPDATE events SET ";
+			//          $sql .= "user_id='".$login_id."',";
+			$sql .= "datefrom='".$from_date."',";
+			$sql .= "dateto='".$to_date."',";
+			if ($from_time!="") {
+				$sql .= "timefrom='".$from_time."',";
+			} else {
+				$sql .= "timefrom=null,";
+			}
+			if ($to_time!="") {
+				$sql .= "timeto='".$to_time."',";
+			} else {
+				$sql .= "timeto=null,";
+			}
+			$sql .= "title='".db_textsafe($title)."',";
+			$sql .= "note='".db_textsafe($note)."',";
+			$sql .= "disclosesign='".$disclosesign."',";
+			if (sizeof($id_to_users)>0) {
+				$sql .= "shareflag=1,";
+			} else {
+				$sql .= "shareflag=0,";
+			}
+			$sql .= "sharelist='".$tousers_new."',";
+			$sql .= "updatestamp='now' ";
+			
+			$sql .= " where seqno=".$seqno;
+			
+			$res = pg_query($conn,$sql);
+			if ($res != false) {
+				$cnt = pg_affected_rows($res);
+			} else {
+				$cnt = 0;
+			}
+			if ($cnt==0) $DMES[] = "更新に失敗しました。";
+			
+		}
+		
+		if (sizeof($DMES)==0 && $sendmailusers=="t") {
+			// OK時 メール配信
+			// ヘッダの生成
+			$mailheader  = "Date: ".date("D, j M Y G:i:s")." +0900\n";
+			$mailheader .= "Content-Type: text/plain; charset=iso-2022-jp\n";
+			$mailheader .= "Content-Transfer-Encoding: 7bit\n";
+			$mailheader .= "From: ".$from."\n";
+			$mailheader .= "Return-Path: ".$from."\n";
+			$mailheader .= "Return-Path: ".$from."\n";
+			$mailheader .= "Errors-To: ".$webmaster."\n";
+			$mailheader  = "MIME-Version: 1.0\n";
+			$mailheader .= "Content-Type: text/plain; charset=iso-2022-jp\n";
+			$mailheader .= "X-Mailer: PenguinOffice SendMail\n";
+			
+			// 表題の生成
+			$mailsubject  = "ｲﾍﾞﾝﾄ予定:".date("m/d");
+			$mailsubject .= "(";
+			$mailsubject .= $wname[date("w")];
+			$mailsubject .= ") ";
+			$mailsubject .= date("H:i");
+			
+			// 本文の生成
+			$user_ryaku = get_first("users","name_ryaku","id='$user_id'","");
+			$mailbody  = "登録者:$user_ryaku\n";
+			$mailbody .= "日時:";
+      if (date("Y",$from_datestamp)!=date("Y")) {
+        $mailbody .= date("Y/n/j",$from_datestamp);
+      } else {
+        $mailbody .= date("n/j",$from_datestamp);
+      }
+			if ($from_time!="") $mailbody .= " ".date("H:i",$from_timestamp);
+			if ($from_date!=$to_date || $to_time!="") $mailbody .= " 〜 ";
+			if ($from_date!=$to_date) {
+        if (date("Y",$to_datestamp)!=date("Y",$from_datestamp)) {
+          $mailbody .= date("Y/n/j",$to_datestamp);
+        } else {
+          $mailbody .= date("n/j",$to_datestamp);
+        }
+      }
+			if ($to_time!="") $mailbody .= " ".date("H:i",$to_timestamp);
+			$mailbody .= "\n";
+			$mailbody .= "ﾀｲﾄﾙ:".mail_textsafe($title)."\n";
+			$mailbody .= "------------------\n";
+			$mailbody .= mail_textsafe($note);
+			
+			// 発信者アドレスのセット
+			$sql = "SELECT * FROM users WHERE id='".$login_id."';";
+			$res = pg_query($conn, $sql);
+			if (pg_num_rows($res)>0) {
+				$row = pg_fetch_array($res,0);
+				if (trim($row["email_sub"]) != "") {
+					$mailfrom = $row["email_sub"];
+				} else {
+					$mailfrom = $row["email"];
+				}
+			}
+			
+			// 受信者アドレスのセット
+			if (sizeof($id_to_users)>0) {
+				for($i=0;$i<sizeof($id_to_users);$i++) {
+					if (!empty($id_to_users[$i])) {
+						$sql = "SELECT * FROM users WHERE id='".$id_to_users[$i]."';";
+						$res = pg_query($conn, $sql);
+						$cnt = pg_num_rows($res);
+						if ($cnt>0) {
+							$row = pg_fetch_array($res,0);
+							if (trim($row["email_sub"]) != "") {
+								$mailto = trim($row["email_sub"]);
+							} elseif(trim($row["email"]) != "") {
+								$mailto = $row["email"];
+							}
+							if ($mailto != "") {
+								// ワンタイムパースワード確認
+								$onepass = $row["onetime_passwd"];
+								if (trim($onepass)=="") {
+									$onepass = make_serial(12);
+									$sql_update = "UPDATE users SET onetime_passwd='".$onepass."' WHERE id='".$id_to_users[$i]."'";
+									$res_update = pg_query($conn,$sql_update);
+								}
+								// キャリア毎のメール準備
+								if (eregi("@docomo\.ne\.jp$",$mailaddr)) {
+									# Docomo 500字(-90字[リンク分])まで
+									$maxlen = 500-90;
+								} elseif (eregi("@jp\-.\.ne\.jp$",$mailaddr) || eregi("@..\.vodafone\.ne\.jp$",$mailaddr)) {
+									# J-SKY 384字(-90字[リンク分])まで
+									$maxlen = 384-90;
+								} elseif (eregi("@ezweb\.ne\.jp$",$mailaddr) || eregi("@.*\.ezweb\.ne\.jp$",$mailaddr) || eregi("@ez.*\.ido\.ne\.jp$",$mailaddr)) {
+									# EZWeb 2000字(-90字[リンク分])まで
+									$maxlen = 2000-90;
+								} else {
+									$maxlen = 10000;
+								}
+								$mailbody = mb_strcut($mailbody,0,$maxlen);
+								
+								$mailbody .= "\n--\n";
+								if (eregi("@docomo\.ne\.jp$",$mailto) || eregi("@jp\-.\.ne\.jp$",$mailto)  || eregi("@..\.vodafone\.ne\.jp$",$mailto) || eregi("@ezweb\.ne\.jp$",$mailto) || eregi("@.*\.ezweb\.ne\.jp$",$mailto) || eregi("@ez.*\.ido\.ne\.jp$",$mailto)) { // Docomo or J-PHONE or EZWeb
+  								$mailbody .= "ﾒﾓの確認⇒"."http://".$domain."/i/event/?sn=".$onepass."&s=".$seqno;
+								} else {
+									$mailbody .= "メモの確認⇒"."https://".$domain."/event/?mode=dlogin&sn=".$onepass."&n=".$seqno;
+								}
+								// メール送信
+								mail ($mailto,
+								mb_encode_mimeheader(euc2jis($mailsubject),"ISO-2022-JP"),
+								euc2jis($mailbody),
+								euc2jis($mailheader));
+							}
+						}
+					}
+				}
+			}
+		}
+	}
+	
+	if (sizeof($DMES)>0 or (sizeof($WMES)>0 and $errorthrou!="true")) {
+		// エラーメッセージ出力
+		include "../../header.inc.php";
+		
+		print "<TABLE WIDTH=100% HEIGHT=350 BORDER=0><TR><TD ALIGN=CENTER VALIGN=TOP>\n";
+		print "<FORM NAME=\"\" ACTION=\"./\" METHOD=\"POST\">\n";
+		if ($tit == "編集") {
+			print "<INPUT TYPE=\"HIDDEN\" NAME=\"s\" VALUE=\"".$seqno."\">\n";
+		}
+		print "<INPUT TYPE=\"HIDDEN\" NAME=\"user_id\"      VALUE=\"$user_id\">\n";
+		print "<INPUT TYPE=\"HIDDEN\" NAME=\"p\"            VALUE=\"$p\">\n";
+		print "<INPUT TYPE=\"HIDDEN\" NAME=\"target\"       VALUE=\"$target\">\n";
+		print "<INPUT TYPE=\"HIDDEN\" NAME=\"y\"            VALUE=\"$y\">\n";
+		print "<INPUT TYPE=\"HIDDEN\" NAME=\"m\"            VALUE=\"$m\">\n";
+		print "<INPUT TYPE=\"HIDDEN\" NAME=\"d\"            VALUE=\"$d\">\n";
+		print "<INPUT TYPE=\"HIDDEN\" NAME=\"from_y\"       VALUE=\"$from_y\">\n";
+		print "<INPUT TYPE=\"HIDDEN\" NAME=\"from_m\"       VALUE=\"$from_m\">\n";
+		print "<INPUT TYPE=\"HIDDEN\" NAME=\"from_d\"       VALUE=\"$from_d\">\n";
+		print "<INPUT TYPE=\"HIDDEN\" NAME=\"to_y\"         VALUE=\"$to_y\">\n";
+		print "<INPUT TYPE=\"HIDDEN\" NAME=\"to_m\"         VALUE=\"$to_m\">\n";
+		print "<INPUT TYPE=\"HIDDEN\" NAME=\"to_d\"         VALUE=\"$to_d\">\n";
+		print "<INPUT TYPE=\"HIDDEN\" NAME=\"from_hour\"    VALUE=\"$from_hour\">\n";
+		print "<INPUT TYPE=\"HIDDEN\" NAME=\"from_minuts\"  VALUE=\"$from_minuts\">\n";
+		print "<INPUT TYPE=\"HIDDEN\" NAME=\"to_hour\"      VALUE=\"$to_hour\">\n";
+		print "<INPUT TYPE=\"HIDDEN\" NAME=\"to_minuts\"    VALUE=\"$to_minuts\">\n";
+		print "<INPUT TYPE=\"HIDDEN\" NAME=\"title\"        VALUE=\"$title\">\n";
+		print "<INPUT TYPE=\"HIDDEN\" NAME=\"note\"         VALUE=\"$note\">\n";
+		print "<INPUT TYPE=\"HIDDEN\" NAME=\"disclosesign\" VALUE=\"$disclosesign\">\n";
+		print "<INPUT TYPE=\"HIDDEN\" NAME=\"tousers\"      VALUE=\"$id_to\">\n";
+		print "<INPUT TYPE=\"HIDDEN\" NAME=\"userid_to\"    VALUE=\"$id_to\">\n";
+    
+		print "<INPUT TYPE=\"HIDDEN\" NAME=\"sendmailusers\" VALUE=\"$sendmailusers\">\n";
+		
+		print "<BR>\n";
+		if (sizeof($DMES)>0) {
+			print "<FONT COLOR=#FF0000>\n";
+			while (list($key,$val)=each($DMES)) {
+				print $val."<BR>\n";
+			}
+			print "</FONT>\n";
+		}
+		if (sizeof($WMES)>0) {
+			print "<FONT COLOR=#FF0066>\n";
+			while (list($key,$val)=each($WMES)) {
+				print $val."<BR>\n";
+			}
+			print "</FONT>\n";
+		}
+		print "<BR><BR>\n";
+		print "<INPUT TYPE=SUBMIT VALUE=\"戻る\"><BR>\n";
+		print "</FORM>\n";
+		
+		if (sizeof($WMES)>0) {
+			// ワーニングメッセージ出力
+			print "<FORM ACTION=\"./add.phtml\" METHOD=\"POST\">\n";
+			if ($tit == "編集") {
+				print "<INPUT TYPE=\"HIDDEN\" NAME=\"seqno\" VALUE=\"".$seqno."\">\n";
+			}
+			print "<INPUT TYPE=\"HIDDEN\" NAME=\"errorthrou\"   VALUE=\"true\">\n";
+			print "<INPUT TYPE=\"HIDDEN\" NAME=\"p\"            VALUE=\"".$p."\">\n";
+			print "<INPUT TYPE=\"HIDDEN\" NAME=\"user_id\"      VALUE=\"".$user_id."\">\n";
+			print "<INPUT TYPE=\"HIDDEN\" NAME=\"target\"       VALUE=\"".$target."\">\n";
+			print "<INPUT TYPE=\"HIDDEN\" NAME=\"y\"            VALUE=\"".$y."\">\n";
+			print "<INPUT TYPE=\"HIDDEN\" NAME=\"m\"            VALUE=\"".$m."\">\n";
+			print "<INPUT TYPE=\"HIDDEN\" NAME=\"d\"            VALUE=\"".$d."\">\n";
+			print "<INPUT TYPE=\"HIDDEN\" NAME=\"from_y\"       VALUE=\"".$from_y."\">\n";
+			print "<INPUT TYPE=\"HIDDEN\" NAME=\"from_m\"       VALUE=\"".$from_m."\">\n";
+			print "<INPUT TYPE=\"HIDDEN\" NAME=\"from_d\"       VALUE=\"".$from_d."\">\n";
+			print "<INPUT TYPE=\"HIDDEN\" NAME=\"to_y\"         VALUE=\"".$to_y."\">\n";
+			print "<INPUT TYPE=\"HIDDEN\" NAME=\"to_m\"         VALUE=\"".$to_m."\">\n";
+			print "<INPUT TYPE=\"HIDDEN\" NAME=\"to_d\"         VALUE=\"".$to_d."\">\n";
+			print "<INPUT TYPE=\"HIDDEN\" NAME=\"from_hour\"    VALUE=\"".$from_hour."\">\n";
+			print "<INPUT TYPE=\"HIDDEN\" NAME=\"from_minuts\"  VALUE=\"".$from_minuts."\">\n";
+			print "<INPUT TYPE=\"HIDDEN\" NAME=\"to_hour\"      VALUE=\"".$to_hour."\">\n";
+			print "<INPUT TYPE=\"HIDDEN\" NAME=\"to_minuts\"    VALUE=\"".$to_minuts."\">\n";
+			print "<INPUT TYPE=\"HIDDEN\" NAME=\"title\"        VALUE=\"".$title."\">\n";
+			print "<INPUT TYPE=\"HIDDEN\" NAME=\"note\"         VALUE=\"".$note."\">\n";
+			print "<INPUT TYPE=\"HIDDEN\" NAME=\"disclosesign\" VALUE=\"".$disclosesign."\">\n";
+			print "<INPUT TYPE=\"HIDDEN\" NAME=\"tousers\"      VALUE=\"".$id_to."\">\n";
+			print "<INPUT TYPE=\"HIDDEN\" NAME=\"userid_to\"    VALUE=\"".$id_to."\">\n";
+			print "<INPUT TYPE=\"HIDDEN\" NAME=\"id_to\"        VALUE=\"".$id_to."\">\n";
+      
+  		print "<INPUT TYPE=\"HIDDEN\" NAME=\"sendmailusers\" VALUE=\"$sendmailusers\">\n";
+			
+			if (sizeof($DMES)==0) {
+				print "<INPUT TYPE=SUBMIT VALUE=\"イベントスケジュールを更新する\"><BR>\n";
+			}
+			print "</FORM>\n";
+		}
+		print "</TD></TR></TABLE>\n";
+		include "../../footer.inc.php";
+	} else {
+		// 正常処理
+		$returl = "../../schedule/";
+		if ($p=="top") {
+			$returl = "../../";
+		} elseif ($_COOKIE["sch_move"]=="daily") {
+			$returl = "../../schedule/daily.phtml";
+		} elseif ($_COOKIE["sch_move"]=="weekly") {
+			$returl = "../../schedule/";
+		} elseif ($_COOKIE["sch_move"]=="monthly") {
+			$returl = "../../schedule/monthly.phtml";
+		} elseif ($_COOKIE["sch_move"]=="yearly") {
+			$returl = "../../schedule/yearly.phtml";
+		}
+		Header("Location: ".$returl);
+	}
+}
+?>

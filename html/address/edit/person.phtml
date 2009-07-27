@@ -1,0 +1,229 @@
+<?
+  include "../../config.inc.php";
+  include "../../lib.inc.php";
+
+  $linktext  = "<A HREF=\"../../\" CLASS=\"BAR\">トップページ</A> &gt; ";
+  $linktext .= "<A HREF=\"../\" CLASS=\"BAR\">住所録</A> &gt; ";
+  $linktext .= "<FONT COLOR=#FFFF00>住所の表示</FONT>";
+
+  // ログイン情報獲得(簡易版)
+  include "../../login_check.inc.php";
+
+	if ($address_flag>1) {
+		$MES[] = "住所録内の情報を更新することはできません";
+	}
+  // 前処理
+  $person_name     = textsafe($person_name);
+  $person_kana     = mb_convert_kana(textsafe($person_kana),"CKV");
+#  $person_sex
+  $person_depa     = textsafe($person_depa);
+  $person_post     = textsafe($person_post);
+  $person_dialin   = mb_convert_kana(textsafe($person_dialin),"a");
+  $person_email    = mb_convert_kana(textsafe($person_email),"a");
+  $person_email2   = mb_convert_kana(textsafe($person_email2),"a");
+#  $person_birthday =;
+  $person_handy    = mb_convert_kana(textsafe($person_handy),"a");
+  $person_zip      = mb_convert_kana(textsafe($person_zip),"a");
+  $person_state    = textsafe($person_state);
+  $person_city     = textsafe($person_city);
+  $person_street   = textsafe($person_street);
+  $person_build    = textsafe($person_build);
+  $person_tel      = mb_convert_kana(textsafe($person_tel),"a");
+  $person_fax      = mb_convert_kana(textsafe($person_fax),"a");
+
+  if ($person_email == "@") { $person_email = ""; }
+  if ($person_email2 == "@") { $person_email2 = ""; }
+
+  // エラーチェック
+  if ($person_name == "") {
+    $MES[]="氏名が入力されていません ";
+  } else {
+    if (strlen($person_name)>80) {
+      $MES[]="氏名が長すぎます 40文字以内(半角80文字)で指定してください";
+    }
+  }
+
+  if ($person_kana != "") {
+    if (strlen($person_kana)>80) {
+      $MES[]="氏名のカナヨミが長すぎます 40文字以内(半角80文字)で指定してください";
+    }
+  }
+
+  if ($person_depa != "") {
+    if (strlen($person_depa)>120) {
+      $MES[]="所属部署が長すぎます 60文字以内(半角120文字)で指定してください";
+    }
+  }
+
+  if ($person_post != "") {
+    if (strlen($person_post)>120) {
+      $MES[]="肩書き・役職が長すぎます 60文字以内(半角120文字)で指定してください";
+    }
+  }
+
+  if ($person_dialin != "") {
+    if (strlen($person_dialin)>20) {
+      $MES[]="内線・ダイヤルインが長すぎます 20文字以内で指定してください";
+    } else {
+      if (!is_tel($person_dialin)) {
+        $MES[]="内線・ダイヤルインは半角数字とハイフン[-]で指定してください";
+      }
+    }
+  }
+
+  if ($person_email != "") {
+    if (strlen($person_email)>100) {
+      $MES[]="電子メール(通常)が長すぎます 100文字以内で指定してください";
+    } else {
+      if (!is_email($person_email)) {
+        $MES[]="電子メール(通常)の指定が正しくありません";
+      }
+    }
+  }
+
+  if ($person_email2 != "") {
+    if (strlen($person_email2)>100) {
+      $MES[]="電子メール(ケータイ)が長すぎます 100文字以内で指定してください";
+    } else {
+      if (!is_email($person_email2)) {
+        $MES[]="電子メール(ケータイ)の指定が正しくありません";
+      }
+    }
+  }
+
+  $person_birthday = "";
+  if ($person_birthday_Y>0 && $person_birthday_M>0 && $person_birthday_D>0) {
+    if (!checkdate($person_birthday_M,$person_birthday_D,$person_birthday_Y)) {
+      $MES[]="生年月日の指定が正しくありません";
+    } else {
+      $person_birthday = $person_birthday_Y."-".$person_birthday_M."-".$person_birthday_D;
+    }
+  }
+
+  if ($person_handy != "") {
+    if (strlen($person_handy)>100) {
+      $MES[]="携帯電話番号が長すぎます 100文字以内で指定してください";
+    } else {
+      if (!is_tel($person_handy)) {
+        $MES[]="携帯電話番号の指定が正しくありません";
+      }
+    }
+  }
+
+  if ($person_zip != "") {
+    if (strlen($person_zip)>8) {
+      $MES[]="郵便番号が長すぎます 8文字以内で指定してください";
+    }
+  }
+
+  if ($person_city != "") {
+    if (strlen($person_city)>100) {
+      $MES[]="住所(市区郡)が長すぎます 50文字以内(半角100文字)で指定してください";
+    }
+  }
+
+  if ($person_street != "") {
+    if (strlen($person_street)>100) {
+      $MES[]="住所(町村・番地)が長すぎます 50文字以内(半角100文字)で指定してください";
+    }
+  }
+
+  if ($person_build != "") {
+    if (strlen($person_build)>100) {
+      $MES[]="住所(ビル・マンション)が長すぎます 50文字以内(半角100文字)で指定してください";
+    }
+  }
+
+  if ($person_tel != "") {
+    if (strlen($person_tel)>80) {
+      $MES[]="電話番号が長すぎます 20文字以内で指定してください";
+    }
+  }
+
+  if ($person_fax != "") {
+    if (strlen($person_fax)>80) {
+      $MES[]="FAX番号が長すぎます 20文字以内で指定してください";
+    }
+  }
+
+  // エラー無しならDB更新
+  if (sizeof($MES)==0) {
+    $sql  = "UPDATE address SET ";
+    $sql .= "person_depa='".db_textsafe($person_depa)."',";
+    $sql .= "person_post='".db_textsafe($person_post)."',";
+    $sql .= "person_name='".db_textsafe($person_name)."',";
+    $sql .= "person_kana='".db_textsafe($person_kana)."',";
+    $sql .= "person_email='".db_textsafe($person_email)."',";
+    $sql .= "person_email2='".db_textsafe($person_email2)."',";
+    if ($person_birthday != "") {
+      $sql .= "person_birthday='".$person_birthday."',";
+    } else {
+      $sql .= "person_birthday=NULL,";
+    }
+    $sql .= "person_dialin='".db_textsafe($person_dialin)."',";
+    $sql .= "person_sex='".$person_sex."',";
+    $sql .= "person_handy='".db_textsafe($person_handy)."',";
+    $sql .= "person_zip='".db_textsafe($person_zip)."',";
+    $sql .= "person_state='".db_textsafe($person_state)."',";
+    $sql .= "person_city='".db_textsafe($person_city)."',";
+    $sql .= "person_street='".db_textsafe($person_street)."',";
+    $sql .= "person_build='".db_textsafe($person_build)."',";
+    $sql .= "person_tel='".db_textsafe($person_tel)."',";
+    $sql .= "person_fax='".db_textsafe($person_fax)."',";
+    $sql .= "updatestamp='now' ";
+    $sql .= "WHERE seqno=".$seqno;
+
+    $res = pg_query($conn,$sql);
+    if ($res==false) {
+      $MES[] = "更新に失敗しました。";
+    }
+  }
+
+  if (sizeof($MES)==0) {
+    // 正常処理
+    header("Location: ./?now_type=P&s=".$seqno);
+
+  } else {
+    // エラーメッセージ出力
+    include "../../header.inc.php"; flush();
+
+    print "<BR>";
+    print "<CENTER><FONT COLOR=#FF0000>";
+    // エラーメッセージ出力
+    while (list($key,$val)=each($MES)) {
+      print $val."<BR>\n";
+    }
+    print "</FONT>\n";
+
+    print "<FORM NAME=\"error\" ACTION=\"./\" METHOD=POST>\n";
+
+    print "<INPUT TYPE=HIDDEN name=\"s\" value=\"".$seqno."\">\n";
+    print "<INPUT TYPE=HIDDEN name=\"now_type\" value=\"P\">\n";
+
+    print "<INPUT TYPE=HIDDEN name=\"person_name\" value=\"".$person_name."\">\n";
+    print "<INPUT TYPE=HIDDEN name=\"person_kana\" value=\"".$person_kana."\">\n";
+    print "<INPUT TYPE=HIDDEN name=\"person_sex\" value=\"".$person_sex."\">\n";
+    print "<INPUT TYPE=HIDDEN name=\"person_depa\" value=\"".$person_depa."\">\n";
+    print "<INPUT TYPE=HIDDEN name=\"person_post\" value=\"".$person_post."\">\n";
+    print "<INPUT TYPE=HIDDEN name=\"person_dialin\" value=\"".$person_dialin."\">\n";
+    print "<INPUT TYPE=HIDDEN name=\"person_email\" value=\"".$person_email."\">\n";
+    print "<INPUT TYPE=HIDDEN name=\"person_email2\" value=\"".$person_email2."\">\n";
+    print "<INPUT TYPE=HIDDEN name=\"person_birthday_Y\" value=\"".$person_birthday_Y."\">\n";
+    print "<INPUT TYPE=HIDDEN name=\"person_birthday_M\" value=\"".$person_birthday_M."\">\n";
+    print "<INPUT TYPE=HIDDEN name=\"person_birthday_D\" value=\"".$person_birthday_D."\">\n";
+    print "<INPUT TYPE=HIDDEN name=\"person_handy\" value=\"".$person_handy."\">\n";
+    print "<INPUT TYPE=HIDDEN name=\"person_zip\" value=\"".$person_zip."\">\n";
+    print "<INPUT TYPE=HIDDEN name=\"person_state\" value=\"".$person_state."\">\n";
+    print "<INPUT TYPE=HIDDEN name=\"person_city\" value=\"".$person_city."\">\n";
+    print "<INPUT TYPE=HIDDEN name=\"person_street\" value=\"".$person_street."\">\n";
+    print "<INPUT TYPE=HIDDEN name=\"person_build\" value=\"".$person_build."\">\n";
+    print "<INPUT TYPE=HIDDEN name=\"person_tel\" value=\"".$person_tel."\">\n";
+    print "<INPUT TYPE=HIDDEN name=\"person_fax\" value=\"".$person_fax."\">\n";
+
+    print "<INPUT TYPE=SUBMIT value=\"戻る\" style=\"width:120px\">\n";
+    print "</FORM>\n";
+    print "</CENTER>\n";
+
+    include "../../footer.inc.php";
+  }
+?>

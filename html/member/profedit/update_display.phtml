@@ -1,0 +1,62 @@
+<?php
+  include("../../config.inc.php"); include("../../lib.inc.php");
+  include("../../login_check.inc.php");
+
+  $linktext  = "<A HREF=\"../../\" CLASS=\"BAR\">トップページ</A> &gt; ";
+  $linktext .= "<A HREF=\"../\" CLASS=\"BAR\">メンバー一覧</A> &gt; ";
+  $linktext .= "<A HREF=\"./\" CLASS=\"BAR\">プロフィール変更</A> &gt; ";
+  $linktext .= "<FONT COLOR=#FFFF00>表示変更</FONT>";
+
+  if ($login && sizeof($MES)==0) {
+    ## 変数処理
+    if (!empty($_POST["from_h"])) $from_h = $_POST["from_h"];
+    if (!empty($_POST["from_m"])) $from_m = $_POST["from_m"];
+    if (!empty($_POST["to_h"]))   $to_h   = $_POST["to_h"];
+    if (!empty($_POST["to_m"]))   $to_m   = $_POST["to_m"];
+
+    // ユーザー確認
+    $sql = "select * from users where id='".$login_id."'";
+    $res = pg_query($conn,$sql);
+    if (pg_num_rows($res)==0) {
+      $DMES[] = "ユーザー情報の確認失敗しました";
+    }
+
+    // 更新
+    if (sizeof($DMES)==0) {
+      $sql  = "UPDATE users SET ";
+      $sql .= "startmonday='".$startmonday."',";
+      $sql .= "viewsign='".$viewsign."',";
+      $sql .= "from_h='"  .$from_h  ."',";
+      $sql .= "from_m='" .$from_m ."',";
+      $sql .= "to_h='" .$to_h ."',";
+      $sql .= "to_m='" .$to_m ."'";
+      $sql .= " WHERE id='".$login_id."'";
+
+      $res = pg_query($conn, $sql);
+
+      if ($res==false || pg_affected_rows($res)==0) {
+        $DMES[] = "表示情報の更新に失敗しました";
+      }
+    }
+  }
+
+  // 表示or戻り
+  if (sizeof($DMES)>0) {
+    // エラーメッセージ出力
+    include("../../header.inc.php");
+    include("../menu.inc.php");
+    $pagetext .= "<TABLE BORDER=0 WIDTH=100%><FORM><TR><TD ALIGN=CENTER><FONT COLOR=#FF0000>";
+    $pagetext .= "<BR>";
+    while (list($key,$val)=each($DMES)) {
+      $pagetext .= $val."<BR>\n";
+    }
+    $pagetext .= "<BR>";
+    $pagetext .= "<INPUT TYPE=BUTTON VALUE=\"戻る\" ONCLICK=\"history.back()\">";
+    $pagetext .= "</TD></TR></FORM></TABLE>\n";
+    include("../../detail.inc.php");
+    include("../../footer.inc.php");
+  } else {
+    // 正常時
+    header("Location: ./display.phtml");
+  }
+?>

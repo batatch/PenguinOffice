@@ -1,0 +1,83 @@
+<?php
+  include "../../config.inc.php";
+  include "../../lib.inc.php";
+
+  // リンク用テキストの設定
+  $linktext  = "<A HREF=\"../../\" ALT=\"トップページ\" CLASS=\"BAR\">トップページ</A> &gt; ";
+  $linktext .= "<A HREF=\"../\" ALT=\"管理者メニュー\" CLASS=\"BAR\">管理者メニュー</A> &gt; ";
+  $linktext .= "<FONT COLOR=#FFFF00>行き先名称設定</FONT> ";
+
+  // ヘッダ表示
+  include "../../header.inc.php";
+
+  // 機能別メニュー内容の取得
+  include "../menu.inc.php";
+
+  $pagetext = "";
+
+  if ($login && $admin_sign=="t") {
+    if (!empty($_REQUEST["p"]))      $p     = $_REQUEST["p"];
+    if (!empty($_REQUEST["seqno"]))  $seqno = $_REQUEST["seqno"];
+    if (!empty($_REQUEST["id"]))     $id    = $_REQUEST["id"];
+
+    // 削除対象の確認
+    $sql = "SELECT * FROM locations WHERE seqno=".$seqno." AND id=".$id;
+    $res = pg_query($conn,$sql);
+    $cnt = pg_num_rows($res);
+    if ($cnt>0) {
+      $row = pg_fetch_array($res, 0);  
+    } else {
+      $DMES[] = "項目の確認に失敗しました";
+    }
+
+    if (sizeof($DMES)==0) {
+      // 削除処理
+      $sql = "DELETE FROM locations WHERE seqno=".$seqno." AND id='".db_textsafe($id)."'";
+      $res = pg_query($conn, $sql);
+      if ($res==false) {
+        $DMES[] = "項目の削除に失敗しました";
+      }
+    }
+
+    // エラー処理
+    if (sizeof($DMES)>0) {
+      $pagetext .= "<BR><CENTER>";
+      $pagetext .= "<TABLE>";
+      $pagetext .= "<FORM ACTION=\"./edit.phtml\" METHOD=POST>\n";
+      $pagetext .= "<TR><TD>";
+
+      $pagetext .= "<FONT COLOR=#FF0000>";
+      for ($i=0;$i<sizeof($DMES);$i++){
+        $pagetext .= $DMES[$i]."<BR>";
+      }
+
+      $pagetext .= "</TD></TR></TABLE>";
+      $pagetext .= "<BR>";
+      $pagetext .= "<INPUT TYPE=BUTTON VALUE=\"戻る\" ONCLICK=\"history.back()\" STYLE=\"whidth:80px\">\n";
+      $pagetext .= "</FORM>";
+      $pagetext .= "</CENTER>\n";
+
+    } else {
+      // 正常終了時
+      $pagetext .= "
+<BR>
+<CENTER>
+削除完了<BR>
+<BR>
+<A HREF=\"#\" ONCLICK=\"location.replace('./?p=$p');location.href='./?p=$p';\">≪一覧へ戻る≫</A>
+</CENTER>
+<BR>
+  <SCRIPT LANGUAGE=\"JavaScript\">
+<!--
+setTimeout(\"location.replace('./?p=$p');location.href='./?p=$p';\", 3000);
+//-->
+</SCRIPT>
+";
+    }
+  }
+
+  include "../../detail.inc.php";
+
+  // フッタ表示
+  include "../../footer.inc.php";
+?>

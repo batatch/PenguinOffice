@@ -1,0 +1,79 @@
+<?
+  include ("../../config.inc.php");
+  include ("../../lib.inc.php");
+  include ("../../language.inc.php");
+
+  $linktext  = "<A HREF=\"../../\" CLASS=\"BAR\">トップページ</A> &gt; ";
+  $linktext .= "<A HREF=\"../\" CLASS=\"BAR\">住所録</A> &gt; ";
+  $linktext .= "<FONT COLOR=#FFFF00>フリーワード検索</FONT>";
+  include "../../header.inc.php";
+  flush();
+
+  // エラーチェック
+  if ($login == false) {
+    $MES[] = "先に、ログインしてください ⇒ <A HREF=\"$toppath/\">ログインページへ</A>";
+  } else {
+    if (trim($login_id) == "") {
+      $MES[] = "ユーザーＩＤが正しくありません";
+    } else {
+      $sql = "select * from users where id='".$login_id."'";
+      print "<!--";
+      $res = pg_query($conn, $sql);
+
+      if (pg_num_rows($res)<1) {
+        $MES[] = "ユーザーＩＤが正しくありません";
+      } else {
+        $row = pg_fetch_array($res,0);
+      }
+      print "-->\n";
+    }
+  }
+
+  if (sizeof($MES) > 0) {
+    // エラー時
+    print "<TABLE BORDER=0 WIDTH=100%><TR><TD ALIGN=CENTER>\n";
+    print "<TABLE BORDER=0 HEIGHT=260>\n";
+    // エラーメッセージ出力
+    while (list($key,$val)=each($MES)) {
+      print "<TR><TD><FONT COLOR=#FF0000><B>".$val."</B></FONT></TD></TR>\n";
+    }
+    print "</TABLE>\n";
+    print "<INPUT TYPE=BUTTON VALUE=\"閉じる\" onClick=\"window.close()\" tabindex=999>\n";
+    print "</TD></TR></TABLE>\n";
+
+    include "../../footer.inc.php";
+    exit;
+  }
+
+  $kwd = urldecode($kwd);
+?>
+<BR>
+
+<CENTER><TABLE HEIGHT=445>
+
+<TR HEIGHT=21><TD VALIGN=TOP ALIGN=RIGHT>
+<TABLE CELLPADDING=4><TR><TD>
+項目別に検索したい場合は <A HREF="./index2.phtml">項目別検索</A> へ
+</TD></TR></TABLE>
+</TD></TR>
+
+<TR><TD VALIGN=TOP ALIGN=CENTER>
+
+<TABLE BORDER=0>
+<FORM ACTION="./search.phtml" METHOD=POST>
+<TR><TD VALIGN=TOP ALIGN=CENTER>
+
+<TR><TD VALIGN=TOP>氏名や会社名、住所などの一部をを入力して検索することができます</TD></TR>
+<TR><TD VALIGN=TOP ALIGN=CENTER>
+<INPUT TYPE=TEXT NAME="kwd" VALUE="<? echo $kwd ?>" SIZE=46 style="ime-mode:active;width:340px">
+</TD></TR></TABLE>
+<FONT COLOR=#555555 STYLE="font-size:7pt">複数指定はスペースで区切ってください</FONT><BR>
+<BR>
+<INPUT TYPE=SUBMIT VALUE="検索" style="width:100px">
+</FORM>
+
+</TD></TR></TABLE>
+</CENTER>
+<?
+  include "../../footer.inc.php";
+?>

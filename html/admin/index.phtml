@@ -1,0 +1,95 @@
+<?php
+  include "../config.inc.php";
+  include "../lib.inc.php";
+
+  $linktext  = "<A HREF=\"../\" CLASS=\"BAR\">トップページ</A> &gt; ";
+  $linktext .= "<FONT COLOR=#FFFF00>管理者メニュー<//FONT>";
+
+  include "../header.inc.php";
+  include "./menu.inc.php";
+
+  if (!$login) {
+    $MES[] = "先にログインしてください";
+  } elseif ($admin_sign!="t") {
+    $MES[] = "本機能は管理者のみご利用可能です";
+  } elseif ($login && $admin_sign=="t") {
+
+  $pagetext .= "
+<TABLE BORDER=0 CELLPADDING=0 CELLSPACING=5 WIDTH=100%>
+<TR><TH ALIGN=CENTER>データ登録状況</TH></TR>
+<TR><TD ALIGN=CENTER>
+
+<TABLE BORDER=0 CELLPADDING=4 CELLSPACING=1 BGCOLOR=#666666>
+
+<TR BGCOLOR=$td_back_left><TH ALIGN=RIGHT WIDTH=170>グループ データ</TH>
+<TD ALIGN=RIGHT BGCOLOR=$td_back WIDTH=100>".(number_format(get_count("groups","")))."件</TD></TR>
+<TR BGCOLOR=$td_back_left><TH ALIGN=RIGHT WIDTH=170>ユーザー データ</TH>
+<TD ALIGN=RIGHT BGCOLOR=$td_back WIDTH=100>".(number_format(get_count("users","")))."件</TD></TR>";
+
+		if (file_exists($basepath.$toppath."/event")) {
+			$pagetext .= "<TR BGCOLOR=$td_back_left><TH ALIGN=RIGHT WIDTH=170>イベント データ</TH><TD ALIGN=RIGHT BGCOLOR=$td_back WIDTH=100>".(number_format(get_count("events","")))."件</TD></TR>";
+		}
+		if (file_exists($basepath.$toppath."/schedule")) {
+			$pagetext .= "<TR BGCOLOR=$td_back_left><TH ALIGN=RIGHT WIDTH=170>スケジュール データ</TH><TD ALIGN=RIGHT BGCOLOR=$td_back WIDTH=100>".(number_format(get_count("schedules","")))."件</TD></TR>";
+		}
+		if (file_exists($basepath.$toppath."/room")) {
+			$pagetext .= "<TR BGCOLOR=$td_back_left><TH ALIGN=RIGHT WIDTH=170>施設 データ</TH><TD ALIGN=RIGHT BGCOLOR=$td_back WIDTH=100>".(number_format(get_count("rooms","")))."件</TD></TR>";
+			$pagetext .= "<TR BGCOLOR=$td_back_left><TH ALIGN=RIGHT WIDTH=170>施設予約 データ</TH><TD ALIGN=RIGHT BGCOLOR=$td_back WIDTH=100>".(number_format(get_count("rooms_reserve","")))."件</TD></TR>";
+		}
+		if (file_exists($basepath.$toppath."/bulletin")) {
+			$pagetext .= "<TR BGCOLOR=$td_back_left><TH ALIGN=RIGHT WIDTH=170>BBS データ</TH><TD ALIGN=RIGHT BGCOLOR=$td_back WIDTH=100>".(number_format(get_count("boards","")))."件</TD></TR>";
+			$pagetext .= "<TR BGCOLOR=$td_back_left><TH ALIGN=RIGHT WIDTH=170>BBS投稿 データ</TH><TD ALIGN=RIGHT BGCOLOR=$td_back WIDTH=100>".(number_format(get_count("boards_post","")))."件</TD></TR>";
+		}
+		if (file_exists($basepath.$toppath."/mail")) {
+			$pagetext .= "<TR BGCOLOR=$td_back_left><TH ALIGN=RIGHT WIDTH=170>伝言メモ データ</TH><TD ALIGN=RIGHT BGCOLOR=$td_back WIDTH=100>".(number_format(get_count("mail","")))."件</TD></TR>";
+		}
+		if (file_exists($basepath.$toppath."/todo")) {
+			$pagetext .= "<TR BGCOLOR=$td_back_left><TH ALIGN=RIGHT WIDTH=170>備忘録 データ</TH><TD ALIGN=RIGHT BGCOLOR=$td_back WIDTH=100>".(number_format(get_count("todos","")))."件</TD></TR>";
+		}
+		if (file_exists($basepath.$toppath."/circular")) {
+			$pagetext .= "<TR BGCOLOR=$td_back_left><TH ALIGN=RIGHT WIDTH=170>回覧板 データ</TH><TD ALIGN=RIGHT BGCOLOR=$td_back WIDTH=100>".(number_format(get_count("circulas","")))."件</TD></TR>";
+			$pagetext .= "<TR BGCOLOR=$td_back_left><TH ALIGN=RIGHT WIDTH=170>回覧板(回答) データ</TH><TD ALIGN=RIGHT BGCOLOR=$td_back WIDTH=100>".(number_format(get_count("circulas_ret","")))."件</TD></TR>";
+		}
+		if (file_exists($basepath.$toppath."/workflow")) {
+			$pagetext .= "<TR BGCOLOR=$td_back_left><TH ALIGN=RIGHT WIDTH=170>ワークフロー データ</TH><TD ALIGN=RIGHT BGCOLOR=$td_back WIDTH=100>".(number_format(get_count("workflow","")))."件</TD></TR>";
+			$pagetext .= "<TR BGCOLOR=$td_back_left><TH ALIGN=RIGHT WIDTH=170>ワークフロー(承認) データ</TH><TD ALIGN=RIGHT BGCOLOR=$td_back WIDTH=100>".(number_format(get_count("workflow_ret","")))."件</TD></TR>";
+		}
+		if (file_exists($basepath.$toppath."/folder")) {
+			$pagetext .= "<TR BGCOLOR=$td_back_left><TH ALIGN=RIGHT WIDTH=170>共用フォルダ データ</TH><TD ALIGN=RIGHT BGCOLOR=$td_back WIDTH=100>";
+			$ret = exec('/usr/bin/du -b '.$folderpath.'*',$res);
+			$size = 0;
+			while(list($rowno,$rowtext)=each($res)) {
+				$cols = split("\t",$rowtext);
+				$size += $cols[0];
+			}
+			if ($size>1024*1024) {
+				$pagetext .= number_format(ceil($size/1024/1024))."MB";
+			} else {
+				$pagetext .= number_format(ceil($size/1024))."KB";
+			}
+			
+			$pagetext .= "</TD></TR>";
+		}
+		if (file_exists($basepath.$toppath."/address")) {
+			$pagetext .= "<TR BGCOLOR=$td_back_left><TH ALIGN=RIGHT WIDTH=170>住所録 データ</TH><TD ALIGN=RIGHT BGCOLOR=$td_back WIDTH=100>".(number_format(get_count("address","")))."件</TD></TR>";
+		}
+		if (file_exists($basepath.$toppath."/link")) {
+			$pagetext .= "<TR BGCOLOR=$td_back_left><TH ALIGN=RIGHT WIDTH=170>リンク集 データ</TH><TD ALIGN=RIGHT BGCOLOR=$td_back WIDTH=100>".(number_format(get_count("links","")))."件</TD></TR>";
+		}
+		$pagetext .= "</TABLE>
+</TD></TR></TABLE>
+</DIV>
+";
+  }
+
+  if (sizeof($MES)>0) {
+    print "<CENTER><BR><FONT COLOR=#FF0000>\n";
+    while(list($key,$val)=each($MES)) {
+      print $val."<BR>\n";
+    }
+  }
+
+  include ("../detail.inc.php");
+
+  include ("../footer.inc.php");
+?>

@@ -1,0 +1,58 @@
+<?php
+  include "../../../config.inc.php";
+  include "../../../lib.inc.php";
+
+  $linktext  = "<A HREF=\"../../../\" CLASS=\"BAR\">トップページ</A> &gt; ";
+  $linktext .= "<A HREF=\"../../\" CLASS=\"BAR\">管理者メニュー</A> &gt; ";
+  $linktext .= "<A HREF=\"../?p=$p\" CLASS=\"BAR\">ユーザー設定</A> &gt; ";
+  $linktext .= "<FONT COLOR=#FFFF00>携帯情報の消去</FONT> ";
+
+  include "../../../header.inc.php";
+  flush();
+
+  // エラーチェック
+  if ($login) {
+    // 更新
+    $sql  = "UPDATE users SET ";
+    $sql .= "utn ='' ";
+    $sql .= "WHERE id='$id' AND seqno=$seqno";
+
+    $res = pg_query($conn, $sql);
+    $cnt = pg_affected_rows($res);
+    if ($cnt==0) {
+      $DMES[] = "携帯情報の消去に失敗しました";
+    }
+
+    if (sizeof($DMES)>0) {
+      // エラー時
+      $pagetext .= "<TABLE WIDTH=100%>\n";
+      $pagetext .= "<FORM ACTION=\"../edit.phtml\" METHOD=POST>\n";
+      $pagetext .= "<INPUT TYPE=HIDDEN NAME=\"p\" value=\"".$p."\">\n";
+      $pagetext .= "<INPUT TYPE=HIDDEN NAME=\"id\" value=\"".$id."\">\n";
+      $pagetext .= "<INPUT TYPE=HIDDEN NAME=\"seqno\" value=\"".$seqno."\">\n";
+      $pagetext .= "<TR>\n";
+      $pagetext .= "<TD ALIGN=CENTER><FONT COLOR=#FF0000>";
+      for ($i=0;$i<sizeof($DMES);$i++){
+        $pagetext .= $DMES[$i]."<BR>\n";
+      }
+      $pagetext .= "</FONT><BR>";
+      $pagetext .= "<INPUT TYPE=submit VALUE=\"戻る\">\n";
+      $pagetext .= "</FORM>\n";
+      $pagetext .= "</TD></TR></FORM></TABLE>\n";
+    } else {
+      // 正常時
+      $returl = "../edit.phtml?p=$p&id=$id&seqno=$seqno";
+      $pagetext .= "<CENTER><BR>消去完了<BR><BR>\n";
+      $pagetext .= "<A HREF=\"#\" ONCLICK=\"location.replace('$returl');location.href='$returl';\">≪一覧へ戻る≫</A>\n";
+      $pagetext .= "</CENTER><BR>\n";
+      $pagetext .= "<SCRIPT LANGUAGE=\"JavaScript\">\n";
+      $pagetext .= "<!--\n";
+      $pagetext .= "  setTimeout(\"location.replace('$returl');location.href='$returl';\", 1500);\n";
+      $pagetext .= "//-->\n";
+      $pagetext .= "</SCRIPT>\n";
+    }
+  }
+
+  include ("../../../detail.inc.php");
+  include ("../../../footer.inc.php");
+?>

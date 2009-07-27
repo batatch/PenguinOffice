@@ -1,0 +1,145 @@
+<?php
+  include "../../config.inc.php";
+  include "../../lib.inc.php";
+
+  // リンク用テキストの設定
+  $linktext  = "<A HREF=\"../../\" CLASS=\"BAR\">トップページ</A> &gt; ";
+  $linktext .= "<A HREF=\"../\" CLASS=\"BAR\">管理者メニュー</A> &gt; ";
+  $linktext .= "<FONT COLOR=#FFFF00>休日設定</FONT> ";
+
+  // ヘッダ表示
+  include "../../header.inc.php";
+
+  // 機能別メニュー内容の取得
+  include "../menu.inc.php";
+
+  $pagetext = "";
+
+  if ($login && $admin_sign=="t") {
+    echo "<!--";
+
+    // 変数処理
+    if (!empty($_POST["p"]))         $p         = $_POST["p"];
+    if (!empty($_POST["updmode"]))   $updmode   = $_POST["updmode"];
+    if (!empty($_POST["holiday_y"])) $holiday_y = $_POST["holiday_y"];
+    if (!empty($_POST["holiday_m"])) $holiday_m = $_POST["holiday_m"];
+    if (!empty($_POST["holiday_d"])) $holiday_d = $_POST["holiday_d"];
+    if (!empty($_POST["name"]))      $value     = $_POST["name"];
+
+    // 事前整形
+    $name = textsafe($name);
+
+    // エラーチェック
+    if($holiday_y==""){
+      $DMES[] = "休日の年が指定されていません";
+    } elseif(!is_numeric($holiday_y)){
+      $DMES[] = "休日の年が正しくありません";
+    }
+    if($holiday_m==""){
+      $DMES[] = "休日の月が指定されていません";
+    } elseif(!is_numeric($holiday_m)){
+      $DMES[] = "休日の月が正しくありません";
+    }
+    if($holiday_d==""){
+      $DMES[] = "休日の日が指定されていません";
+    } elseif(!is_numeric($holiday_d)){
+      $DMES[] = "休日の日が正しくありません";
+    }
+    if (sizeof($DMES)==0) {
+      if (checkdate($holiday_m,$holiday_d,$holiday_y)==false) {
+        $DMES[] = "休日の指定が正しくありません";
+      } else {
+        $holiday = $holiday_y."-".$holiday_m."-".$holiday_d;
+      }
+    }
+
+    if($name==""){
+      $DMES[] = "名称が入力されていません";
+    } elseif(strlen($name)==20){
+      $DMES[] = "名称が長すぎます(20文字まで)";
+      $name = mb_strcut($name,0,20);
+    }
+
+    // 変更時処理/重複チェック
+    if (sizeof($DMES)==0) {
+      $cnt = get_first("holiday","holiday","holiday='$holiday'",0);
+      if ($_POST["updmode"]=="add" && $cnt>0) {
+        $DMES[] = "既に休日登録されている日です";
+      } elseif($_POST["updmode"]!="add" && $cnt==0) {
+        $DMES[] = "登録情報の確認に失敗しました";
+      }
+    }
+  
+    if (sizeof($DMES)==0) {
+      if ($_POST["updmode"]=="edit") {
+        $sql  = "UPDATE holiday SET ";
+        $sql .= "holiday ='".$holiday."',";
+        $sql .= "name ='".db_textsafe($name)."' ";
+        $sql .= " WHERE holiday='".$holiday."'";
+
+        // SQL実行
+        $res = pg_exec($conn, $sql);
+        if ($res==false) {
+          $DMES[] = "項目の更新に失敗しました";
+        }
+      } else {
+        // 追加
+        $sql  = "INSERT INTO holiday (holiday, name) VALUES (";
+        $sql .= "'".$holiday."',";
+        $sql .= "'".db_textsafe($name)."'";
+        $sql .= ")";
+
+        // SQL実行
+        $res = pg_query($conn, $sql);
+        if ($res == false) {
+          $DMES[] = "項目の追加に失敗しました";
+        }
+      }
+    }
+
+    // エラー処理
+    if (sizeof($DMES)>0) {
+      $pagetext .= "<BR><CENTER>";
+      $pagetext .= "<TABLE>";
+      $pagetext .= "<FORM ACTION=\"./edit.phtml\" METHOD=POST>\n";
+      $pagetext .= "<INPUT TYPE=HIDDEN NAME=\"back\" VALUE=\"t\">\n";
+      $pagetext .= "<INPUT TYPE=HIDDEN NAME=\"updmode\" VALUE=\"$updmode\">\n";
+      $pagetext .= "<INPUT TYPE=HIDDEN NAME=\"p\" VALUE=\"$p\">\n";
+      $pagetext .= "<INPUT TYPE=HIDDEN NAME=\"holiday\" VALUE=\"$holiday\">\n";
+      $pagetext .= "<INPUT TYPE=HIDDEN NAME=\"name\" VALUE=\"$name\">\n";
+
+      $pagetext .= "<TR><TD>";
+      $pagetext .= "<FONT COLOR=#FF0000>";
+      for ($i=0;$i<sizeof($DMES);$i++){
+        $pagetext .= $DMES[$i]."<BR>";
+      }
+      $pagetext .= "</TD></TR>";
+      $pagetext .= "</TABLE>";
+      $pagetext .= "<BR>";
+      $pagetext .= "<INPUT TYPE=SUBMIT VALUE=\"戻る\" STYLE=\"width:80px\">\n";
+      $pagetext .= "</FORM>";
+      $pagetext .= "</CENTER>\n";
+
+    } else {
+      // 正常終了時
+      $pagetext .= "
+<BR>
+<CENTER>
+更新完了<BR>
+<BR>
+<A HREF=\"#\" ONCLICK=\"location.replace('./?p=$p');location.href='./?p=$p';\">≪一覧へ戻る≫</A>
+</CENTER>
+<BR>
+  <SCRIPT LANGUAGE=\"JavaScript\">
+<!--
+setTimeout(\"location.replace('./?p=$p');location.href='./?p=$p';\", 3000);
+//-->
+</SCRIPT>
+";
+    }
+    echo "-->";
+  }
+
+  include "../../detail.inc.php";
+  include "../../footer.inc.php";
+?>

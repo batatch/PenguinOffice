@@ -1,0 +1,259 @@
+<?
+include "../../config.inc.php"; include "../../lib.inc.php";
+include "../../language.inc.php";
+
+$linktext  = "<A HREF=\"../../\" CLASS=\"BAR\">トップページ</A> &gt; ";
+$linktext .= "<A HREF=\"../\" CLASS=\"BAR\">予定表</A> &gt; ";
+$linktext .= "<FONT COLOR=#FFFF00>連続予定の登録</FONT>";
+
+include "../../login_check.inc.php";
+
+if ($login && sizeof($MES)==0) {
+	$note = textsafe(stripslashes($note));
+	
+	if ($id_to != "") {
+		$id_to_users = split(",",$id_to);
+	}
+	// ユーザー補足情報獲得(未指定時時刻計算用)
+	$sql = "select from_h,from_m,to_h,to_m from users where id = '".$login_id."'";
+	$res = pg_query($conn,$sql);
+	$row = pg_fetch_array($res,0);
+	
+	if ($row["from_h"]<>"" and $row["from_h"]<>-1){
+		$calc_from_hour   = $row["from_h"];
+		$calc_from_minuts = $row["from_m"];
+	} else {
+		$calc_from_hour   = 9;
+		$calc_from_minuts = 0;
+	}
+	
+	if ($row["to_h"]<>"" and $row["to_h"]<>-1){
+		$calc_to_hour   = $row["to_h"];;
+		$calc_to_minuts = $row["to_m"];
+	} else {
+		$calc_to_hour     = 17;
+		$calc_to_minuts   = 0;
+	}
+	
+	// 新規登録：スケジュール
+	for ($i=1;$i<=$count;$i++) {
+		$update_y = ${("ey".$i)};
+		$update_m = ${("em".$i)};
+		$update_d = ${("ed".$i)};
+		$update_date = date2timestamp($update_y."/".$update_m."/".$update_d." 00:00:00");
+		
+		$from_timestamp = datetime2timestamp(date("Y-m-d",$update_date)." ".${("from_hour".$i)}.":".${("from_minuts".$i)}.":00");
+		$to_timestamp   = datetime2timestamp(date("Y-m-d",$update_date)." ".${("to_hour".$i)}.":".${("to_minuts".$i)}.":00");
+		
+		// 更新用 日時生成
+		if (${("from_hour".$i)} != "" && ${("from_hour".$i)} >=0) {
+			$from_time = date("Y-m-d H:i:s",$from_timestamp);
+		} else {
+			$from_time = "";
+		}
+		if (${("to_hour".$i)} != "" && ${("to_hour".$i)} >=0) {
+			$to_time = date("Y-m-d H:i:s",$to_timestamp);
+		} else {
+			$to_time = "";
+		}
+		
+		$seqno = get_last("schedules","seqno","",0)+1; // seqno採番
+		
+		$sql  = "INSERT INTO schedules (";
+		$sql .= "seqno,user_id,update_user_id,datefrom,dateto,timefrom,timeto,kind,note,opensign,viewsign,shareflag,sharelist,createstamp,updatestamp";
+		$sql .= " ) VALUES (";
+		$sql .= "'".$seqno."',";
+		$sql .= "'".$user_id."',";
+		$sql .= "'".$login_id."',";
+		$sql .= "'".date("Y-m-d",$update_date)."',";
+		$sql .= "'".date("Y-m-d",$update_date)."',";
+		if ($from_time != "") {
+			$sql .= "'".$from_time."',";
+		} else {
+			$sql .= "null,";
+		}
+		if ($to_time != "") {
+			$sql .= "'".$to_time."',";
+		} else {
+			$sql .= "null,";
+		}
+		$sql .= "'".$kind."',";
+		$sql .= "'".db_textsafe($note)."',";
+		if (sizeof($id_to_users)>0) {
+			$sql .= "'t',";
+		} else {
+			$sql .= "'".$opensign."',";
+		}
+		$sql .= "'".$viewsign."',";
+		if (sizeof($id_to_users)>0) {
+			$sql .= "1,";
+		} else {
+			$sql .= "0,";
+		}
+		if (sizeof($id_to_users)>0) {
+			$sql .= "'".$id_to."',";
+		} else {
+			$sql .= "'',";
+		}
+		$sql .= "'now','now'";
+		$sql .= ")";
+		
+		$res = pg_query($conn,$sql);
+		if ($res != false) {
+			$cnt = pg_affected_rows($res);
+		} else {
+			$cnt = 0;
+		}
+		if ($cnt==0) {
+			$DMES[] = "登録に失敗しました";
+		} else {
+			$org_seqno = $seqno;
+		}
+		// 新規登録：他メンバー
+		if (sizeof($id_to_users)> 0) {
+			for($j=0;$j<sizeof($id_to_users);$j++) {
+				if ($id_to_users[$j]<>$login_id) { //自身は除外
+				
+				$seqno = get_last("schedules","seqno","",0)+1; // seqno採番
+				$sql  = "INSERT INTO schedules (";
+				$sql .= "seqno,ref_seqno,user_id,update_user_id,datefrom,dateto,timefrom,timeto,kind,note,opensign,viewsign,create_user_id,shareflag,sharelist,createstamp,updatestamp";
+				$sql .= " ) VALUES (";
+				$sql .= "'".$seqno."',";
+				$sql .= "'".$org_seqno."',";
+				$sql .= "'".$id_to_users[$j]."',";
+				$sql .= "'".$login_id."',";
+				$sql .= "'".date("Y-m-d",$update_date)."',";
+				$sql .= "'".date("Y-m-d",$update_date)."',";
+				if ($from_time != "") {
+					$sql .= "'".$from_time."',";
+				} else {
+					$sql .= "null,";
+				}
+				if ($to_time != "") {
+					$sql .= "'".$to_time."',";
+				} else {
+					$sql .= "null,";
+				}
+				$sql .= "'".$kind."',";
+				$sql .= "'".db_textsafe($note)."',";
+				$sql .= "'t',";
+				$sql .= "'".$viewsign."',";
+				$sql .= "'".$login_id."',";
+				$sql .= "0,";
+				$sql .= "'',";
+				$sql .= "'now','now'";
+				$sql .= ")";
+				
+				$res = pg_query($conn,$sql);
+				if ($res != false) {
+					$cnt = pg_affected_rows($res);
+				} else {
+					$cnt = 0;
+				}
+				if ($cnt==0) $MES[] = "登録に失敗しました。";
+				}
+			}
+		}
+		// 施設予約
+		if (trim($room_id) != "") {
+			// 新規登録：施設
+			$reserve_seqno = get_last("rooms_reserve","seqno","",0)+1; // seqno採番
+			
+			$sql  = "INSERT INTO rooms_reserve (";
+			$sql .= "seqno,schedule_seqno,room_id,user_id,update_user_id,date,timefrom,timeto,note,member_count,createstamp,updatestamp";
+			$sql .= " ) VALUES (";
+			$sql .= $reserve_seqno.",";
+			$sql .= $org_seqno.",";
+			$sql .= "'".$room_id."',";
+			$sql .= "'".$user_id."',";
+			$sql .= "'".$login_id."',";
+			$sql .= "'".date("Y-m-d",$update_date)."',";
+			if ($from_time != "") {
+				$sql .= "'".$from_time."',";
+			} else {
+				$sql .= "null,";
+			}
+			if ($to_time != "") {
+				$sql .= "'".$to_time."',";
+			} else {
+				$sql .= "null,";
+			}
+			$sql .= "'".db_textsafe($note)."',";
+			$sql .= $member_count.",";
+			$sql .= "'now','now'";
+			$sql .= ")";
+			
+			$res = pg_query($conn,$sql);
+		}
+	}
+	
+	if (sizeof($MES)>0) {
+		// エラーメッセージ出力
+		include "../../login_check.inc.php";
+		
+		print "<BR><TABLE WIDTH=100% HEIGHT=445 CELLPADDING=0 CELLSPACING=0><TR><TD ALIGN=CENTER VALIGN=TOP>";
+		print "<TABLE WIDTH=100% HEIGHT=260><TR><TD ALIGN=CENTER>\n";
+		
+		print "<TABLE>";
+		print "<FORM NAME=\"\" ACTION=\"./\" METHOD=POST>";
+		print "<TR><TD ALIGN=CENTER>";
+		
+		print "<INPUT TYPE=HIDDEN NAME=\"user_id\" VALUE=\"".$user_id."\">\n";
+		
+		print "<INPUT TYPE=HIDDEN NAME=\"ey\" VALUE=\"".$ey."\">";
+		print "<INPUT TYPE=HIDDEN NAME=\"em\" VALUE=\"".$em."\">";
+		print "<INPUT TYPE=HIDDEN NAME=\"ed\" VALUE=\"".$ed."\">\n";
+		
+		print "<INPUT TYPE=HIDDEN NAME=\"pattern\" VALUE=\"".$pattern."\">\n";
+		print "<INPUT TYPE=HIDDEN NAME=\"count\" VALUE=\"".$count."\">\n";
+		
+		print "<INPUT TYPE=HIDDEN NAME=\"from_hour\" VALUE=\"".$from_hour."\">";
+		print "<INPUT TYPE=HIDDEN NAME=\"from_minuts\" VALUE=\"".$from_minuts."\">";
+		print "<INPUT TYPE=HIDDEN NAME=\"to_hour\" VALUE=\"".$to_hour."\">\n";
+		print "<INPUT TYPE=HIDDEN NAME=\"to_minuts\" VALUE=\"".$to_minuts."\">\n";
+		
+		print "<INPUT TYPE=HIDDEN NAME=\"kind\" VALUE=\"".$kind."\">\n";
+		print "<INPUT TYPE=HIDDEN NAME=\"note\" VALUE=\"".$note."\">\n";
+		print "<INPUT TYPE=HIDDEN NAME=\"opensign\" VALUE=\"".$opensign."\">\n";
+		print "<INPUT TYPE=HIDDEN NAME=\"viewsign\" VALUE=\"".$viewsign."\">\n";
+		
+		print "<INPUT TYPE=HIDDEN NAME=\"userid_to\" VALUE=\"".$id_to."\">\n";
+		
+		print "<INPUT TYPE=HIDDEN NAME=\"room_id\" VALUE=\"".$room_id."\">\n";
+		print "<INPUT TYPE=HIDDEN NAME=\"member_count\" VALUE=\"".$member_count."\">\n";
+		
+		print "<TR><TD ALIGN=CENTER>";
+		print "<BR>";
+		
+		if (sizeof($MES)>0) {
+			while (list($key,$val)=each($MES)) {
+				print "<font color=#FF0000><b>".$val."</b></font><br>\n";
+			}
+		}
+		
+		print "<br>\n";
+		print "<input TYPE=submit VALUE=\"戻る\"><br>\n";
+		print "</td></tr></FORM></table>\n";
+		
+		print "</td></tr></table>";
+		print "</td></tr></table>";
+		
+		include "../../footer.inc.php";
+	} else {
+		// 正常処理
+		$returl = "../";
+		if ($p=="top") {
+			$returl = "../../";
+		} elseif ($_COOKIE["sch_move"]=="daily") {
+			$returl = "../daily.phtml";
+		} elseif ($_COOKIE["sch_move"]=="weekly") {
+			$returl = "../";
+		} elseif ($_COOKIE["sch_move"]=="monthly") {
+			$returl = "../monthly.phtml";
+		} elseif ($_COOKIE["sch_move"]=="yearly") {
+			$returl = "../yearly.phtml";
+		}
+		Header("Location: ".$returl);
+	}
+}
+?>

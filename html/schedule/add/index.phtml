@@ -1,0 +1,1197 @@
+<?php
+include "../../config.inc.php"; include "../../lib.inc.php";
+include "../../language.inc.php";
+
+$linktext  = "<A HREF=\"../../\" CLASS=\"BAR\">トップページ</A> &gt; ";
+$linktext .= "<A HREF=\"../\" CLASS=\"BAR\">予定表</A> &gt; ";
+if (empty($seqno)) {
+	$linktext .= "<FONT COLOR=#FFFF00>予定の登録</FONT>";
+} else {
+	$linktext .= "<FONT COLOR=#FFFF00>予定の更新</FONT>";
+}
+include "../../header.inc.php"; flush();
+
+if ($login && sizeof($MES)==0) {
+	// ユーザー情報取得
+	$sql = "SELECT * FROM users WHERE id='$login_id'";
+	print "<!--";
+	$res = pg_query($conn, $sql);
+	if (pg_num_rows($res)<1) {
+		$MES[] = "ユーザーIDが正しくありません";
+	} else {
+		$row = pg_fetch_array($res,0);
+		$user_viewsign  = $row["viewsign"];
+		$user_email_sub = $row["email_sub"];
+		$user_eventsign = $row["eventsign"];
+		$sql_secret = "SELECT * FROM users WHERE secretary_id='$login_id'";
+		$res_secret = pg_query($conn, $sql_secret);
+		$cnt_secret = pg_num_rows($res_secret);
+		if ($cnt_secret>0) {
+			for ($i=0;$i<$cnt_secret;$i++) {
+				$row_secret = pg_fetch_array($res_secret,$i);
+				if ($master_ids != "") $master_ids .= ",";
+				$master_ids .= $row_secret["id"];
+			}
+		}
+	}
+	print "-->\n";
+	
+	// 前処理
+	$sql = "SELECT count(*) as allrecords FROM users";
+	$res = pg_query($conn, $sql);
+	$row = pg_fetch_array($res,0);
+	$user_count = $row["allrecords"];
+	
+	if (sizeof($MES) == 0) {
+		if ($_POST["back_sign"]=="t") {
+			$s                 = $_POST["s"];
+			$p                 = $_POST["p"];
+			$target            = $_POST["target"];
+			$alarm             = $_POST["alarm"];
+			$address_seqno     = $_POST["address_seqno"];
+			$room_id           = $_POST["room_id"];
+			$user_id           = $_POST["user_id"];
+			$id                = $_POST["id"];
+			$from_y            = $_POST["from_y"];
+			$from_m            = $_POST["from_m"];
+			$from_d            = $_POST["from_d"];
+			$to_y              = $_POST["to_y"];
+			$to_m              = $_POST["to_m"];
+			$to_d              = $_POST["to_d"];
+			$from_hour         = $_POST["from_hour"];
+			$from_minuts       = $_POST["from_minuts"];
+			$to_hour           = $_POST["to_hour"];
+			$to_minuts         = $_POST["to_minuts"];
+			$kind              = $_POST["kind"];
+			$note              = $_POST["note"];
+			$opensign          = $_POST["opensign"];
+			$viewsign          = $_POST["viewsign"];
+			$id_to             = $_POST["id_to"];
+			$room_id           = $_POST["room_id"];
+			$member_count      = $_POST["member_count"];
+			
+			if (!empty($s)) {
+				$update_user_id = get_first("schedules","update_user_id","seqno=$s","");
+				$updatestamp    = get_first("schedules","updatestamp",   "seqno=$s",NULL);
+				if (empty($updatestamp)) $updatestamp = get_first("schedules","createstamp","seqno=$s",NULL);
+			}
+		} else {
+			if (!empty($s)){
+				// 既存データの読み込み
+				$sql = "SELECT * FROM schedules WHERE seqno=".$s;
+				$res = pg_query($conn,$sql);
+				if (pg_num_rows($res)==0) {
+					$MES[] = "指定された予定情報は既に削除されています";
+				} else {
+					$row = pg_fetch_array($res,0);
+					$user_id = $row["user_id"];
+					$create_user_id    = $row["create_user_id"];
+					$update_user_id    = $row["update_user_id"];
+					$ref_seqno         = $row["ref_seqno"];
+					$address_seqno     = $row["address_seqno"];
+					$updatestamp       = $row["updatestamp"];
+					if (empty($updatestamp)) $updatestamp = $row["createstamp"];
+					$id_to             = $row["sharelist"];
+					
+					// UserIDの再整列
+					if ($id_to != "") {
+						$userids = split(",",$id_to);
+						if (sizeof($userids)>0) {
+							while (list($key,$val)=each($userids)) {
+								$idfind = false;
+								if (sizeof($new_userids)>0) {
+									while (list($new_key,$new_val)=each($new_userids)) {
+										if ($new_val==$val) {
+											$idfind = true;
+											break;
+										}
+									}
+								}
+								if (!$idfind) {
+									$sql_user = "SELECT * FROM users WHERE id='$val'";
+									$res_user = pg_query($conn, $sql_user);
+									$cnt_user = pg_num_rows($res_user);
+									if ($cnt_user>0) {
+										$row_user = pg_fetch_array($res_user,0);
+										$new_userids[$row_user["seqno"]] = $val;
+									}
+								}
+							}
+						}
+					}
+					if (sizeof($new_userids)>0) {
+						ksort($new_userids);
+						reset($new_userids);
+						$id_to = "";
+						while (list($key,$val)=each($new_userids)) {
+							if ($id_to != "") { $id_to .= ","; }
+							$id_to .= $val;
+						}
+					}
+					
+					$kind       = $row["kind"];
+					$note       = $row["note"];
+					$from_stamp = date2timestamp($row["datefrom"]);
+					$from_y     = date("Y",$from_stamp);
+					$from_m     = date("m",$from_stamp);
+					$from_d     = date("d",$from_stamp);
+					$to_stamp   = date2timestamp($row["dateto"]);
+					$to_y       = date("Y",$to_stamp);
+					$to_m       = date("m",$to_stamp);
+					$to_d       = date("d",$to_stamp);
+					if ($row["timefrom"]==""){
+						$from_hour   = -1;
+						$from_minuts = -1;
+					} else {
+						$from        = split(" ",$row["timefrom"]);
+						$from_time   = split(":",$from[1]);
+						$from_hour   = $from_time[0];
+						$from_minuts = $from_time[1];
+					}
+					if ($row["timeto"]==""){
+						$to_hour     = -1;
+						$to_minuts   = -1;
+					} else {
+						$to        = split(" ",$row["timeto"]);
+						$to_time   = split(":",$to[1]);
+						$to_hour   = $to_time[0];
+						$to_minuts = $to_time[1];
+					}
+					$opensign = $row["opensign"];
+					$viewsign = $row["viewsign"];
+				}
+			} else {
+				if ($id=="") {
+					$user_id = $login_id;
+				} else {
+					$user_id = $id;
+				}
+				
+				if (!empty($q) && is_numeric($q)) {
+					// コピー時
+					// 既存データの読み込み
+					$sql = "SELECT * FROM schedules WHERE seqno=".$q;
+					$res = pg_query($conn,$sql);
+					if (pg_num_rows($res)==0) {
+						$MES[] = "指定された予定情報は既に削除されています";
+					} else {
+						$row = pg_fetch_array($res,0);
+						#$user_id = $row["user_id"];
+						$user_id = $login_id;
+						$id_to = $row["sharelist"];
+						$kind       = $row["kind"];
+						$note       = $row["note"];
+						$from_stamp = date2timestamp($row["datefrom"]);
+						$from_y     = date("Y",$from_stamp);
+						$from_m     = date("m",$from_stamp);
+						$from_d     = date("d",$from_stamp);
+						$to_stamp   = date2timestamp($row["dateto"]);
+						$to_y       = date("Y",$to_stamp);
+						$to_m       = date("m",$to_stamp);
+						$to_d       = date("d",$to_stamp);
+						if ($row["timefrom"]==""){
+							$from_hour   = -1;
+							$from_minuts = -1;
+						} else {
+							$from        = split(" ",$row["timefrom"]);
+							$from_time   = split(":",$from[1]);
+							$from_hour   = $from_time[0];
+							$from_minuts = $from_time[1];
+						}
+						if ($row["timeto"]==""){
+							$to_hour   = -1;
+							$to_minuts = -1;
+						} else {
+							$to        = split(" ",$row["timeto"]);
+							$to_time   = split(":",$to[1]);
+							$to_hour   = $to_time[0];
+							$to_minuts = $to_time[1];
+						}
+						$opensign = $row["opensign"];
+						$viewsign = $row["viewsign"];
+					}
+				} else {
+					// 通常時
+					$note = "";
+					$viewsign = $user_viewsign;
+					$sql = "SELECT from_h,from_m,to_h,to_m FROM users WHERE id = '$login_id'";
+					$res = pg_query($conn,$sql);
+					$row = pg_fetch_array($res,0);
+					$cnt = pg_num_rows($res);
+#					if (!empty($a) && is_numeric($a)) $address_seqno=$a;
+					if ($cnt>0 && $row["from_h"]!=0 && $row["to_h"]!=0) {
+						$from_hour   = $row["from_h"];
+						$from_minuts = $row["from_m"];
+						$to_hour     = $row["to_h"];;
+						$to_minuts   = $row["to_m"];
+					} else {
+						$from_hour   = 9;
+						$from_minuts = 0;
+						$to_hour     = -1;
+						$to_minuts   = -1;
+					}
+					
+					if ($ey=="" or $em=="" or $ed==""){
+						$from_y = date("Y",time());
+						$from_m = date("m",time());
+						$from_d = date("d",time());
+						$to_y   = date("Y",time());
+						$to_m   = date("m",time());
+						$to_d   = date("d",time());
+					} else {
+						$from_y = $ey;
+						$from_m = $em;
+						$from_d = $ed;
+						$to_y   = $ey;
+						$to_m   = $em;
+						$to_d   = $ed;
+					}
+				}
+			}
+		}
+		
+		$righthandman_ids = get_first("users","righthandman_ids","id='".$user_id."'",""); // 右腕情報の取得
+		
+		// 曜日のセット(初期表示用)
+		$from_weekno = date("w",date2timestamp($from_y."-".$from_m."-".$from_d));
+		$to_weekno   = date("w",date2timestamp($to_y.  "-".$to_m.  "-".$to_d));
+		
+		if (sizeof($MES)==0) {
+			// user名の取得
+			$sql_user = "SELECT * FROM users WHERE id='$user_id'";
+			$res_user = pg_query($conn,$sql_user);
+			$cnt_user = pg_num_rows($res_user);
+			if ($cnt_user==0) {
+				$MES[] = "予定情報に該当するユーザーが見つかりませんでした";
+			} else {
+				$row_user = pg_fetch_array($res_user,0);
+				$user_name = $row_user["name_ryaku"];
+			}
+		}
+		
+		// 編集可能チェック
+		$editsign = false;
+		if ($user_id == $login_id) {
+			// 自身
+			$editsign = true;
+		} elseif ($create_user_id == $login_id) {
+			// 共有
+			$editsign = true;
+		} else {
+			// 秘書
+			if (preg_match("/(^|,)".$user_id."(,|$)/",$master_ids)) {
+				$editsign = true;
+			}
+		}
+		
+		if (sizeof($MES) > 0) {
+			// エラーメッセージ出力
+			print "<BR><CENTER>\n";
+			print "<FONT COLOR=#FF0000>\n";
+			while (list($key,$val)=each($MES)) {
+				print $val."<BR>\n";
+			}
+			print "</FONT><BR><BR>\n";
+			print "<INPUT TYPE=BUTTON VALUE=\"戻る\" onClick=\"history.back()\">\n";
+			print "</CENTER>\n";
+		} else {
+			print "
+<SCRIPT LANGUAGE=\"JavaScript\">
+<!--
+my = \"$login_id\";
+dat_groups = new Array();
+";
+			$sql_group = "SELECT id,name FROM groups ORDER BY seqno";
+			$res_group = pg_query($conn,$sql_group);
+			$cnt_group = pg_num_rows($res_group);
+			print "cnt_groups = ".$cnt_group."\n";
+			if ($cnt_group>0) {
+				for ($i=0;$i<$cnt_group;$i++) {
+					$row_group = pg_fetch_array($res_group,$i);
+					$res_entry = pg_query($conn,"SELECT user_id FROM users_entry WHERE group_id='".$row_group["id"]."' AND user_id<>'$login_id'");
+					$cnt_entry = pg_num_rows($res_entry);
+					
+					if ($res_entry>0) {
+						$users_entry = "";
+						for ($j=0;$j<$cnt_entry;$j++) {
+							$row_entry = pg_fetch_array($res_entry,$j);
+							if ($users_entry != "") $users_entry .= ",";
+							$users_entry .= $row_entry["user_id"];
+						}
+					}
+					if ($users_entry!="") {
+						print "dat_groups[\"".$row_group["id"]."\"] = \"".$users_entry."\";\n";
+					}
+				}
+			}
+			
+			print "dat_users = new Array();";
+			
+			$all_users = "";
+			
+			$sql_user = "SELECT id,name FROM users ORDER BY seqno";
+			$res_user = pg_query($conn,$sql_user);
+			$cnt_user = pg_num_rows($res_user);
+			print "cnt_users = ".$cnt_user."\n";
+			if ($cnt_user>0) {
+				for ($i=0;$i<$cnt_user;$i++) {
+					$row_user = pg_fetch_array($res_user,$i);
+					print "dat_users[\"".$row_user["id"]."\"] = \"".$row_user["name"]."\";\n";
+					if ($i!=0) $all_users .= ",";
+					$all_users .= $row_user["id"];
+				}
+			}
+			
+			print "dat_groups[\"all\"] = \"".$all_users."\";\n";
+			
+			print "
+function delwin(seqno,id,date) {
+  if(confirm('この予定を削除しますか。\\n注:一度削除した予定を戻すことはできません。')) {
+    window.location.href='../del/?seqno='+seqno+'&p=$p';
+  }
+}
+
+function changefromday(t) {
+  document.images['from_weekday'].src = '/image/w-.gif';
+  y = parseInt(t.from_y.value);
+  m = t.from_m.options[t.from_m.selectedIndex].value;
+  d = t.from_d.options[t.from_d.selectedIndex].value;
+  if (!(isNaN(y)) && (y>0) && !(isNaN(m)) && (m>0) && !(isNaN(d)) && (d>0)) {
+    w = new Date();
+    w.setYear(y); w.setMonth(m-1); w.setDate(d);
+    document.images['from_weekday'].src = '/image/w'+ w.getDay() +'.gif';
+
+    to_y = parseInt(t.to_y.value);
+    to_m = t.to_m.options[t.to_m.selectedIndex].value;
+    to_d = t.to_d.options[t.to_d.selectedIndex].value;
+    if (!(isNaN(to_y)) && (to_y>0) && !(isNaN(to_m)) && (to_m>0) && !(isNaN(to_d)) && (to_d>0)) {
+      if ((parseInt(to_y)*10000 + parseInt(to_m)*100 + parseInt(to_d)) < (parseInt(y)*10000 + parseInt(m)*100 + parseInt(d))) {
+        t.to_y.value = y;
+        t.to_m.selectedIndex = t.from_m.selectedIndex;
+        t.to_d.selectedIndex = t.from_d.selectedIndex;
+        changetoday(t); // 一緒に変更
+      }
+    }
+  }
+}
+
+function changetoday(t) {
+  document.images['to_weekday'].src = '/image/w-.gif';
+  y = parseInt(t.to_y.value);
+  m = t.to_m.options[t.to_m.selectedIndex].value;
+  d = t.to_d.options[t.to_d.selectedIndex].value;
+  if (!(isNaN(y)) && (y>0) && !(isNaN(m)) && (m>0) && !(isNaN(d)) && (d>0)) {
+    w = new Date();
+    w.setYear(y); w.setMonth(m-1); w.setDate(d);
+    document.images['to_weekday'].src = '/image/w'+ w.getDay() +'.gif';
+  }
+}
+
+function selectfromhour(t) {
+  if (t.from_hour[0].selected) {
+    t.from_minuts[0].selected = true;
+  } else {
+    if (t.from_minuts[0].selected == true) {
+      t.from_minuts[1].selected = true;
+    }
+    if (t.to_hour.selectedIndex==0 || t.to_hour.selectedIndex<t.from_hour.selectedIndex) {
+      t.to_hour.selectedIndex = t.from_hour.selectedIndex;
+      t.to_minuts.selectedIndex = t.from_minuts.selectedIndex;
+    }
+  }
+}
+
+function selecttohour(t) {
+  if (t.to_hour[0].selected) {
+    t.to_minuts[0].selected = true;
+  } else {
+    if (t.to_minuts[0].selected == true) t.to_minuts[1].selected = true;
+  }
+}
+
+function selectGroup(t) {
+  group_id = t.groups[t.groups.selectedIndex].value;
+  id_tos = new Array();
+
+  t.users.length = 0;
+
+  if (group_id == '') {
+    id_tos = dat_groups['all'].split(',');
+  } else {
+    if (dat_groups[group_id] != null) {
+      id_tos = dat_groups[group_id].split(',');
+    }
+  }
+  if (id_tos.length>0) {
+    c = 0;
+    for (i=0;i<id_tos.length;i++) {
+      if (id_tos[i] != my) {
+        t.users.length = t.users.length + 1;
+        t.users.options[c].value = id_tos[i];
+        t.users.options[c].text  = dat_users[id_tos[i]];
+        c++;
+      }
+    }
+  }
+}
+
+function clearAllUser(t) {
+  for (i=0;i<t.elements.length;i++) {
+    if (t.elements[i].name == \"id_tos[]\") {
+      var p = i;
+      break;
+    }
+  }
+
+  var o = t.elements[p];
+
+  o.length = 0;
+  t.id_to.value = '';
+}
+
+function selectAllUser(t) {
+  if (t.users.length>0) {
+    for (i=0;i<t.users.length;i++) {
+      t.users.options[i].selected = true;
+    }
+  }
+  t.allcheck.checked = false;
+}
+
+function addUser(t) {
+  for (i=0;i<t.elements.length;i++) {
+    if (t.elements[i].name == \"id_tos[]\") {
+      var p = i;
+      break;
+    }
+  }
+  var o = t.elements[p];
+
+  s = t.id_to.value;
+  if (t.users.length>0) {
+    for (i=0;i<t.users.length;i++) {
+      if (t.users.options[i].selected) {
+        t.users.options[i].selected = false;
+        var id = t.users.options[i].value;
+        var c = false;
+        for(j=0;j<o.length;j++) {
+          if (o.options[j].value == id) {
+            c = true;
+            break;
+          }
+        }
+        if (!c) {
+          if (o.length>0) s = s + ',';
+          o.length = o.length + 1;
+          o.options[o.length-1].value = id;
+          o.options[o.length-1].text = dat_users[id];
+          s = s + id;
+        }
+      }
+    }
+  }
+  t.id_to.value = s;
+}
+
+function removeUser(t) {
+  for (i=0;i<t.elements.length;i++) {
+    if (t.elements[i].name == \"id_tos[]\") {
+      var p = i;
+      break;
+    }
+  }
+
+  var o = t.elements[p];
+
+  var val = new Array();
+  var txt = new Array();
+  var c = 0;
+  
+  if (o.length>0) {
+    for (i=0;i<o.length;i++) {
+      if (!o.options[i].selected) {
+        val[c] = o.options[i].value;
+        txt[c] = o.options[i].text;
+        c++;
+      }
+    }
+
+    o.length = 0;
+    s = '';
+    if (c>0) {
+      o.length = c;
+      for (i=0;i<c;i++) {
+        if (i>0) s = s + ',';
+        o.options[i].value = val[i];
+        o.options[i].text  = txt[i];
+        s = s + val[i];
+      }
+    }
+    t.id_to.value = s;
+  }
+}
+//-->
+</SCRIPT>
+";
+			print "<BR>\n";
+			print "<TABLE WIDTH=100% HEIGHT=445 CELLPADDING=0 CELLSPACING=0><TR><TD ALIGN=CENTER VALIGN=TOP>\n";
+			print "<FORM ACTION=\"./add.phtml\" METHOD=POST>\n";
+			print "<TABLE BORDER=0 CELLPADDING=2 CELLSPACING=0 ALIGN=CENTER>\n";
+			
+			if (empty($s)){
+				print "<TR><TD ALIGN=CENTER COLSPAN=2>";
+				print "日時・内容、各項目を入力してから、登録ボタンを押してください";
+				print "</TD></TR>";
+			}
+			
+			print "<TR><TD VALIGN=TOP ALIGN=LEFT>";
+			if (empty($s)){
+				print "<A HREF=\"../../address/search/\"><IMG SRC=\"../../image/address.gif\" BORDER=0 ALIGN=ABSMIDDLE>住所録検索へ</A>";
+			}
+			print "</TD>\n";
+			print "<TD VALIGN=TOP ALIGN=RIGHT>\n";
+			if (empty($s)){
+				if ($user_eventsign=="t") {
+					print "<A HREF=\"../../event/add/?target=$target&y=$y&m=$m&d=$d&ey=$ey&em=$em&ed=$ed\">";
+					print "<IMG SRC=\"../../image/entrysadd2.gif\" WIDTH=10 HEIGHT=9 BORDER=0 ALT=\"イベント登録\">";
+					print "イベント登録</A>&nbsp;\n";
+				}
+				print "<A HREF=\"../continue/?target=$target&y=$y&m=$m&d=$d&ey=$ey&em=$em&ed=$ed\">";
+				print "<IMG SRC=\"../../image/entrysadd.gif\" WIDTH=10 HEIGHT=9 BORDER=0 ALT=\"連続予定\">";
+				print "連続予定</A>&nbsp;\n";
+			}
+			print "</TD>\n";
+			print "</TR>\n";
+			
+			if (!empty($s)){
+				if (empty($update_user_id)) $update_user_id = $user_id;
+				$update_user_name = get_first("users","name_ryaku","id='$update_user_id'","不明");
+				print "<TR><TD ALIGN=LEFT COLSPAN=2>";
+				print "登録者 : <A HREF=\"../../member/?id=$update_user_id\">$update_user_name<IMG SRC=\"../../image/clip.gif\" BORDER=0 WIDTH=10 HEIGHT=11 ALIGN=ABSMIDDLE></A>";
+				print "</TD></TR>";
+			}
+			
+			print "<TR><TD VALIGN=TOP ALIGN=CENTER COLSPAN=2>\n";
+			print "<TABLE BORDER=0 CELLPADDING=4 CELLSPACING=1 BGCOLOR=#999999>\n";
+			print "<INPUT TYPE=HIDDEN NAME=\"seqno\" VALUE=\"$s\">\n";
+			print "<INPUT TYPE=HIDDEN NAME=\"p\" VALUE=\"$p\">\n";
+			print "<INPUT TYPE=HIDDEN NAME=\"target\" VALUE=\"$target\">\n";
+			if ($a != ""){
+				$address_seqno = $a;
+			}
+			if ($address_seqno != ""){
+				print "<INPUT TYPE=HIDDEN NAME=\"address_seqno\" VALUE=\"$address_seqno\">\n";
+			}
+			print "<INPUT TYPE=HIDDEN NAME=\"id\" VALUE=\"$id\">\n";
+			print "<INPUT TYPE=HIDDEN NAME=\"iid\" VALUE=\"$user_id\">\n";
+			
+			// 担当者
+			if ($master_ids != "" && (preg_match("/(^|,)$user_id(,|$)/",$master_ids) || $user_id==$login_id) && empty($ref_seqno)) {
+				print "<TR>\n";
+				print "<TD ALIGN=RIGHT WIDTH=90 NOWRAP VALIGN=TOP BGCOLOR=$td_back_left>&nbsp;担当者&nbsp;</TD>\n";
+				print "<TD ALIGN=LEFT BGCOLOR=$td_back>";
+				print "<INPUT TYPE=RADIO NAME=\"user_id\" VALUE=\"$login_id\"";
+				if ($user_id == $login_id || empty($user_id) || $user_id == "") {
+					print " CHECKED";
+				}
+				print " ONCLICK=\"selectuserid('".$login_id."')\"><B>自分</B></OPTION>\n";
+				$master_id = split(",",$master_ids);
+				if (sizeof($master_id)>0) {
+					reset($master_id);
+					while(list($seq,$id)=each($master_id)) {
+						print "<INPUT TYPE=RADIO NAME=\"user_id\" VALUE=\"$id\"";
+						if ($id != "" && $id == $user_id) {
+							print " CHECKED";
+						}
+						$master_name = get_first("users","name_ryaku","id='".$id."'","");
+						print " ONCLICK=\"selectuserid('".$id."')\">".$master_name."</OPTION>\n";
+					}
+				}
+			} else {
+				print "<INPUT TYPE=HIDDEN NAME=\"user_id\" VALUE=\"$user_id\">\n";
+				if ($user_id != $login_id or ($create_user_id != $login_id and $create_user_id != "")) {
+					print "<TR>\n";
+					print "<TD ALIGN=RIGHT WIDTH=90 NOWRAP VALIGN=TOP BGCOLOR=$td_back_left>&nbsp;担当者&nbsp;</TD>\n";
+					print "<TD ALIGN=LEFT BGCOLOR=$td_back>";
+					print "<A HREF=\"../../member/?id=$user_id\">$user_name</A>";
+					if ($create_user_id != $login_id && trim($create_user_id)!="" ) {
+						print "&nbsp;";
+						print "<A HREF=\"../../member/?id=".$create_user_id."\">";
+						print "<IMG SRC=\"../../image/share.gif"."\" BORDER=0>";
+						$sql_cuser = "SELECT * FROM users WHERE id='".$create_user_id."'";
+						$res_cuser = pg_query($conn,$sql_cuser);
+						$cnt_cuser = pg_num_rows($res_cuser);
+						if ($cnt_cuser>0) {
+							$row_cuser = pg_fetch_array($res_cuser,0);
+							if ($row_cuser["name_ryaku"]!="") {
+								print $row_cuser["name_ryaku"];
+							} else {
+								print $row_cuser["name"];
+							}
+						}
+						print "</A>\n";
+					}
+					print "</B>\n";
+				}
+				print "</TD></TR>\n";
+			}
+			
+			// 開始日時
+			print "<TR>\n";
+			print "<TD ALIGN=RIGHT WIDTH=90 NOWRAP VALIGN=TOP BGCOLOR=$td_back_left>&nbsp;開始日時&nbsp;</TD>\n";
+			print "<TD ALIGN=LEFT BGCOLOR=$td_back>";
+			if ($editsign) {
+				print "<INPUT TYPE=TEXT NAME=\"from_y\" VALUE=\"$from_y\" SIZE=5 MAXLENGTH=4 onchange=\"changefromday(this.form);\" STYLE=\"ime-mode:disabled\">年\n";
+				print "<SELECT NAME=\"from_m\" onchange=\"changefromday(this.form);\" STYLE=\"ime-mode:disabled\">\n";
+				for ($i=1;$i<=12;$i++){
+					print "<OPTION VALUE=\"$i\"";
+					if ($i == $from_m) { print " SELECTED"; }
+					print ">";
+					if (strlen($i)==1) print "0";
+					print $i."</OPTION>\n";
+				}
+				print "</SELECT>月\n";
+				print "<SELECT NAME=\"from_d\" onchange=\"changefromday(this.form)\" STYLE=\"ime-mode:disabled\">\n";
+				for ($i=1;$i<=31;$i++){
+					print "<OPTION VALUE=\"$i\"";
+					if ($i == $from_d){ print " SELECTED"; }
+					print ">";
+					if (strlen($i)==1) print "0";
+					print $i."</OPTION>\n";
+				}
+				print "</SELECT>日&nbsp;<IMG NAME=\"from_weekday\" SRC=\"/image/w$from_weekno.gif\">&nbsp;\n";
+				print "<SELECT NAME=\"from_hour\" ONCHANGE=\"selectfromhour(this.form)\" STYLE=\"ime-mode:disabled\">\n";
+				print "<OPTION VALUE=\"-1\"";
+				if ($from_hour==-1){ print " SELECTED"; }
+				print ">--</OPTION>\n";
+				for ($i=0;$i<=23;$i++){
+					print "<OPTION VALUE=\"$i\"";
+					if ($i == $from_hour){ print " SELECTED"; }
+					print ">";
+					if (strlen($i)==1) print "0";
+					print $i."</OPTION>\n";
+				}
+				print "</SELECT>：<SELECT NAME=\"from_minuts\" STYLE=\"ime-mode:disabled\">\n";
+				print "<OPTION VALUE=\"-1\"";
+				if ($from_minuts==-1){ print " SELECTED"; }
+				print ">--</OPTION>\n";
+				for ($i=0;$i<60;$i=$i+$interval){
+					print "<OPTION VALUE=\"$i\"";
+					if ($i <= $from_minuts){ print " SELECTED"; }
+					print ">";
+					if (strlen($i)==1) print "0";
+					print $i."</OPTION>\n";
+				}
+				print "</SELECT>\n";
+			} else {
+				print "<INPUT TYPE=HIDDEN NAME=\"from_y\" VALUE=\"$from_y\">".$from_y."年";
+				print "<INPUT TYPE=HIDDEN NAME=\"from_m\" VALUE=\"$from_m\">".$from_m."月";
+				print "<INPUT TYPE=HIDDEN NAME=\"from_d\" VALUE=\"$from_d\">".$from_d."日";
+				print "&nbsp;<IMG NAME=\"from_weekday\" ALIGN=TOP WIDTH=35 HEIGHT=13 SRC=\"/image/w$from_weekno.gif\">&nbsp;";
+				if ($from_hour != -1){
+					print $from_hour."：".$from_minuts;
+				}
+			}
+			print "</TD></TR>\n";
+			
+			// 終了日時
+			print "<TR>\n";
+			print "<TD ALIGN=RIGHT WIDTH=90 NOWRAP VALIGN=TOP BGCOLOR=$td_back_left>&nbsp;終了日時&nbsp;</TD>\n";
+			print "<TD ALIGN=LEFT BGCOLOR=$td_back>";
+			if ($editsign) {
+				print "<INPUT TYPE=TEXT NAME=\"to_y\" VALUE=\"".$to_y."\" SIZE=5 MAXLENGTH=4 ONCHANGE=\"changetoday(this.form)\" style=\"ime-mode:disabled\">年\n";
+				print "<SELECT NAME=\"to_m\" ONCHANGE=\"changetoday(this.form)\" STYLE=\"ime-mode:disabled\">\n";
+				for ($i=1;$i<=12;$i++){
+					print "<OPTION VALUE=\"$i\"";
+					if ($i == $to_m) { print " SELECTED"; }
+					print ">";
+					if (strlen($i)==1) print "0";
+					print $i."</OPTION>\n";
+				}
+				print "</SELECT>月\n";
+				print "<SELECT NAME=\"to_d\" ONCHANGE=\"changetoday(this.form)\" STYLE=\"ime-mode:disabled\">\n";
+				for ($i=1;$i<=31;$i++){
+					print "<OPTION VALUE=\"$i\"";
+					if ($i == $to_d){ print " SELECTED "; }
+					print ">";
+					if (strlen($i)==1) print "0";
+					print $i."</OPTION>\n";
+				}
+				print "</SELECT>日&nbsp;<IMG NAME=\"to_weekday\" WIDTH=35 HEIGHT=13 SRC=\"/image/w$to_weekno.gif\">&nbsp;\n";
+				print "<SELECT NAME=\"to_hour\" ONCHANGE=\"selecttohour(this.form)\" STYLE=\"ime-mode:disabled\">\n";
+				print "<OPTION VALUE=\"-1\"";
+				if ($to_hour==-1){ print " SELECTED"; }
+				print ">--</OPTION>\n";
+				for ($i=0;$i<=23;$i++){
+					print "<OPTION VALUE=\"$i\"";
+					if ($i == $to_hour){ print " SELECTED"; }
+					print ">";
+					if (strlen($i)==1) print "0";
+					print $i."</OPTION>\n";
+				}
+				print "</SELECT>：<SELECT NAME=\"to_minuts\" STYLE=\"ime-mode:disabled\">\n";
+				print "<OPTION VALUE=\"-1\"";
+				if ($to_minuts==-1){ print " SELECTED"; }
+				print ">--</OPTION>\n";
+				for ($i=0;$i<60;$i=$i+$interval){
+					print "<OPTION VALUE=\"$i\"";
+					if ($i == $to_minuts){ print " SELECTED"; }
+					print ">";
+					if (strlen($i)<=1) print "0";
+					print $i."</OPTION>\n";
+				}
+				print "</SELECT>\n";
+			} else {
+				// 表示のみ
+				print "<INPUT TYPE=HIDDEN NAME=\"to_y\" VALUE=\"".$to_y."\">".$to_y."年";
+				print "<INPUT TYPE=HIDDEN NAME=\"to_m\" VALUE=\"".$to_m."\">".$to_m."月";
+				print "<INPUT TYPE=HIDDEN NAME=\"to_d\" VALUE=\"".$to_d."\">".$to_d."日";
+				print "&nbsp;<IMG NAME=\"to_weekday\" ALIGN=TOP WIDTH=35 HEIGHT=13 SRC=\"/image/w".$to_weekno.".gif\">&nbsp;";
+				if ($to_hour != -1){
+					print $to_hour."：".$to_minuts;
+				}
+			}
+			print "</TD></TR>\n";
+			
+			$sql_kind = "SELECT * FROM schedule_kind ORDER BY seqno";
+			$res_kind = pg_query($conn,$sql_kind);
+			$cnt_kind = pg_num_rows($res_kind);
+			if ($cnt_kind>0) {
+				if (file_exists($basepath.$toppath."/i")){
+					// アラーム
+					print "<TR>\n";
+					print "<TD ALIGN=RIGHT WIDTH=90 NOWRAP VALIGN=TOP BGCOLOR=$td_back_left><IMG SRC=\"../../image/oclock.gif\" WIDTH=9 HEIGHT=9 VALIGN=ABSMIDDLE ALIGN=MIDDLE>&nbsp;アラーム&nbsp;</TD>\n";
+					print "<TD ALIGN=LEFT BGCOLOR=$td_back>";
+          if (!empty($s)) {
+            $alarmstamp = get_first("alarm","sendstamp","datatype='schedule' AND dataseqno=$s","");
+            if ($alarmstamp!="") {
+              $fromstamp = get_first("schedules","timefrom","seqno=$s","");
+              if ($fromstamp!="") {
+                $alarm = floor((datetime2timestamp($fromstamp)-datetime2timestamp($alarmstamp))/60);
+              }
+            }
+          }
+          
+					if ($user_email_sub != "") {
+						print "<SELECT NAME=\"alarm\">\n";
+						print "<OPTION VALUE=\"-1\"";
+						if (empty($alarm) || $alarm<0) print " SELECTED";
+						print ">利用しない</OPTION>\n";
+						print "<OPTION VALUE=\"-1\">------------</OPTION>\n";
+						$c = 0;
+						reset($alarm_interval);
+						while(list($key,$val)=each($alarm_interval)) {
+							print "<OPTION VALUE=\"$val\"";
+							if ($alarm==$val) print " SELECTED";
+							print ">".$alarm_interval_name[$c]."</OPTION>\n";
+							$c++;
+						}
+						print "</SELECT><BR>\n";
+						print "<FONT STYLE=\"FONT-SIZE:7pt;COLOR:#555555;\">";
+						print "アラームメールがうまく届かない場合、登録アドレスと拒否設定を確認してください";
+						print "</FONT>\n";
+					} else {
+						print "<FONT STYLE=\"FONT-SIZE:7pt;COLOR:#FF0000;\">";
+						print "アラーム機能を使うには事前に携帯メールアドレスを登録しておいてください";
+						print "</FONT>\n";
+					}
+					print "</TD></TR>\n";
+				}
+				
+				// 作業分類
+				print "<TR>\n";
+				print "<TD ALIGN=RIGHT WIDTH=90 NOWRAP VALIGN=TOP BGCOLOR=$td_back_left>&nbsp;作業分類&nbsp;</TD>\n";
+				print "<TD ALIGN=LEFT BGCOLOR=$td_back>\n";
+				if ($editsign=="true") {
+					print "<TABLE BORDER=0 CELLSPACING=0 CELLPADDING=0><TR><TD NOWRAP>\n";
+					print "<INPUT TYPE=RADIO NAME=\"kind\" VALUE=\"\"";
+					if ($kind == "") { print " CHECKED"; }
+					print ">なし&nbsp;\n";
+					print "</TD>";
+					$c = 1;
+					for ($i=0;$i<$cnt_kind;$i++){
+						$row_kind = pg_fetch_array($res_kind,$i);
+						print "<TD NOWRAP>";
+						print "<TABLE WIDTH=100% BORDER=0 CELLSPACING=0 CELLPADDING=0><TR>\n";
+						print "<TD NOWRAP>\n";
+						print "<INPUT TYPE=RADIO NAME=\"kind\" VALUE=\"".$row_kind["key"]."\"";
+						if ($row_kind["key"] == $kind) { print " CHECKED"; }
+						print ">".$row_kind["value"]."&nbsp;";
+						print "</TD>\n";
+						print "<TD ALIGN=RIGHT>\n";
+						if ($row_kind["graphcolor"]!="") { $gcolor = $row_kind["graphcolor"]; } else { $gcolor = $sch_back; }
+						print "<TABLE BORDER=0 CELLPADDING=0 CELLSPACING=1 BGCOLOR=#000000><TR><TD BGCOLOR=$gcolor>";
+						print "<IMG SRC=\"../../image/null.gif\" WIDTH=16 HEIGHT=16 ALT=\"".$row_kind["value"]."カラー\">";
+						print "</TD></TR></TABLE>";
+						print "</TR></TABLE>";
+						print "</TD>";
+						$c++;
+						if ($c>3) {
+							print "</TR>\n";
+							print "<TR>\n";
+							$c = 0;
+						}
+					}
+					print "</TR>\n";
+					print "</TABLE>\n";
+				} else {
+					// 表示のみ
+					if ($kind=="") {
+						print "なし";
+					} else {
+						$sql_kind = "SELECT value FROM schedule_kind WHERE key=$kind";
+						$res_kind = pg_query($conn,$sql_kind);
+						if (pg_num_rows($res_kind)>0) {
+							$row_kind = pg_fetch_array($res_kind,0);
+							print $row_kind["value"];
+						}
+					}
+				}
+				print "</TD>\n";
+				print "</TR>\n";
+				
+				// 内容
+				print "<TR>\n";
+				print "<TD ALIGN=RIGHT WIDTH=90 NOWRAP VALIGN=TOP BGCOLOR=$td_back_left>&nbsp;内容&nbsp;</TD>\n";
+				print "<TD ALIGN=LEFT BGCOLOR=$td_back>";
+				if ($address_seqno != "") {
+					$sql_addr = "SELECT * FROM address WHERE seqno=".$address_seqno;
+					$res_addr = pg_query($conn,$sql_addr);
+					$cnt_addr = pg_num_rows($res_addr);
+					if ($cnt_addr>0) {
+						$row_addr = pg_fetch_array($res_addr,0);
+						$corp_name = $row_addr["corp_name"];
+						if ($s <> ""){
+							print "<A HREF=\"../../address/edit/?s=".$address_seqno."\">";
+						} else {
+							print "<FONT COLOR=#444444>";
+						}
+						if ($corp_name != "") {
+							$corp_name = ereg_replace("株式会社","",$corp_name);
+							$corp_name = ereg_replace("有限会社","",$corp_name);
+							$corp_name = ereg_replace("合資会社","",$corp_name);
+							$corp_name = ereg_replace("合名会社","",$corp_name);
+							$corp_name = ereg_replace("財団法人","",$corp_name);
+							$corp_name = ereg_replace("社団法人","",$corp_name);
+							$corp_name = ereg_replace("学校法人","",$corp_name);
+							$corp_name = ereg_replace("宗教法人","",$corp_name);
+							$corp_name = ereg_replace("特定非営利活動法人","",$corp_name);
+							$corp_name = ereg_replace("NPO法人","",$corp_name);
+							$corp_name = ereg_replace("社会福祉法人","",$corp_name);
+							$corp_name = ereg_replace("公益法人","",$corp_name);
+							$corp_name = ereg_replace("医療法人","",$corp_name);
+							$corp_name = ereg_replace("事業協同組合","",$corp_name);
+							$corp_name = ereg_replace("協同組合連合会","",$corp_name);
+							$corp_name = ereg_replace("企業組合","",$corp_name);
+							$corp_name = ereg_replace("協業組合","",$corp_name);
+							$corp_name = ereg_replace("振興組合","",$corp_name);
+							$corp_name = trim($corp_name);
+							$corp_name = mberegi_replace("　","",$corp_name);
+							print $corp_name." ";
+						}
+						print $row_addr["person_name"];
+					}
+					print " 様";
+					if ($s <> ""){
+						print "</A>";
+					} else {
+						print "</FONT>";
+					}
+					print "<BR>\n";
+				}
+				if ($editsign) {
+					print "<TEXTAREA NAME=\"note\" COLS=46 ROWS=5 style=\"ime-mode:active\">".$note."</TEXTAREA><BR>\n";
+				} else {
+					print "<TABLE STYLE=\"width:340px\"><TR>";
+					print "<TD VALIGN=TOP ALIGN=LEFT BGCOLOR=#E0E0E0 style=\"border-style:inset; padding=3; border-width:2\">";
+					print "<FONT STYLE=\"font-family:'MS ゴシック','Osaka等幅',monospace\">";
+					if ($viewsign=="f"
+					&& ($righthandman_ids == "" || !eregi("(^|,)".$login_id."(,|$)",$righthandman_ids))
+					) {
+						print "&lt;このスケジュールは非表示に設定されています&gt;";
+					} else {
+						$notes = split("\r\n",str_link($note));
+						while (list($key,$text)=each($notes)) {
+							print $text."<BR>\n";
+						}
+					}
+					print "</TD></TR></TABLE>";
+				}
+				print "<IMG SRC=\"../../image/key.gif\" ALIGN=ABSMIDDLE>表示モード:&nbsp;";
+				if (!empty($s)){
+					// 親スケジュールの確認
+					if ($ref_seqno != 0) {
+						$change_openflag = false;
+					}
+				}
+				
+				// サインの変換
+				if ($opensign=="f") {
+					$openflag = 2; // 非公開
+				} else {
+					if ($viewsign=="f") {
+						$openflag = 1; // 日時のみ表示
+					} else {
+						$openflag = 0; // 公開
+					}
+				}
+				if ($editsign) {
+					print "<INPUT TYPE=RADIO NAME=\"openflag\" VALUE=\"0\"";
+					if ($openflag==0) { print " checked";};
+					print ">公開\n";
+					print "<INPUT TYPE=RADIO NAME=\"openflag\" VALUE=\"1\"";
+					if ($openflag==1) { print " checked";};
+					print ">日時のみ公開\n";
+					print "<INPUT TYPE=RADIO NAME=\"openflag\" VALUE=\"2\"";
+					if ($openflag==2) { print " checked";};
+					print ">非公開\n";
+				} else {
+					print "<INPUT TYPE=HIDDEN NAME=\"openflag\" VALUE=\"".$openflag."\">\n";
+					if ($openflag==0) {
+						print "公開する\n";
+					} elseif ($openflag==1) {
+						print "日時のみ公開する\n";
+					} else {
+						print "非公開\n";
+					}
+				}
+				print "</TD>\n";
+				print "</TR>\n";
+				
+				// 共有
+				if ((empty($ref_seqno) or $ref_seqno==0)) {
+					print "<TR>\n";
+					print "<TD ALIGN=RIGHT WIDTH=90 NOWRAP VALIGN=TOP BGCOLOR=$td_back_left>&nbsp;共有&nbsp;</TD>\n";
+					print "<TD ALIGN=LEFT BGCOLOR=$td_back>";
+					
+					$id_tos = split(",",$id_to);
+					
+					if ($editsign) {
+						// 入力モード時
+						// 共有選択
+						print "<TABLE BORDER=0 CELLPADDING=2 CELLSPACING=2><TR><TD COLSPAN=2>&nbsp;</TD><TD>";
+						print "<SELECT NAME=\"groups\" ONCHANGE=\"selectGroup(this.form)\" STYLE=\"width:120px\">\n";
+						print "<OPTION VALUE=\"\" SELECTED>(全て)\n";
+						
+						$sql_group = "SELECT id,name FROM groups ORDER BY seqno";
+						$res_group = pg_query($conn,$sql_group);
+						$cnt_group = pg_num_rows($res_group);
+						if ($cnt_group>0) {
+							for ($i=0;$i<$cnt_group;$i++) {
+								$row_group = pg_fetch_array($res_group,$i);
+								$res_entry = pg_query($conn,"SELECT user_id FROM users_entry WHERE group_id='".$row_group["id"]."' AND user_id<>'$login_id'");
+								if (pg_num_rows($res_entry)>0) {
+									print "<OPTION VALUE=\"".$row_group["id"]."\">".$row_group["name"];
+									print "\n";
+								}
+							}
+						}
+						print "</SELECT></TD></TR>\n";
+						
+						print "<TR><TD VALIGN=TOP><SELECT NAME=\"id_tos[]\" SIZE=8 STYLE=\"width:140px\">\n";
+						
+						if (sizeof($id_tos)>0) {
+							for ($i=0;$i<sizeof($id_tos);$i++) {
+								if ($id_tos[$i]!="") {
+									print "<OPTION VALUE=\"".$id_tos[$i]."\">";
+									print get_first("users","name","id='".$id_tos[$i]."'","");
+									print "\n";
+								}
+							}
+						}
+						print "</SELECT><BR>\n";
+						
+						print "<INPUT TYPE=BUTTON NAME=\"allclear\" VALUE=\"全て消去\" ONCLICK=\"clearAllUser(this.form)\">";
+						
+						print "</TD><TD ALIGN=CENTER VALIGN=MIDDLE>";
+						print "<INPUT TYPE=BUTTON VALUE=\"&lt; 追加\" ONCLICK=\"addUser(this.form)\"><BR><BR>\n";
+						print "<INPUT TYPE=BUTTON VALUE=\"削除 &gt;\" ONCLICK=\"removeUser(this.form)\"><BR><BR><BR>\n";
+						
+						print "</TD>";
+						print "<TD VALIGN=TOP><SELECT NAME=\"users\" MULTIPLE SIZE=8 STYLE=\"width:140px\">\n";
+						
+						$sql_user = "SELECT id,depa,post,name FROM users ORDER BY seqno";
+						$res_user = pg_query($conn,$sql_user);
+						$cnt_user = pg_num_rows($res_user);
+						
+						if ($cnt_user>0) {
+							for ($i=0;$i<$cnt_user;$i++) {
+								$row_user = pg_fetch_array($res_user,$i);
+								if ($login_id != $row_user["id"]) { //自身を除外
+								print "<OPTION VALUE=\"".$row_user["id"]."\" ";
+								if ($send=="P" && preg_match("/(^|,)".$row_user["id"]."(,|$)/",$senddata)){
+									print "selected";
+								}
+								print ">".$row_user["name"];
+								print "</OPTION>\n";
+								}
+							}
+						}
+						print "</SELECT><BR>\n";
+						print "<INPUT TYPE=BUTTON NAME=\"allcheck\" VALUE=\"全て選択\" ONCLICK=\"selectAllUser(this.form)\">";
+						print "<INPUT TYPE=HIDDEN NAME=\"id_to\" VALUE=\"$id_to\">";
+						print "</TD></TR></TABLE>";
+						
+						print "<INPUT TYPE=CHECKBOX NAME=\"sendmailusers\" VALUE=\"t\"";
+						if (empty($s)) print " CHECKED";
+						print "><FONT COLOR=#666666>共有者にメールで通知する<BR>\n";
+						print "&nbsp;※<FONT STYLE=\"font-size:85%\">アドレス間違いや受信制限などメールが届かない場合はエラーメールが返ってきます</FONT><BR>";
+						
+						if (empty($s)){
+							print "<INPUT TYPE=CHECKBOX NAME=\"mine\" VALUE=\"f\">自分を除外して予定を登録";
+							print "&nbsp;※<FONT STYLE=\"font-size:85%\">自分を除外する場合は共有者を必ず選択してください</FONT><BR>";
+						}
+						
+					} else {
+						// 表示モード
+						if (sizeof($id_tos)>0) {
+							$c = 0;
+							for ($i=0;$i<sizeof($id_tos);$i++) {
+								if ($id_tos[$i]!="") {
+									if ($c>0) print ",";
+									$name = get_first("users","name_ryaku","id='".$id_tos[$i]."'","");
+									if ($name=="") $name = get_first("users","name","id='".$id_tos[$i]."'","");
+									if ($name!="") {
+										print $name;
+										$c++;
+									}
+								}
+							}
+						}
+					}
+					print "</TD></TR>\n";
+				}
+				
+				// 施設予約
+				if (!empty($s)){
+					$reserve_seqno = get_first("rooms_reserve","seqno","schedule_seqno='$s' AND user_id='$user_id'",0);
+					$reserve_user_id = $user_id;
+					if ($reserve_seqno==0 && $ref_seqno>0) {
+						$reserve_seqno = get_first("rooms_reserve","seqno","schedule_seqno='$ref_seqno'",0);
+						$reserve_user_id = get_first("rooms_reserve","user_id","schedule_seqno='$ref_seqno'",0);
+					}
+				} else {
+					$reserve_user_id = $user_id;
+				}
+				#if (empty($s) || (!empty($s) && $reserve_seqno>0)){
+				if (true){
+					// 施設予約
+					if (!empty($s)) {
+						$room_id = get_first("rooms_reserve","room_id","seqno='$reserve_seqno'","");
+					}
+					print "<TR BGCOLOR=#CCCCFF>\n";
+					print "<TD ALIGN=RIGHT WIDTH=12% NOWRAP>&nbsp;施設・設備予約&nbsp;</TD>\n";
+					print "<TD ALIGN=LEFT WIDTH=88% NOWRAP BGCOLOR=#DADAFF>\n";
+					
+					if ($editsign=="true" && $user_id==$reserve_user_id) {
+						// 入力モード時
+						$sql_roomtype = "SELECT * FROM rooms_type ORDER BY seqno";
+						$res_roomtype = pg_query($conn,$sql_roomtype);
+						$cnt_roomtype = pg_num_rows($res_roomtype);
+						if ($cnt_roomtype>0) {
+							for ($i=0;$i<$cnt_roomtype;$i++) {
+								$row_roomtype = pg_fetch_array($res_roomtype,$i);
+								$types[($row_roomtype["seqno"])] = $row_roomtype["name"];
+							}
+						}
+						print "<SELECT NAME=\"room_id\">\n";
+						print "<OPTION VALUE=\"\" SELECTED>未選択</OPTION>\n";
+						print "<OPTION VALUE=\"\">--------------------</OPTION>\n";
+						$b_type = "";
+						$sql_room = "SELECT * FROM rooms ORDER BY type,id";
+						$res_room = pg_query($conn,$sql_room);
+						$cnt_room = pg_num_rows($res_room);
+						
+						if ($cnt_room>0) {
+							for ($i=0;$i<$cnt_room;$i++) {
+								$row_room = pg_fetch_array($res_room,$i);
+								$rooms[$i] = array($row_room["id"],$row_room["type"],$row_room["name"]);
+								if ($b_type != $row_room["type"]) {
+									if (substr($target,0,1)=="t" and substr($target,1)==$row_room["type"]) {
+										print "<OPTION VALUE=\"\" SELECTED>【".$types[$row_room["type"]]."】</OPTION>\n";
+									} else {
+										print "<OPTION VALUE=\"\">【".$types[$row_room["type"]]."】</OPTION>\n";
+									}
+								}
+								$b_type = $row_room["type"];
+								if ((substr($target,0,1)=="r" and substr($target,1)==$row_room["id"]) or $room_id==$row_room["id"]) {
+									print "<OPTION VALUE=\"".$row_room["id"]."\" SELECTED>・".$row_room["name"]."</OPTION>\n";
+								} else {
+									print "<OPTION VALUE=\"".$row_room["id"]."\">・".$row_room["name"]."</OPTION>\n";
+								}
+							}
+						}
+						print "</SELECT>\n";
+						print "<FONT STYLE=\"FONT-SIZE:85%;COLOR:#555555;\">※ 施設の同時予約ができます</FONT><BR>\n";
+						print "<INPUT TYPE=CHECKBOX NAME=\"sendmailrooms\" VALUE=\"t\"";
+						if (empty($s)) print " CHECKED";
+						print "><FONT COLOR=#666666>管理者にメールで通知する\n";
+					} else {
+						// 表示モード時
+						if ($room_id != "") {
+							print get_first("rooms","name","id='".$room_id."'","不明または削除された施設・設備");
+						} else {
+							print "なし";
+						}
+					}
+					print "</TD>\n";
+					print "</TR>\n";
+					
+					// 利用人数
+					if (!empty($s)) {
+						$member_count = get_first("rooms_reserve","member_count","seqno='$reserve_seqno'",1);
+					}
+					if (empty($member_count)) { $member_count = "1"; }
+					print "<TR BGCOLOR=#CCCCFF>\n";
+					print "<TD ALIGN=RIGHT WIDTH=12% NOWRAP>&nbsp;利用人数&nbsp;</TD>\n";
+					print "<TD ALIGN=LEFT WIDTH=88% NOWRAP BGCOLOR=#DADAFF>\n";
+					
+					if ($editsign=="true" && $user_id==$reserve_user_id) {
+						// 入力モード時
+						print "<INPUT TYPE=TEXT NAME=\"member_count\" SIZE=4 STYLE=\"ime-mode:disabled\" VALUE=\"$member_count\">名\n";
+					} else {
+						if ($room_id != "") {
+							print $member_count."名\n";
+						} else {
+							print "-\n";
+						}
+					}
+					print "</TD>\n";
+					print "</TR>\n";
+				}
+				print "</TABLE>\n";
+				print "</TD></TR>\n";
+				
+				if (!empty($s) && $updatestamp!="") {
+					print "<TR><TD COLSPAN=2 ALIGN=RIGHT>\n";
+					print "更新日 : ".date("Y年m月d日 H:i",datetime2timestamp($updatestamp));
+					print "</TD></TR>\n";
+				}
+				print "</TABLE>\n";
+				
+				// ボタン
+				print "<TABLE BORDER=0 CELLPADDING=5 CELLSPACING=0 ALIGN=CENTER><TR>\n";
+				if (!empty($s)){
+					if ($user_id == $login_id || $user_id == $master_id || $create_user_id == $login_id ||
+					($master_ids!="" && preg_match("/(^|,)$user_id(,|$)/",$master_ids))) {
+						print "<TD><INPUT TYPE=SUBMIT VALUE=\"更新\" style=\"width:140px\"></TD>";
+					}
+					print "<TD><INPUT TYPE=BUTTON VALUE=\"コピー\" onClick=\"location.href='./?q=$s'\" STYLE=\"width:70px\"></TD>";
+					if ($user_id == $login_id or $user_id == $master_id or $create_user_id == $login_id ||
+					($master_ids!="" && preg_match("/(^|,)$user_id(,|$)/",$master_ids))) {
+						print "<TD><INPUT TYPE=button VALUE=\"削除\" onclick=\"delwin('".$s."','".$room_id."','".$date."')\" STYLE=\"width:60px;background-color:#FFCCCC\"></TD>";
+					}
+				} else {
+					print "<TD><INPUT TYPE=SUBMIT VALUE=\"スケジュール登録\" STYLE=\"width:140px\"></TD>\n";
+				}
+				print "</TR></TABLE>\n";
+				print "</FORM>\n";
+				print "</TD></TR></TABLE>\n";
+				print "<BR>";
+				print "</TD></TR></TABLE>\n";
+			}
+		}
+	}
+}
+include "../../footer.inc.php";
+?>

@@ -1,0 +1,256 @@
+<?php
+  include "../../config.inc.php";
+  include "../../lib.inc.php";
+
+  // リンク用テキストの設定
+  $linktext  = "<A HREF=\"../../\" CLASS=\"BAR\">トップページ</A> &gt; ";
+  $linktext .= "<A HREF=\"../\" CLASS=\"BAR\">管理者メニュー</A> &gt; ";
+  $linktext .= "<FONT COLOR=#FFFF00>掲示板設定</FONT> ";
+
+  include "../../header.inc.php";
+  include "../menu.inc.php";
+
+  $pagetext = "";
+
+  if ($login && $admin_sign=="t") {
+    $p         = $_POST["p"];
+    $seqno     = $_POST["seqno"];
+    $id        = $_POST["id"];
+    $old_id    = $_POST["old_id"];
+    $name      = $_POST["name"];
+    $admin_id  = $_POST["admin_id"];
+    $group     = $_POST["group"];
+    $user      = $_POST["user"];
+    $group_ids = $_POST["group_ids"];
+    $user_ids  = $_POST["user_ids"];
+    $sendsign  = $_POST["sendsign"];
+
+    // seqnoチェック
+    if($seqno!="" and !is_numeric($seqno)){
+      $DMES[] = "管理番号（seqno）が正しくありません";
+    }
+
+    // 掲示板ＩＤ
+    if(strlen($id) == 0){
+      $DMES[] = "掲示板ＩＤが入力されていません";
+    } elseif (strlen($id)<3) {
+      $DMES[] = "掲示板ＩＤは3文字以上にして下さい";
+    } elseif (strlen($id)>12) {
+      $DMES[] = "掲示板ＩＤは12文字以下にして下さい";
+    } else {
+      for ($i=0;$i<strlen($id);$i++) {
+        $ASC = ord(substr($id,$i,1));
+        if (($ASC<ord("0")or$ASC>ord("9")) and ($ASC<ord("a")or$ASC>ord("z")) and ($ASC<ord("A")or$ASC>ord("Z"))) {
+          $DMES[] = "掲示板ＩＤは半角英数字で指定してください";
+          $id = "";
+          break;
+        }
+      }
+      if (sizeof($DMES)==0) {
+        if ($id=="root" or $id=="none" or $id=="all") {
+          $DMES[] = "指定された掲示板ＩＤを使うことはできません";
+          $id = "";
+        } else {
+          $sql_same  = "SELECT * FROM boards WHERE id='".$id."'";
+          if ($seqno!="") {
+            $sql_same .= " AND seqno!=".$seqno;
+          }
+          $res_same = pg_query($conn,$sql_same);
+          if (pg_num_rows($res_same)>0) {
+            $DMES[] = "「".$id."」は掲示板ＩＤとして既に登録されています";
+            $id = "";
+          }
+        }
+      }
+    }
+
+    // 掲示板名
+    if($name==""){
+      $DMES[] = "掲示板名が入力されていません";
+    } elseif (strlen($name)>28) {
+      $DMES[] = "掲示板名は全角14文字（半角28文字）までにして下さい";
+    } else {
+      $name = textsafe($name);
+      $name = db_textsafe($name);
+    }
+
+    // 選択
+    if ($group!="all" && sizeof($group_ids)==0) {
+      $DMES[] = "グループが選択されていません";
+    }
+    if ($user!="all" && sizeof($user_ids)==0) {
+      $DMES[] = "ユーザーが選択されていません";
+    }
+
+    // 重複チェック
+    if (sizeof($DMES)==0) {
+      $sql = "SELECT * FROM boards where name='".$name."'";
+      if (!empty($seqno)) {
+        $sql.= " AND seqno!=$seqno AND id!='$id'";
+      }
+      $res = pg_query($conn,$sql);
+      $cnt = pg_num_rows($res);
+      if ($cnt>0) {
+        $DMES[] = "既にそのBBS名で登録されています";
+      }
+    }
+
+    // 管理者
+    if (empty($admin_id) or $admin_id==""){
+#      $DMES[] = "管理者を選択してください";
+    }
+
+    // 存在確認
+    if (sizeof($DMES)==0) {
+      if (!empty($seqno)) {
+        if (get_first("boards","seqno","seqno=$seqno",0)==0) {
+          $DMES[] = "掲示板の確認に失敗しました";
+        }
+      }
+    }
+
+    if (sizeof($DMES)==0) {
+      if ($seqno != "") {
+        // 更新
+        $sql  = "UPDATE boards SET ";
+        $sql .= "name ='".$name."',";
+        $sql .= "id ='".$id."',";
+        $sql .= "admin_id ='".$admin_id."',";
+        // グループの変更
+        if ($group=="all") {
+          $sql .= "view_group_ids = null ";
+        } else {
+          $sql .= "view_group_ids = '";
+          for ($i=0;$i<sizeof($group_ids);$i++) {
+            if ($i>0) $sql .= ",";
+            $sql .= $group_ids[$i];
+          }
+          $sql .= "'";
+        }
+        $sql .= ",";
+        // ユーザーの変更
+        if ($user=="all") {
+          $sql .= "view_user_ids = null ";
+        } else {
+          $sql .= "view_user_ids = '";
+          for ($i=0;$i<sizeof($user_ids);$i++) {
+            if ($i>0) $sql .= ",";
+            $sql .= $user_ids[$i];
+          }
+          $sql .= "'";
+        }
+        $sql .= ",sendsign='".$sendsign."',";
+        $sql .= "updatestamp='now'";
+
+        $sql .= " WHERE id='".$old_id."' AND seqno=".$seqno."";
+        $res = pg_query($conn, $sql);
+        if ($res==false) {
+          $DMES[] = "掲示板情報の更新に失敗しました";
+        }
+
+        if ($id != $old_id) {
+          $sql_post  = "UPDATE boards_post SET ";
+          $sql_post .= "board_id ='".$id."'";
+          $sql_post .= " WHERE board_id = '".$old_id."'";
+          $res_post  = pg_query($conn, $sql_post);
+          if ($res_post==false) {
+            $DMES[] = "投稿情報の更新に失敗しました";
+          }
+
+          $sql_res  = "UPDATE boards_res SET ";
+          $sql_res .= "board_id ='".$id."'";
+          $sql_res .= " WHERE board_id ='".$old_id."'";
+          $res_res = pg_query($conn, $sql_res);
+          if ($res_res==false) {
+            $DMES[] = "閲覧情報の更新に失敗しました";
+          }
+        }
+      } else {
+        // 追加
+        // seqno採番
+        $seqno = get_last("boards","seqno","",0)+1;
+        $sql  = "INSERT INTO boards ( ";
+        $sql .= "id,seqno,name,admin_id,view_group_ids,view_user_ids,sendsign,createstamp,updatestamp";
+        $sql .= ") VALUES (";
+        $sql .= "'".$id."',";
+        $sql .= $seqno.",";
+        $sql .= "'".$name."',";
+        $sql .= "'".$admin_id."',";
+        // グループの変更
+        if ($group=="all") {
+          $sql .= "null";
+        } else {
+          $sql .= "'";
+          for ($i=0;$i<sizeof($group_ids);$i++) {
+            if ($i>0) $sql .= ",";
+            $sql .= $group_ids[$i];
+          }
+          $sql .= "'";
+        }
+        $sql .= ",";
+        // ユーザーの変更
+        if ($user=="all") {
+          $sql .= "null";
+        } else {
+          $sql .= "'";
+          for ($i=0;$i<sizeof($user_ids);$i++) {
+            if ($i>0) $sql .= ",";
+            $sql .= $user_ids[$i];
+          }
+          $sql .= "'";
+        }
+        $sql .= ",'".$sendsign."',";
+        $sql .= "'now','now'";
+        $sql .= ")";
+        // SQL実行
+        $res = pg_query($conn, $sql);
+        if ($res == false) {
+          $DMES[] = "掲示板情報の追加に失敗しました";
+        }
+      }
+    }
+
+    // エラー処理
+    if (sizeof($DMES)>0) {
+      $pagetext .= "<BR><CENTER>";
+      $pagetext .= "<TABLE><TR><TD>\n";
+      $pagetext .= "<FORM ACTION=\"./edit.phtml\" METHOD=POST>\n";
+      $pagetext .= "<INPUT TYPE=HIDDEN NAME=\"back\"     VALUE=\"t\">\n";
+      $pagetext .= "<INPUT TYPE=HIDDEN NAME=\"p\"        VALUE=\"$p\">\n";
+      $pagetext .= "<INPUT TYPE=HIDDEN NAME=\"seqno\"    VALUE=\"$seqno\">\n";
+      $pagetext .= "<INPUT TYPE=HIDDEN NAME=\"name\"     VALUE=\"$name\">\n";
+      $pagetext .= "<INPUT TYPE=HIDDEN NAME=\"id\"       VALUE=\"$id\">\n";
+      $pagetext .= "<INPUT TYPE=HIDDEN NAME=\"admin_id\" VALUE=\"$admin_id\">\n";
+      $pagetext .= "<INPUT TYPE=HIDDEN NAME=\"sendsign\" VALUE=\"$sendsign\">\n";
+      $pagetext .= "<FONT COLOR=#FF0000>\n";
+      for ($i=0;$i<sizeof($DMES);$i++){
+        $pagetext .= $DMES[$i]."<BR>\n";
+      }
+      $pagetext .= "</TD></TR></TABLE><BR>\n";
+      $pagetext .= "<INPUT TYPE=SUBMIT VALUE=\"戻る\" STYLE=\"WIDTH:80px\">\n";
+      $pagetext .= "</FORM>";
+      $pagetext .= "</CENTER>\n";
+    } else {
+      // 正常終了時
+      $pagetext .= "
+<BR>
+<CENTER>
+更新完了<BR>
+<BR>
+<A HREF=\"#\" ONCLICK=\"location.replace('./?p=$p');location.href='./?p=$p';\">≪一覧へ戻る≫</A>
+</CENTER>
+<BR>
+  <SCRIPT LANGUAGE=\"JavaScript\">
+<!--
+setTimeout(\"location.replace('./?p=$p');location.href='./?p=$p';\", 3000);
+//-->
+</SCRIPT>
+";
+    }
+  }
+
+  include "../../detail.inc.php";
+
+  // フッタ表示
+  include "../../footer.inc.php";
+?>

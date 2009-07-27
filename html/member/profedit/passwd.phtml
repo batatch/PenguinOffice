@@ -1,0 +1,131 @@
+<?php
+  include("../../config.inc.php"); include("../../lib.inc.php");
+  include("../../login_check.inc.php");
+
+  $linktext  = "<A HREF=\"../../\" CLASS=\"BAR\">トップページ</A> &gt; ";
+  $linktext .= "<A HREF=\"../\" CLASS=\"BAR\">メンバー一覧</A> &gt; ";
+  $linktext .= "<A HREF=\"./\" CLASS=\"BAR\">プロフィール変更</A> &gt; ";
+  $linktext .= "<FONT COLOR=#FFFF00>パスワード変更</FONT>";
+
+  include "../../header.inc.php";
+  flush();
+
+  include "../menu.inc.php";
+
+  if ($login && sizeof($MES)==0) {
+
+    $sql = "SELECT * FROM users WHERE id='".$login_id."'";
+    $res = pg_query($conn,$sql);
+    if (pg_num_rows($res)>0) $row = pg_fetch_array($res);
+
+    $pagetext .= "<CENTER><BR>\n";
+    $pagetext .= "<TABLE BORDER=0 CELLPADDING=0 CELLSPACING=0><TR><TD>\n";
+    $pagetext .= "<TABLE BORDER=0 CELLPADDING=0 CELLSPACING=0><TR>\n";
+    $pagetext .= "<TD ALIGN=CENTER WIDTH=100>\n";
+    $pagetext .= "<TABLE BORDER=0 CELLPADDING=0 CELLSPACING=0 BGCOLOR=#999999 WIDTH=100 HEIGHT=19><TR>";
+    $pagetext .= "<TD WIDTH=7 VALIGN=TOP ALIGN=LEFT><IMG SRC=\"../../image/wr-l_t.gif\" WIDTH=7 HEIGHT=7></TD>";
+    $pagetext .= "<TD ALIGN=CENTER><A HREF=\"./\">個人情報</A>";
+    $pagetext .= "<TD WIDTH=7 VALIGN=TOP ALIGN=RIGHT><IMG SRC=\"../../image/wr-r_t.gif\" WIDTH=7 HEIGHT=7></TD>";
+    $pagetext .= "</TR></TABLE>\n";
+    $pagetext .= "</TD>\n";
+    $pagetext .= "<TD WIDTH=1></TD>\n";
+
+    ## マイグループ
+    $pagetext .= "<TD ALIGN=CENTER WIDTH=100>\n";
+    $pagetext .= "<TABLE BORDER=0 CELLPADDING=0 CELLSPACING=0 BGCOLOR=#999999 WIDTH=100 HEIGHT=19><TR>";
+    $pagetext .= "<TD WIDTH=7 VALIGN=TOP ALIGN=LEFT><IMG SRC=\"../../image/wr-l_t.gif\" WIDTH=7 HEIGHT=7></TD>";
+    $pagetext .= "<TD ALIGN=CENTER><A HREF=\"./mygroup.phtml\">マイグループ</A>";
+    $pagetext .= "<TD WIDTH=7 VALIGN=TOP ALIGN=RIGHT><IMG SRC=\"../../image/wr-r_t.gif\" WIDTH=7 HEIGHT=7></TD>";
+    $pagetext .= "</TR></TABLE>";
+    $pagetext .= "</TD>";
+    $pagetext .= "<TD WIDTH=1></TD>";
+
+    ## パスワード
+    $pagetext .= "<TD ALIGN=CENTER WIDTH=100>";
+    $pagetext .= "<TABLE BORDER=0 CELLPADDING=0 CELLSPACING=0 BGCOLOR=#CCCCCC WIDTH=100 HEIGHT=19><TR>";
+    $pagetext .= "<TD WIDTH=7 VALIGN=TOP ALIGN=LEFT><IMG SRC=\"../../image/wr-l_t.gif\" WIDTH=7 HEIGHT=7></TD>";
+    $pagetext .= "<TD ALIGN=CENTER><FONT COLOR=".$bodyLinkColor."><B>パスワード</B></FONT>";
+    $pagetext .= "<TD WIDTH=7 VALIGN=TOP ALIGN=RIGHT><IMG SRC=\"../../image/wr-r_t.gif\" WIDTH=7 HEIGHT=7></TD>";
+    $pagetext .= "</TR></TABLE>";
+    $pagetext .= "</TD>";
+    $pagetext .= "<TD WIDTH=1></TD>";
+
+    ## 表示変更
+    $pagetext .= "<TD ALIGN=CENTER WIDTH=100>";
+    $pagetext .= "<TABLE BORDER=0 CELLPADDING=0 CELLSPACING=0 BGCOLOR=#999999 WIDTH=100 HEIGHT=19><TR>";
+    $pagetext .= "<TD WIDTH=7 VALIGN=TOP ALIGN=LEFT><IMG SRC=\"../../image/wr-l_t.gif\" WIDTH=7 HEIGHT=7></TD>";
+    $pagetext .= "<TD ALIGN=CENTER><A HREF=\"./display.phtml\">表示変更</A>";
+    $pagetext .= "<TD WIDTH=7 VALIGN=TOP ALIGN=RIGHT><IMG SRC=\"../../image/wr-r_t.gif\" WIDTH=7 HEIGHT=7></TD>";
+    $pagetext .= "</TR></TABLE>";
+    $pagetext .= "</TD>";
+    $pagetext .= "<TD WIDTH=1></TD>";
+
+    ## CSV出力
+    $pagetext .= "<TD ALIGN=CENTER WIDTH=100>";
+    $pagetext .= "<TABLE BORDER=0 CELLPADDING=0 CELLSPACING=0 BGCOLOR=#999999 WIDTH=100 HEIGHT=19><TR>";
+    $pagetext .= "<TD WIDTH=7 VALIGN=TOP ALIGN=LEFT><IMG SRC=\"../../image/wr-l_t.gif\" WIDTH=7 HEIGHT=7></TD>";
+    $pagetext .= "<TD ALIGN=CENTER><A HREF=\"./csv.phtml\">CSV出力</A>";
+    $pagetext .= "<TD WIDTH=7 VALIGN=TOP ALIGN=RIGHT><IMG SRC=\"../../image/wr-r_t.gif\" WIDTH=7 HEIGHT=7></TD>";
+    $pagetext .= "</TR></TABLE>";
+    $pagetext .= "</TD>";
+    $pagetext .= "</TR></TABLE>";
+
+    $pagetext .= "<TABLE BORDER=0 CELLPADDING=0 CELLSPACING=0 WIDTH=504>";
+    $pagetext .= "<TR><TD ALIGN=CENTER VALIGN=TOP BGCOLOR=#CCCCCC>";
+    $pagetext .= "<FORM NAME=\"dialog\" ACTION=\"./update_passwd.phtml\" METHOD=POST>";
+    $pagetext .= "<BR>";
+
+    $pagetext .= "<TABLE BORDER=0 CELLPADDING=5><TR><TD>\n";
+    $pagetext .= "<FONT STYLE=\"font-size:8pt\">";
+    $pagetext .= "パスワードを入力して「更新の実行」ボタンを押してください。<BR>\n";
+    $pagetext .= "</TD></TR></TABLE>\n";
+
+    $pagetext .= "<TABLE BGCOLOR=#999999 BORDER=0 CELLPADDING=3 CELLSPACING=1>\n";
+    if ($oid != "") {
+      $pagetext .= "<INPUT TYPE=\"HIDDEN\" NAME=\"oid\" VALUE=\"".$oid."\">\n";
+    }
+    $pagetext .= "<INPUT TYPE=HIDDEN NAME=\"id\"        VALUE=\"".$row["id"]."\">\n";
+    $pagetext .= "<INPUT TYPE=HIDDEN NAME=\"seqno\"     VALUE=\"".$row["seqno"]."\">\n";
+    $pagetext .= "<INPUT TYPE=HIDDEN NAME=\"old_chkpw\" VALUE=\"".$row["passwd"]."\">\n";
+
+    $pagetext .= "<TABLE BORDER=0 CELLPADDING=4 CELLSPACING=1 BGCOLOR=#999999>\n";
+    $pagetext .= "<TR>\n";
+    $pagetext .= "<TD ALIGN=RIGHT NOWRAP VALIGN=TOP BGCOLOR=$td_back_left>旧パスワード</TD>\n";
+    $pagetext .= "<TD ALIGN=LEFT BGCOLOR=$td_back>";
+    $pagetext .= "<INPUT TYPE=PASSWORD NAME=\"old_passwd\" SIZE=22 MAXLENGTH=20>";
+    $pagetext .= "</TD>\n";
+    $pagetext .= "</TR>\n";
+
+    $pagetext .= "<TR>\n";
+    $pagetext .= "<TD ALIGN=RIGHT NOWRAP VALIGN=TOP BGCOLOR=$td_back_left>新パスワード</TD>\n";
+    $pagetext .= "<TD BGCOLOR=$td_back>";
+    $pagetext .= "<INPUT TYPE=PASSWORD NAME=\"new_passwd\" SIZE=22 MAXLENGTH=20>";
+    $pagetext .= "<FONT STYLE=\"FONT-SIZE:7pt;COLOR:#555555;\">&nbsp;半角英数6〜12文字</FONT><BR>\n";
+    $pagetext .= "<INPUT TYPE=PASSWORD NAME=\"new_chkpw\" SIZE=22 MAXLENGTH=20>";
+    $pagetext .= "<FONT STYLE=\"FONT-SIZE:7pt;COLOR:#555555;\">&nbsp;確認用</FONT><BR>\n";
+    $pagetext .= "</TD>";
+    $pagetext .= "</TR>\n";
+    $pagetext .= "</TABLE>\n";
+    $pagetext .= "<BR>\n";
+    $pagetext .= "<INPUT TYPE=SUBMIT VALUE=\"更新の実行\"><BR>\n";
+    $pagetext .= "<TABLE BORDER=0 WIDTH=350><TR><TD>\n";
+    $pagetext .= "<FONT STYLE=\"FONT-SIZE:8pt;COLOR:#FF0000;\">ご注意</FONT><BR>";
+    $pagetext .= "<FONT STYLE=\"FONT-SIZE:8pt;COLOR:#555555;LINE-HEIGHT:11pt\">";
+    $pagetext .= "※ パスワードは半角英数字12文字以内で入力してください。<BR>\n";
+    $pagetext .= "※ 英字の大文字小文字は別の文字となりますのでご注意ください。<BR>\n";
+    $pagetext .= "※ 他人が簡単に類推できるパスワードは避けてください<BR>\n";
+    $pagetext .= "　　また、それらをアレンジしたパスワードも、できるだけ複雑な文字<BR>\n";
+    $pagetext .= "　　の組み合わせにすることをお勧めします。<BR>\n";
+    $pagetext .= "　　例）ID,ハンドル,氏名,会社名,無線のコールサイン,電話番号,<BR>\n";
+    $pagetext .= "　　　　&quot;SECRET&quot;,&quot;PASSWORD&quot;,&quot;PENGUIN&quot;&nbsp;etc...<BR>\n";
+    $pagetext .= "※ 新しいパスワードは次回ログイン時より有効になります。<BR>\n";
+    $pagetext .= "</TD></TR></TABLE>\n";
+
+    $pagetext .= "</FORM>";
+    $pagetext .= "</TD></TR></TABLE>\n";
+    $pagetext .= "<BR></CENTER>";
+  }
+
+  include "../../detail.inc.php";
+  include "../../footer.inc.php";
+?>

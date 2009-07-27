@@ -1,0 +1,215 @@
+<?
+  include "../../config.inc.php"; include "../../lib.inc.php";
+  $linktext  = "<A HREF=\"../../\" CLASS=\"BAR\">トップページ</A> &gt; ";
+  $linktext .= "<A HREF=\"../\" CLASS=\"BAR\">管理者メニュー</A> &gt; ";
+  $linktext .= "<FONT COLOR=#FFFF00>管理者設定</FONT> ";
+  include "../../header.inc.php"; include "../menu.inc.php";
+
+  if (!$login) {
+    $DMES[] = "先にログインしてください";
+  } elseif ($admin_sign!="t") {
+    $DMES[] = "本機能は管理者のみご利用可能です";
+  } elseif ($login && $admin_sign=="t") {
+    // 事前整形
+    $name         = textsafe($name);
+    $name_kana    = textsafe($name_kana);
+    $email        = textsafe($email);
+    $company      = textsafe($company);
+    $company_kana = textsafe($company_kana);
+    $depa         = textsafe($depa);
+    $post         = textsafe($post);
+    $zip          = textsafe($zip);
+    $state        = textsafe($state);
+    $city         = textsafe($city);
+    $street       = textsafe($street);
+    $area         = textsafe($area);
+    $tel          = textsafe($tel);
+    $fax          = textsafe($fax);
+
+    // エラーチェック
+    if ($name=="") {
+      $DMES[] = "管理者名が入力されていません";
+    } elseif(strlen($name)>40) {
+      $DMES[] = "管理者名が長すぎます(全角20文字以内)";
+      $name = mb_strcut($name,0,40);
+    }
+    if ($name_kana=="") {
+      $DMES[] = "管理者名(フリガナ)が入力されていません";
+    } elseif(strlen($name_kana)>40) {
+      $DMES[] = "管理者名(フリガナ)が長すぎます(全角20文字以内)";
+      $name_kana = mb_strcut($name_kana,0,40);
+    }
+    if ($email=="") {
+#      $DMES[] = "メールアドレスが入力されていません";
+    } elseif(!is_email($email))  {
+      $DMES[] = "メールアドレスが正しくありません";
+    } elseif(strlen($email)>60) {
+      $DMES[] = "メールアドレスが長すぎます(60文字以内)";
+      $email = mb_strcut($email,0,60);
+    }
+    if ($company=="") {
+      $DMES[] = "会社名が入力されていません";
+    } elseif(strlen($company)>80) {
+      $DMES[] = "会社名が長すぎます(全角40文字以内)";
+      $company = mb_strcut($company,0,80);
+    }
+    if ($company_kana=="") {
+      $DMES[] = "会社名(フリガナ)が入力されていません";
+    } elseif(strlen($company_kana)>80) {
+      $DMES[] = "会社名(フリガナ)が長すぎます(全角40文字以内)";
+      $company_kana = mb_strcut($company_kana,0,80);
+    }
+    if ($depa=="") {
+#      $DMES[] = "所属部署が入力されていません";
+    } elseif(strlen($depa)>60) {
+      $DMES[] = "所属部署が長すぎます(全角30文字以内)";
+      $depa = mb_strcut($depa,0,60);
+    }
+    if ($post=="") {
+#      $DMES[] = "役職・肩書きが入力されていません";
+    } elseif(strlen($post)>60) {
+      $DMES[] = "役職・肩書きが長すぎます(全角30文字以内)";
+      $post = mb_strcut($post,0,60);
+    }
+    if ($zip=="") {
+      $DMES[] = "郵便番号が入力されていません";
+    } elseif(strlen($zip)>8) {
+      $DMES[] = "郵便番号が長すぎます(8文字以内)";
+      $zip = mb_strcut($zip,0,8);
+    }
+    if ($state=="") {
+      $DMES[] = "都道府県が選択されていません";
+    }
+    if ($city=="") {
+      $DMES[] = "市区郡が入力されていません";
+    } elseif(strlen($city)>60) {
+      $DMES[] = "市区郡が長すぎます(全角30文字以内)";
+      $city = mb_strcut($city,0,60);
+    }
+    if ($street=="") {
+      $DMES[] = "町村・番地が入力されていません";
+    } elseif(strlen($street)>80) {
+      $DMES[] = "町村・番地が長すぎます(全角40文字以内)";
+      $street = mb_strcut($street,0,80);
+    }
+    if ($build=="") {
+#      $DMES[] = "ビル・マンション名が入力されていません";
+    } elseif(strlen($build)>80) {
+      $DMES[] = "ビル・マンション名が長すぎます(全角40文字以内)";
+      $build = mb_strcut($build,0,80);
+    }
+    if ($area=="") {
+#      $DMES[] = "市外局番が入力されていません";
+    } elseif(strlen($area)>6) {
+      $DMES[] = "市外局番が長すぎます(6文字以内)";
+      $area = mb_strcut($area,0,6);
+    }
+    if ($tel=="") {
+#      $DMES[] = "電話番号が入力されていません";
+    } elseif(strlen($tel)>15) {
+      $DMES[] = "電話番号が長すぎます(15文字以内)";
+      $tel = mb_strcut($tel,0,15);
+    }
+    if ($fax=="") {
+#      $DMES[] = "FAX番号が入力されていません";
+    } elseif(strlen($fax)>15) {
+      $DMES[] = "FAX番号が長すぎます(15文字以内)";
+      $fax = mb_strcut($fax,0,15);
+    }
+
+    // 変更時処理
+    if (sizeof($DMES)==0) {
+      if (get_count("admin","")==0) {
+        // 追加
+        $sql  = "INSERT INTO admin (email,company,company_kana,zip,state,city,street,build,area,tel,fax,depa,post,name,name_kana,createstamp,updatestamp) VALUES (";
+        $sql .= "'".db_textsafe($email)       ."',";
+        $sql .= "'".db_textsafe($company)     ."',";
+        $sql .= "'".db_textsafe($company_kana)."',";
+        $sql .= "'".db_textsafe($zip)         ."',";
+        $sql .= "'".db_textsafe($state)       ."',";
+        $sql .= "'".db_textsafe($city)        ."',";
+        $sql .= "'".db_textsafe($street)      ."',";
+        $sql .= "'".db_textsafe($build)       ."',";
+        $sql .= "'".db_textsafe($area)        ."',";
+        $sql .= "'".db_textsafe($tel)         ."',";
+        $sql .= "'".db_textsafe($fax)         ."',";
+        $sql .= "'".db_textsafe($depa)        ."',";
+        $sql .= "'".db_textsafe($post)        ."',";
+        $sql .= "'".db_textsafe($name)        ."',";
+        $sql .= "'".db_textsafe($name_kana)   ."',";
+        $sql .= "'now','now')";
+      } else {
+        // 更新
+        $sql  = "UPDATE admin SET ";
+        $sql .= "email        = '".db_textsafe($email)       ."',";
+        $sql .= "company      = '".db_textsafe($company)     ."',";
+        $sql .= "company_kana = '".db_textsafe($company_kana)."',";
+        $sql .= "zip          = '".db_textsafe($zip)         ."',";
+        $sql .= "state        = '".db_textsafe($state)       ."',";
+        $sql .= "city         = '".db_textsafe($city)        ."',";
+        $sql .= "street       = '".db_textsafe($street)      ."',";
+        $sql .= "build        = '".db_textsafe($build)       ."',";
+        $sql .= "area         = '".db_textsafe($area)        ."',";
+        $sql .= "tel          = '".db_textsafe($tel)         ."',";
+        $sql .= "fax          = '".db_textsafe($fax)         ."',";
+        $sql .= "depa         = '".db_textsafe($depa)        ."',";
+        $sql .= "post         = '".db_textsafe($post)        ."',";
+        $sql .= "name         = '".db_textsafe($name)        ."',";
+        $sql .= "name_kana    = '".db_textsafe($name_kana)   ."',";
+        $sql .= "updatestamp  = 'now'";
+      }
+      // SQL実行
+      $res = pg_query($conn, $sql);
+      if ($res==false) {
+        $DMES[] = "管理者情報の更新に失敗しました";
+      }
+    }
+  }
+
+  if (sizeof($DMES)>0) {
+    $pagetext .= "<CENTER><BR><FONT COLOR=#FF0000>\n";
+    while(list($key,$val)=each($DMES)) {
+      $pagetext .= $val."<BR>\n";
+    }
+    $pagetext .= "</FONT><BR>\n";
+    $pagetext .= "
+<FORM ACTION=\"./\" METHOD=POST>
+<INPUT TYPE=HIDDEN NAME=\"err\" VALUE=\"t\">
+<INPUT TYPE=HIDDEN NAME=\"email\"        VALUE=\"".$email       ."\">
+<INPUT TYPE=HIDDEN NAME=\"company\"      VALUE=\"".$company     ."\">
+<INPUT TYPE=HIDDEN NAME=\"company_kana\" VALUE=\"".$company_kana."\">
+<INPUT TYPE=HIDDEN NAME=\"zip\"          VALUE=\"".$zip         ."\">
+<INPUT TYPE=HIDDEN NAME=\"state\"        VALUE=\"".$state       ."\">
+<INPUT TYPE=HIDDEN NAME=\"city\"         VALUE=\"".$city        ."\">
+<INPUT TYPE=HIDDEN NAME=\"street\"       VALUE=\"".$street      ."\">
+<INPUT TYPE=HIDDEN NAME=\"build\"        VALUE=\"".$build       ."\">
+<INPUT TYPE=HIDDEN NAME=\"area\"         VALUE=\"".$area        ."\">
+<INPUT TYPE=HIDDEN NAME=\"tel\"          VALUE=\"".$tel         ."\">
+<INPUT TYPE=HIDDEN NAME=\"fax\"          VALUE=\"".$fax         ."\">
+<INPUT TYPE=HIDDEN NAME=\"depa\"         VALUE=\"".$depa        ."\">
+<INPUT TYPE=HIDDEN NAME=\"post\"         VALUE=\"".$post        ."\">
+<INPUT TYPE=HIDDEN NAME=\"name\"         VALUE=\"".$name        ."\">
+<INPUT TYPE=HIDDEN NAME=\"name_kana\"    VALUE=\"".$name_kana   ."\">
+<INPUT TYPE=SUBMIT VALUE=\"戻る\">
+</FORM>";
+
+    $pagetext .= "</CENTER>";
+  } else {
+    // 正常時
+    $pagetext .= "
+<BR>
+<CENTER>
+登録完了<BR>
+<BR>
+<A HREF=\"#\" ONCLICK=\"location.replace('./');location.href='./';\">≪表示へ戻る≫</A>
+</CENTER>
+<BR>
+<SCRIPT LANGUAGE=\"JavaScript\">
+<!--//
+  setTimeout(\"location.replace('./');location.href='./';\", 3000);
+//-->
+</SCRIPT>\n";
+  }
+  include ("../../detail.inc.php");
+  include ("../../footer.inc.php");
+?>

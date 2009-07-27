@@ -1,0 +1,110 @@
+<?php
+  // ファイルの読込
+  include "../../../config.inc.php";
+  include "../../../lib.inc.php";
+
+  // リンク用テキストの設定
+  $linktext  = "<A HREF=\"../../../\" CLASS=\"BAR\">トップページ</A> &gt; ";
+  $linktext .= "<A HREF=\"../../\" CLASS=\"BAR\">管理者メニュー</A> &gt; ";
+  $linktext .= "<A HREF=\"../?p=$p\" CLASS=\"BAR\">ユーザー設定</A> &gt; ";
+  $linktext .= "<FONT COLOR=#FFFF00>パスワード変更</FONT> ";
+
+  // 変数処理
+  if (!empty($_POST["p"]))          $p          = $_POST["p"];
+  if (!empty($_POST["id"]))         $id         = $_POST["id"];
+  if (!empty($_POST["seqno"]))      $seqno      = $_POST["seqno"];
+  if (!empty($_POST["old_passwd"])) $old_passwd = $_POST["old_passwd"];
+  if (!empty($_POST["old_chkpw"]) ) $old_chkpw  = $_POST["old_chkpw"];
+  if (!empty($_POST["new_passwd"])) $new_passwd = $_POST["new_passwd"];
+  if (!empty($_POST["new_chkpw"]))  $new_chkpw  = $_POST["new_chkpw"];
+
+  // ファイルの読込
+  include "../../../header.inc.php";
+  include "../../menu.inc.php";
+
+  if ($login && $admin_sign=="t") {
+    // 事前整形
+    $old_passwd = trim($old_passwd);
+    $old_chkpw  = trim($old_chkpw);
+    $new_passwd = trim($new_passwd);
+    $new_chkpw  = trim($new_chkpw);
+
+    // エラーチェック
+    if($new_passwd == ""){
+      $DMES[] = "パスワードが入力されていません";
+    } elseif(strlen($new_passwd)<6) {
+      $DMES[] = "パスワードの入力が短すぎます";
+    } elseif(strlen($new_passwd)>12) {
+      $DMES[] = "パスワードの入力が長すぎます";
+    } elseif(!preg_match("/^[\w\|]+$/i",$new_passwd)) {
+      $DMES[] = "パスワードは英字または数字で指定してください";
+    }
+    if($new_chkpw == ""){
+      $DMES[] = "パスワード(確認用) が入力されていません";
+    }
+    if (sizeof($DMES)==0) {
+      if ($new_passwd <> $new_chkpw){
+        $DMES[] = "新しいパスワードと確認用のパスワードが一致しません";
+      }
+    }
+
+    if($id == "" || $seqno == ""){
+      $DMES[] = "ユーザーの指定が正しくありません";
+    }
+
+    if (sizeof($DMES)==0) {
+      $sql = "SELECT * FROM users WHERE seqno=$seqno AND id='$id'";
+      $res = pg_query($conn, $sql);
+      $cnt = pg_num_rows($res);
+      if ($cnt==0) {
+        $DMES[] = "指定されたユーザーは削除されたか現在使用中です";
+      }
+    }
+
+    if (sizeof($DMES)==0) {
+      // 更新
+      $pwd_cr = crypt(db_textsafe($new_passwd),substr(db_textsafe($new_passwd),1,2));
+
+      $sql  = "UPDATE users SET ";
+      $sql .= "passwd ='".$pwd_cr."',";
+      $sql .= "updatestamp ='now'";
+      $sql .= " WHERE seqno=$seqno AND id='$id'";
+
+      // SQL実行
+      $res = pg_query($conn, $sql);
+      if ($res==false) {
+        $DMES[] = "パスワード情報の更新に失敗しました";
+      }
+    }
+
+    if (sizeof($DMES)>0) {
+      // エラー時
+      $pagetext .= "<FORM ACTION=\"./\" METHOD=POST>\n";
+      $pagetext .= "<CENTER><BR>\n";
+      $pagetext .= "<TABLE><TR><TD>\n";
+      $pagetext .= "<FONT COLOR=#FF0000>\n";
+      while (list($key,$val)=each($DMES)) {
+        $pagetext .= $val."<BR>\n";
+      }
+      $pagetext .= "</FONT>\n";
+      $pagetext .= "</TD></TR></TABLE><BR>\n";
+      $pagetext .= "<INPUT TYPE=BUTTON VALUE=\"戻る\" ONCLICK=\"history.back()\">\n";
+      $pagetext .= "</CENTER>\n";
+      $pagetext .= "</FORM>\n";
+    } else {
+      // 正常時
+      $pagetext .= "<CENTER><BR>更新完了<BR><BR>\n";
+      $pagetext .= "<A HREF=\"#\" ONCLICK=\"location.replace('../?p=$p');location.href='../?p=$p';\">≪一覧へ戻る≫</A>\n";
+      $pagetext .= "<BR></CENTER>\n";
+      $pagetext .= "<SCRIPT LANGUAGE=\"JavaScript\">\n";
+      $pagetext .= "<!--//\n";
+      $pagetext .= "  setTimeout(\"location.replace('../?p=$p');location.href='../?p=$p';\", 3000);\n";
+      $pagetext .= "//-->\n";
+      $pagetext .= "</SCRIPT>\n";
+    }
+  }
+
+  // ファイルの読込
+  include("../../../detail.inc.php");
+  include("../../../footer.inc.php");
+?>

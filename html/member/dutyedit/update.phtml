@@ -1,0 +1,163 @@
+<?
+  include "../../config.inc.php";
+  include "../../lib.inc.php";
+
+  $linktext  = "<A HREF=\"/\" CLASS=\"BAR\">トップページ</A> &gt; ";
+  $linktext .= "<A HREF=\"/member/\" CLASS=\"BAR\">メンバー一覧</A> &gt; ";
+  $linktext .= "<FONT COLOR=#FFFF00>行き先登録</FONT>";
+
+  include "../../login_check.inc.php";
+
+  if ($login && sizeof($MES)==0) {
+    $note = textsafe($note);
+
+    // エラーチェック
+    if ((empty($y) || !is_numeric($y)) || (empty($m) || !is_numeric($m)) || (empty($d) || !is_numeric($d))) {
+      $MES[] = "日付が正しくありません";
+    } elseif (!checkdate($m,$d,$y)) {
+      $MES[] = "日付が正しくありません";
+    }
+    if ($start_hour>=0 && !is_numeric($start_minuts)) {
+      $MES[] = "出社時刻が正しくありません";
+    } elseif ($start_hour>=0 && ($start_minuts<0 || $start_minuts>59)) {
+      $MES[] = "出社時刻が正しくありません";
+    } else {
+      if (sizeof($MES)==0 && $start_hour>=0 && is_numeric($start_minuts)) {
+        $startstamp = mktime($start_hour,$start_minuts,0,$m,$d,$y);
+      }
+    }
+    if ($end_hour>=0 && !is_numeric($end_minuts)) {
+      $MES[] = "退社時刻が正しくありません";
+    } elseif ($end_hour>=0 && ($end_minuts<0 || $end_minuts>59)) {
+      $MES[] = "退社時刻が正しくありません";
+    } else {
+      if (sizeof($MES)==0 && $end_hour>=0 && is_numeric($end_minuts)) {
+        $endstamp = mktime($end_hour,$end_minuts,0,$m,$d,$y);
+      }
+    }
+    if ($goes_hour>=0 && !is_numeric($goes_minuts)) {
+      $MES[] = "外出時刻が正しくありません";
+    } elseif ($goes_hour>=0 && ($goes_minuts<0 || $goes_minuts>59)) {
+      $MES[] = "外出時刻が正しくありません";
+    } else {
+      if (sizeof($MES)==0 && $goes_hour>=0 && is_numeric($goes_minuts)) {
+        $goesstamp = mktime($goes_hour,$goes_minuts,0,$m,$d,$y);
+      }
+    } 
+    if ($back_hour>=0 && !is_numeric($back_minuts)) {
+      $MES[] = "戻り時刻が正しくありません";
+    } elseif ($back_hour>=0 && ($back_minuts<0 || $back_minuts>59)) {
+      $MES[] = "戻り時刻が正しくありません";
+    } else {
+      if (sizeof($MES)==0 && $back_hour>=0 && is_numeric($back_minuts)) {
+        $backstamp = mktime($back_hour,$back_minuts,0,$m,$d,$y);
+      }
+    }
+    if (!empty($note) || strlen($note)>500) {
+      $MES[] = "コメントが長すぎます(全角250文字まで)";
+    }
+    // 更新処理
+    // ※ ロギングしてるのでうまく使えば工程管理の実績収集なんかにつかえるかも
+    if (sizeof($MES)==0) {
+      $workdate = $y."-".$m."-".$d;
+      if (get_count("users_duty","user_id='".$login_id."' AND workdate='".$workdate."'")==0) {
+        // 追加
+        $sql  = "INSERT INTO users_duty (workdate,user_id,startstamp,endstamp,goesstamp,backstamp,note,createstamp,updatestamp) VALUES (";
+        $sql .= "'".$workdate."',";
+        $sql .= "'".$login_id."',";
+        if (!empty($startstamp)) {
+          $sql .= "'".date("Y-m-d H:i:s",$startstamp)."',";
+        } else {
+          $sql .= "NULL,";
+        }
+        if (!empty($endstamp)) {
+          $sql .= "'".date("Y-m-d H:i:s",$endstamp)."',";
+        } else {
+          $sql .= "NULL,";
+        }
+        if (!empty($goesstamp)) {
+          $sql .= "'".date("Y-m-d H:i:s",$goesstamp)."',";
+        } else {
+          $sql .= "NULL,";
+        }
+        if (!empty($backstamp)) {
+          $sql .= "'".date("Y-m-d H:i:s",$backstamp)."',";
+        } else {
+          $sql .= "NULL,";
+        }
+        $sql .= "'".db_textsafe($note)."',";
+        $sql .= "'now',";
+        $sql .= "'now'";
+        $sql .= ")";
+      } else {
+        // 更新
+        $sql  = "UPDATE users_duty SET ";
+        if (!empty($startstamp)) {
+          $sql .= "startstamp='".date("Y-m-d H:i:s",$startstamp)."',";
+        } else {
+          $sql .= "startstamp=NULL,";
+        }
+        if (!empty($endstamp)) {
+          $sql .= "endstamp='".  date("Y-m-d H:i:s",$endstamp)."',";
+        } else {
+          $sql .= "endstamp=NULL,";
+        }
+        if (!empty($goesstamp)) {
+          $sql .= "goesstamp='".  date("Y-m-d H:i:s",$goesstamp)."',";
+        } else {
+          $sql .= "goesstamp=NULL,";
+        }
+        if (!empty($backstamp)) {
+          $sql .= "backstamp='". date("Y-m-d H:i:s",$backstamp)."',";
+        } else {
+          $sql .= "backstamp=NULL,";
+        }
+        $sql .= "note='".db_textsafe($note)."',";
+        $sql .= "updatestamp='now' ";
+        $sql .= "WHERE workdate='".$workdate."' AND user_id='".$login_id."'";
+      }
+      $res = pg_query($conn,$sql);
+      if ($res != false) {
+        $cnt = pg_affected_rows($res);
+      } else {
+        $cnt = 0;
+      }
+      if ($cnt==0) $MES[] = "更新処理に失敗しました".$sql;
+    }
+
+    if (sizeof($MES)>0) {
+      // エラーメッセージ出力
+      include "../../header.inc.php";
+      flush();
+
+      print "<TABLE WIDTH=100% BORDER=0><TR><TD ALIGN=CENTER VALIGN=TOP>\n";
+      print "<BR><BR>\n";
+      print "<FORM NAME=\"\" ACTION=\"./edit.phtml\" METHOD=\"POST\">\n";
+      print "<INPUT TYPE=\"HIDDEN\" NAME=\"p\" VALUE=\"$p\">\n";
+      print "<INPUT TYPE=\"HIDDEN\" NAME=\"y\" VALUE=\"$y\">\n";
+      print "<INPUT TYPE=\"HIDDEN\" NAME=\"m\" VALUE=\"$m\">\n";
+      print "<INPUT TYPE=\"HIDDEN\" NAME=\"d\" VALUE=\"$d\">\n";
+      print "<INPUT TYPE=\"HIDDEN\" NAME=\"startstamp\" VALUE=\"$startstamp\">\n";
+      print "<INPUT TYPE=\"HIDDEN\" NAME=\"endstamp\" VALUE=\"$endstamp\">\n";
+      print "<INPUT TYPE=\"HIDDEN\" NAME=\"goesstamp\" VALUE=\"$goesstamp\">\n";
+      print "<INPUT TYPE=\"HIDDEN\" NAME=\"backstamp\" VALUE=\"$backstamp\">\n";
+      print "<INPUT TYPE=\"HIDDEN\" NAME=\"note\" VALUE=\"$note\">\n";
+      if (sizeof($MES)>0) {
+        print "<FONT COLOR=#FF0000>\n";
+        while (list($key,$val)=each($MES)) {
+          print $val."<BR>\n";
+        }
+        print "</FONT>\n";
+      }
+      print "<BR><BR>\n";
+      print "<INPUT TYPE=SUBMIT VALUE=\"戻る\"><BR>\n";
+      print "</FORM>\n";
+      print "</TD></TR></TABLE>\n";
+
+      include "../../footer.inc.php";
+    } else {
+      // 正常処理
+      header("Location: ./?p=$p&y=$y&m=$m");
+    }
+  }
+?>

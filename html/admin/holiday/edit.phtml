@@ -1,0 +1,125 @@
+<?php
+  include "../../config.inc.php";
+  include "../../lib.inc.php";
+
+  $linktext  = "<A HREF=\"../../\" CLASS=\"BAR\">トップページ</A> &gt; ";
+  $linktext .= "<A HREF=\"../\" CLASS=\"BAR\">管理者メニュー</A> &gt; ";
+  $linktext .= "<FONT COLOR=#FFFF00>休日設定</FONT> ";
+  include "../../header.inc.php";
+  flush();
+
+  // 機能別メニュー内容の取得
+  include "../menu.inc.php";
+
+  if ($login && $admin_sign=="t") {
+    print "<!--";
+    $pagetext = "";
+    $pagetext .= "<SCRIPT LANGUAGE=\"JavaScript\">\n";
+    $pagetext .= "<!--\n";
+    $pagetext .= "function delConfirm(holiday,p) {\n";
+    $pagetext .= "  if (confirm(\"この項目を削除しますか？\\n注:一度削除した項目は元に戻すことはできません\")) {\n";
+    $pagetext .= "    window.open('./delete.phtml?holiday='+holiday+'&p='+p+'','_self');\n";
+    $pagetext .= "  }\n";
+    $pagetext .= "}\n";
+    $pagetext .= "// -->\n";
+    $pagetext .= "</SCRIPT>\n";
+    $pagetext .= "<BR><CENTER>\n";
+
+    if (!empty($_POST["back"]) && $_POST["back"]=="t") {
+      // 更新ページからの戻り(エラー)時
+      $updmode = stripslashes($_POST["updmode"]);
+      $p = stripslashes($_POST["p"]);
+      if (empty($_POST["holiday"])) {
+        $holiday = date("Y-m-d");
+      } else {
+        $holiday = stripslashes($_POST["holiday"]);
+      }
+      $name = stripslashes($_POST["name"]);
+    } else {
+      // 変数処理
+      if (!empty($_REQUEST["p"])) $p = $_REQUEST["p"];
+
+      // SELECT条件の指定
+      if (!empty($_GET["holiday"]) && is_date($_GET["holiday"])) {
+        $sql = "SELECT * FROM holiday WHERE holiday='".date("Y/m/d",date2timestamp($_GET["holiday"]))."'";
+        $res = pg_query($conn, $sql);
+        $cnt = pg_num_rows($res);
+        $updmode = "edit";
+      } else {
+        $cnt = 0;
+        $updmode = "add";
+      }
+
+      if ($cnt>0) {
+        $row = pg_fetch_array($res, 0);
+        $holiday = $row["holiday"];
+        $name    = $row["name"];
+      } else {
+        $holiday = date("Y-m-d");
+        $name    = "";
+      }
+    }
+
+    $holiday_y = date("Y",date2timestamp($holiday));
+    $holiday_m = date("m",date2timestamp($holiday));
+    $holiday_d = date("d",date2timestamp($holiday));
+
+    //テーブル出力
+    $pagetext .= "<TABLE BGCOLOR=#999999 BORDER=0 CELLPADDING=3 CELLSPACING=1>\n";
+    $pagetext .= "<FORM ACTION=\"./update.phtml\" METHOD=POST>\n";
+    $pagetext .= "<INPUT TYPE=HIDDEN NAME=\"p\" VALUE=\"$p\">\n";
+    $pagetext .= "<INPUT TYPE=HIDDEN NAME=\"updmode\" VALUE=\"$updmode\">\n";
+    $pagetext .= "<TR><TH ALIGN=RIGHT NOWRAP BGCOLOR=$td_back_left>&nbsp;日付&nbsp;</TD>";
+    $pagetext .= "<TD NOWRAP BGCOLOR=#FFFFEE>";
+
+    if ($updmode=="edit") {
+      $pagetext .= "<INPUT TYPE=HIDDEN NAME=\"holiday_y\" VALUE=\"".$holiday_y."\">".$holiday_y."年\n";
+      $pagetext .= "<INPUT TYPE=HIDDEN NAME=\"holiday_m\" VALUE=\"".$holiday_m."\">".$holiday_m."月\n";
+      $pagetext .= "<INPUT TYPE=HIDDEN NAME=\"holiday_d\" VALUE=\"".$holiday_d."\">".$holiday_d."日\n";
+    } else {
+      $pagetext .= "<INPUT TYPE=TEXT NAME=\"holiday_y\" VALUE=\"$holiday_y\" SIZE=5 MAXLENGTH=4 STYLE=\"ime-mode:disabled\">年\n";
+      $pagetext .= "<SELECT NAME=\"holiday_m\" STYLE=\"ime-mode:disabled\">\n";
+      for ($i=1;$i<=12;$i++){
+        $pagetext .= "<OPTION VALUE=\"$i\"";
+        if ($i == $holiday_m) { $pagetext .= " SELECTED"; }
+        $pagetext .= ">";
+        if (strlen($i)==1) $pagetext .= "0";
+        $pagetext .= $i."</OPTION>\n";
+      }
+      $pagetext .= "</SELECT>月";
+      $pagetext .= "<SELECT NAME=\"holiday_d\" STYLE=\"ime-mode:disabled\">\n";
+      for ($i=1;$i<=31;$i++){
+        $pagetext .= "<OPTION VALUE=\"$i\"";
+        if ($i == $holiday_d){ $pagetext .= " SELECTED"; }
+        $pagetext .= ">";
+        if (strlen($i)==1) $pagetext .= "0";
+        $pagetext .= $i."</OPTION>\n";
+      }
+      $pagetext .= "</SELECT>日\n";
+    }
+    $pagetext .= "</TD></TR>\n";
+
+    $pagetext .= "<TR><TH ALIGN=RIGHT NOWRAP BGCOLOR=$td_back_left>&nbsp;名称&nbsp;</TD>";
+    $pagetext .= "<TD NOWRAP BGCOLOR=#FFFFEE>";
+    $pagetext .= "<INPUT TYPE=TEXT NAME=\"name\" SIZE=24 MAXLENGTH=60 VALUE=\"$name\">\n";
+    $pagetext .= "</TD></TR>\n";
+
+    $pagetext .= "</TABLE>\n";
+    $pagetext .= "<BR>\n";
+
+    if ($updmode=="edit") {
+      $pagetext .= "<INPUT TYPE=SUBMIT VALUE=\"更新する\" STYLE=\"width:80px\">&nbsp;";
+      $pagetext .= "<INPUT TYPE=BUTTON VALUE=\"削除\" onclick=\"delConfirm('".$_GET["holiday"]."','$p')\">\n";
+    } else {
+      $pagetext .= "<INPUT TYPE=SUBMIT VALUE=\"登録する\" STYLE=\"width:80px\">";
+    }
+    $pagetext .= "</FORM>\n";
+    $pagetext .= "</CENTER>\n";
+    print "-->";
+  }
+  // 明細表示
+  include "../../detail.inc.php";
+
+  // フッタ表示
+  include "../../footer.inc.php";
+?>

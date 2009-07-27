@@ -1,0 +1,343 @@
+<?php
+  include "../../config.inc.php";
+  include "../../lib.inc.php";
+  include "../../language.inc.php";
+
+  $linktext  = "<A HREF=\"../../\" CLASS=\"BAR\">トップページ</A> &gt; ";
+  $linktext .= "<A HREF=\"../\" CLASS=\"BAR\">住所録</A> &gt; ";
+  $linktext .= "<A HREF=\"./index2.phtml\" CLASS=\"BAR\">項目別検索</A> &gt; ";
+  $linktext .= "<FONT COLOR=#FFFF00>検索結果</FONT>";
+  include "../../header.inc.php";
+  flush();
+
+  // エラーチェック
+  if ($login==false) {
+    $MES[] = "先に、ログインしてください ⇒ <A HREF=\"$toppath/\">ログインページへ</A>";
+  } else {
+    if (trim($login_id) == "") {
+      $MES[] = "ユーザーＩＤが正しくありません";
+    } else {
+      $sql = "select * from users where id='".$login_id."'";
+      print "<!--";
+      $res = pg_query($conn, $sql);
+
+      if (pg_num_rows($res)<1) {
+        $MES[] = "ユーザーＩＤが正しくありません";
+      } else {
+        $row = pg_fetch_array($res,0);
+      }
+      print "-->";
+    }
+  }
+
+  if (sizeof($MES)>0) {
+    // エラー時
+    print "<TABLE BORDER=0 WIDTH=100%>\n";
+    print "  <TR><TD ALIGN=CENTER>\n";
+    print "    <TABLE BORDER=0 HEIGHT=260>\n";
+    // エラーメッセージ出力
+    while (list($key,$val)=each($MES)) {
+      print "      <TR><TD><FONT COLOR=#FF0000><B>".$val."</B></FONT></TD></TR>\n";
+    }
+    print "    </TABLE>\n";
+
+    print "    <INPUT TYPE=\"BUTTON\" VALUE=\"閉じる\" onClick=\"window.close()\" tabindex=999>\n";
+    print "  </TD></TR>\n";
+    print "</TABLE>\n";
+
+    include "../../footer.inc.php";
+    exit;
+  }
+?>
+<BR>
+
+<CENTER>
+<TABLE HEIGHT=445>
+<TR><TD VALIGN=TOP ALIGN=CENTER>
+
+<?
+  // 前処理
+  $name      = textsafe($name);
+  $name_kana = mb_convert_kana(textsafe($name),"C");
+  $corp      = textsafe($corp);
+  $corp_kana = mb_convert_kana(textsafe($corp),"C");
+  $depa      = textsafe($depa);
+  $addr      = textsafe($addr);
+  $tel       = mb_convert_kana(textsafe($tel),"a");
+  $url       = textsafe($url);
+  $comment   = textsafe($comment);
+
+  $name_gana = mb_convert_kana($name_kana,"HcV");
+  $corp_gana = mb_convert_kana($corp_kana,"HcV");
+
+  if (sizeof($kind)==1) {
+    if ($kind[0]=="all") {
+      $kind;
+    }
+  }
+  if (sizeof($kind)>0) {
+    while (list($key,$val)=each($kind)) {
+      if ($kind_list != "") $kind_list .= ",";
+      $kind_list .= $val;
+    }
+  }
+
+  // 検索
+  if ($name == "" && $corp == "" && $depa == "" && $addr == "" && $tel == "" && $url == "" && $email == "" && $comment == "" && sizeof($kind)==0) {
+    $cnt = 0;
+  } else {
+    $key = "";
+
+    if ($name != "") {
+      if ($key != "") { $key .= " and "; }
+      $key .= "(person_name ~* '".db_textsafe($name)."' or ";
+      $key .= "person_kana ~* '".db_textsafe($name_kana)."' or ";
+      $key .= "person_kana ~* '".db_textsafe($name_gana)."')";
+    }
+
+    if ($corp != "") {
+      if ($key != "") { $key .= " and "; }
+      $key .= "(corp_name ~* '".db_textsafe($corp)."' or ";
+      $key .= "corp_kana ~* '".db_textsafe($corp_kana)."' or ";
+      $key .= "corp_kana ~* '".db_textsafe($corp_gana)."')";
+    }
+    if ($depa != "") {
+      if ($key != "") { $key .= " and "; }
+      $key .= "(person_depa ~* '".db_textsafe($depa)."' or ";
+      $key .= "person_post ~* '".db_textsafe($depa)."')";
+    }
+    if ($addr != "") {
+      if ($key != "") { $key .= " and "; }
+      $key .= "(corp_zip ~* '".db_textsafe($addr)."' or ";
+      $key .= "corp_state ~* '".db_textsafe($addr)."' or ";
+      $key .= "corp_city ~* '".db_textsafe($addr)."' or ";
+      $key .= "corp_street ~* '".db_textsafe($addr)."' or ";
+      $key .= "corp_build ~* '".db_textsafe($addr)."' or ";
+      $key .= "person_zip ~* '".db_textsafe($addr)."' or ";
+      $key .= "person_state ~* '".db_textsafe($addr)."' or ";
+      $key .= "person_city ~* '".db_textsafe($addr)."' or ";
+      $key .= "person_street ~* '".db_textsafe($addr)."' or ";
+      $key .= "person_build ~* '".db_textsafe($addr)."')";
+    }
+    if ($tel != "") {
+      if ($key != "") { $key .= " and "; }
+      $key .= "(corp_tel ~* '".db_textsafe($tel)."' or ";
+      $key .= "corp_fax ~* '".db_textsafe($tel)."' or ";
+      $key .= "person_tel ~* '".db_textsafe($tel)."' or ";
+      $key .= "person_fax ~* '".db_textsafe($tel)."' or ";
+      $key .= "person_dialin ~* '".db_textsafe($tel)."' or ";
+      $key .= "person_handy ~* '".db_textsafe($tel)."')";
+    }
+    if ($url != "") {
+      if ($key != "") { $key .= " and "; }
+      $key .= "(corp_email ~* '".db_textsafe($url)."' or ";
+      $key .= "corp_url ~* '".db_textsafe($url)."' or ";
+      $key .= "person_email ~* '".db_textsafe($url)."' or ";
+      $key .= "person_email2 ~* '".db_textsafe($url)."')";
+    }
+    if ($comment != "") {
+      if ($key != "") { $key .= " and "; }
+      $key .= "comment ~* '".db_textsafe($comment)."'";
+    }
+
+    if (sizeof($kind) > 0 && $kind_list != "all") {
+      if ($key != "") { $key .= " and "; }
+      $key .= "(";
+      $c = 0;
+      reset($kind);
+      while (list($k,$val)=each($kind)) {
+        if ($val != "all") {
+          if ($c>0) { $key .= " and "; }
+          $key .= "kind_list ~ '(^|,)".$val."(,|$)'";
+          $c++;
+        }
+      }
+      $key .= ")";
+    }
+
+    if ($key != "") {
+      $sql = "SELECT * FROM address WHERE ".$key;
+    } else {
+      $sql = "SELECT * FROM address ";
+    }
+    $sql .= " ORDER BY person_kana,createstamp DESC";
+    $res = pg_query($conn,$sql);
+    $cnt = pg_num_rows($res);
+  }
+?>
+
+<TABLE BORDER=0 CELLSPACING=0 CELLPADDING=3 WIDTH=100%>
+<TR>
+<FORM NAME="search" ACTION="./index2.phtml" METHOD="POST">
+<INPUT TYPE=HIDDEN NAME="kwd" VALUE="<? echo $kwd ?>">
+<INPUT TYPE=HIDDEN NAME="name" VALUE="<? echo $name ?>">
+<INPUT TYPE=HIDDEN NAME="corp" VALUE="<? echo $corp ?>">
+<INPUT TYPE=HIDDEN NAME="depa" VALUE="<? echo $depa ?>">
+<INPUT TYPE=HIDDEN NAME="addr" VALUE="<? echo $addr ?>">
+<INPUT TYPE=HIDDEN NAME="tel" VALUE="<? echo $tel ?>">
+<INPUT TYPE=HIDDEN NAME="url" VALUE="<? echo $url ?>">
+<INPUT TYPE=HIDDEN NAME="comment" VALUE="<? echo $comment ?>">
+<?
+  if (sizeof($kind)>0) {
+    reset($kind);
+    while (list($key,$val)=each($kind)) {
+      print "<INPUT TYPE=HIDDEN NAME=\"kind[$key]\" VALUE=\"".$val."\">\n";
+    }
+  }
+?>
+<TD>
+該当<? echo number_format($cnt) ?>件
+<INPUT TYPE=SUBMIT NAME="submit" VALUE="再検索" style="width:100px">
+</TD>
+</FORM>
+<TD DIV ALIGN=RIGHT>
+<TABLE BORDER=0 CELLSPACING=0 CELLPADDING=0><TR>
+<FORM ACTION="/sendmail/" METHOD=POST>
+<INPUT TYPE=HIDDEN NAME="bcc" VALUE="<? 
+    $c=0;
+    for ($i=0;$i<$cnt;$i++) {
+      $row = pg_fetch_array($res,$i);
+      $email = "";
+      if (empty($row["person_email"]) || trim($row["person_email"])=="") {
+        $email = $row["corp_email"];
+      } else {
+        $email = $row["person_email"];
+      }
+      if (!empty($email) && trim($email) != "" && $email != "-" && $email != "@") {
+        if ($c>0) { print ", "; }
+        print $row["person_name"]."<";
+        print $email;
+        print ">";
+        $c++;
+      }
+    }
+?>">
+<TD>
+<INPUT TYPE=SUBMIT VALUE="一括メール送信" STYLE="width:120px">&nbsp;
+</TD>
+</FORM>
+<FORM ACTION="./csvout.phtml" METHOD=POST>
+<INPUT TYPE=HIDDEN NAME="type" VALUE="normal">
+<INPUT TYPE=HIDDEN NAME="kwd" VALUE="<? echo $kwd ?>">
+<INPUT TYPE=HIDDEN NAME="name" VALUE="<? echo $name ?>">
+<INPUT TYPE=HIDDEN NAME="corp" VALUE="<? echo $corp ?>">
+<INPUT TYPE=HIDDEN NAME="depa" VALUE="<? echo $depa ?>">
+<INPUT TYPE=HIDDEN NAME="addr" VALUE="<? echo $addr ?>">
+<INPUT TYPE=HIDDEN NAME="tel" VALUE="<? echo $tel ?>">
+<INPUT TYPE=HIDDEN NAME="url" VALUE="<? echo $url ?>">
+<INPUT TYPE=HIDDEN NAME="comment" VALUE="<? echo $comment ?>">
+<?
+  if (sizeof($kind)>0) {
+    reset($kind);
+    while (list($key,$val)=each($kind)) {
+      print "<INPUT TYPE=HIDDEN NAME=\"kind[$key]\" VALUE=\"".$val."\">\n";
+    }
+  }
+?>
+<TD>
+<INPUT TYPE=SUBMIT VALUE="CSVファイル出力" STYLE="width:120px">
+</TD>
+</FORM>
+</TR>
+</TABLE>
+</TD>
+</TR>
+</TABLE>
+
+<TABLE BORDER=0 CELLSPACING=0 CELLPADDING=3 WIDTH=100%>
+<TR BGCOLOR=#999999>
+  <TH ALIGN=LEFT NOWRAP><FONT COLOR=#FFFFFF>勤務先・屋号</TH>
+  <TH ALIGN=LEFT NOWRAP><FONT COLOR=#FFFFFF>氏名</TH>
+  <TH ALIGN=LEFT NOWRAP><FONT COLOR=#FFFFFF>電話・EMAIL</TH>
+  <TH ALIGN=CENTER NOWRAP><FONT COLOR=#FFFFFF>ログ</TH>
+</TR>
+<?
+  if ($cnt < 1) {
+    // 該当無し
+    print "<TR BGCOLOR=#FFFFFF>\n";
+    print "<TD BGCOLOR=#FFFFFF ALIGN=CENTER COLSPAN=4><BR>該当する情報はありません<BR><BR></TD>\n";
+    print "</TR>\n";
+  } else {
+    // 該当あり
+
+    for ($i=0;$i<$cnt;$i++) {
+      $row = pg_fetch_array($res,$i);
+
+      if ($i % 2 ==0) {
+        print "<TR BGCOLOR=#FFFFFF>\n";
+      } else {
+        print "<TR BGCOLOR=#EEEEEE>\n";
+      }
+
+      print "<TD ALIGN=LEFT>";
+      print "<FONT STYLE=\"font-size:80%\" COLOR=#555555>".$row["corp_kana"]."</FONT><BR>";
+      $corp_name = $row["corp_name"];
+      $corp_name = ereg_replace("株式会社","",$corp_name);
+      $corp_name = ereg_replace("有限会社","",$corp_name);
+      $corp_name = ereg_replace("合資会社","",$corp_name);
+      $corp_name = ereg_replace("合名会社","",$corp_name);
+      $corp_name = ereg_replace("財団法人","",$corp_name);
+      $corp_name = ereg_replace("社団法人","",$corp_name);
+      $corp_name = ereg_replace("学校法人","",$corp_name);
+      $corp_name = ereg_replace("宗教法人","",$corp_name);
+      $corp_name = ereg_replace("特定非営利活動法人","",$corp_name);
+      $corp_name = ereg_replace("NPO法人","",$corp_name);
+      $corp_name = ereg_replace("社会福祉法人","",$corp_name);
+      $corp_name = ereg_replace("公益法人","",$corp_name);
+      $corp_name = ereg_replace("医療法人","",$corp_name);
+      $corp_name = ereg_replace("事業協同組合","",$corp_name);
+      $corp_name = ereg_replace("協同組合連合会","",$corp_name);
+      $corp_name = ereg_replace("企業組合","",$corp_name);
+      $corp_name = ereg_replace("協業組合","",$corp_name);
+      $corp_name = ereg_replace("振興組合","",$corp_name);
+      $corp_name = trim($corp_name);
+      $corp_name = mberegi_replace("　","",$corp_name);
+      print "<A HREF=\"../edit/?s=".$row["seqno"]."\">".$corp_name."</A>";
+      print "</TD>\n";
+
+      print "<TD ALIGN=LEFT NOWRAP>";
+      print "<FONT STYLE=\"font-size:80%\" COLOR=#555555>".$row["person_kana"]."</FONT><BR>";
+      print "<A HREF=\"../edit/?s=".$row["seqno"]."&now_type=P\">".$row["person_name"]."</A>";
+      print "</TD>\n";
+
+      print "<TD ALIGN=LEFT $td_style>";
+      if (empty($row["person_tel"]) || trim($row["person_tel"])=="") {
+        print $row["corp_tel"];
+        if (!empty($row["person_tel"]) && trim($row["person_tel"])!="") {
+          print "(".$row["person_dialin"].")";
+        }
+      } else {
+        print $row["person_tel"];
+      }
+      print "<BR>\n";
+      if (empty($row["person_email"]) || trim($row["person_email"])=="") {
+        $email = $row["corp_email"];
+      } else {
+        $email = $row["person_email"];
+      }
+      if (empty($email) || trim($email)=="" || $email =="-") {
+      } else {
+        print "<FONT STYLE=\"font-size:80%\">";
+        print "<FONT STYLE=\"font-size:7pt\"><A HREF=\"mailto:$email\">$email</A>";
+      }
+      print "</TD>\n";
+
+      $sql_log = "SELECT COUNT(*) AS allrecords FROM address_log WHERE address_seqno=".$row["seqno"];
+      $res_log = pg_query($conn,$sql_log);
+      $row_log = pg_fetch_array($res_log,0);
+      print "<TD ALIGN=CENTER><FONT STYLE=\"font-size:7pt\">";
+      print "<A HREF=\"../edit/?s=".$row["seqno"]."&now_type=L'\">(".$row_log["allrecords"].")</A>";
+      print "</TD>\n";
+
+      print "</TR>\n";
+    }
+  }
+?>
+</TABLE>
+<BR>
+
+</TD></TR></TABLE>
+</CENTER>
+<?php
+  include "../../footer.inc.php";
+?>

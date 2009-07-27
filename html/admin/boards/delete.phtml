@@ -1,0 +1,88 @@
+<?
+  include "../../config.inc.php";
+  include "../../lib.inc.php";
+
+  // リンク用テキストの設定
+  $linktext  = "<A HREF=\"../../\" CLASS=\"BAR\">トップページ</A> &gt; ";
+  $linktext .= "<A HREF=\"../\" CLASS=\"BAR\">管理者メニュー</A> &gt; ";
+  $linktext .= "<FONT COLOR=#FFFF00>掲示板設定</FONT> ";
+
+  include "../../header.inc.php";
+  include "../menu.inc.php";
+
+  if ($login && $admin_sign=="t") {
+    $pagetext = "";
+    if (!empty($_REQUEST["seqno"]))  $seqno = $_REQUEST["seqno"];
+    if (!empty($_REQUEST["id"]))     $id    = $_REQUEST["id"];
+    if (!empty($_REQUEST["p"]))      $p     = $_REQUEST["p"];
+
+    // 削除対象の確認
+    $sql = "SELECT * FROM boards WHERE id='".$id."' AND seqno=".$seqno;
+    $res = pg_query($conn,$sql);
+    if (pg_num_rows($res)<1) {
+      $DMES[] = "掲示板情報の確認に失敗しました";
+    }
+
+    if (sizeof($DMES)==0) {
+      // 削除処理
+      $sql = "DELETE FROM boards WHERE id='".$id."' AND seqno=".$seqno;
+      $res = pg_query($conn, $sql);
+      if ($res==false) {
+        $DMES[] = "掲示板情報の削除に失敗しました";
+      }
+
+      $sql_post = "DELETE FROM boards_post WHERE board_id = '".$id."'";
+      $res_post = pg_query($conn, $sql_post);
+      if ($res_post==false) {
+        $DMES[] = "投稿情報の削除に失敗しました";
+      }
+
+      $sql_res = "DELETE FROM boards_res WHERE board_id = '".$id."'";
+      $res_res = pg_query($conn, $sql_res);
+      if ($res_res==false) {
+        $DMES[] = "閲覧情報の削除に失敗しました";
+      }
+    }
+
+    // エラー処理
+    if (sizeof($DMES)>0) {
+      $pagetext .= "<BR><CENTER>";
+      $pagetext .= "<TABLE>";
+      $pagetext .= "<FORM ACTION=\"./edit.phtml\" METHOD=POST>\n";
+      $pagetext .= "<TR><TD>";
+
+      $pagetext .= "<FONT COLOR=#FF0000>";
+      for ($i=0;$i<sizeof($DMES);$i++){
+        $pagetext .= $DMES[$i]."<BR>";
+      }
+
+      $pagetext .= "</TD></TR></TABLE>";
+      $pagetext .= "<BR>";
+      $pagetext .= "<INPUT TYPE=BUTTON VALUE=\"戻る\" ONCLICK=\"history.back()\" STYLE=\"width:80px\">\n";
+      $pagetext .= "</FORM>";
+      $pagetext .= "</CENTER>\n";
+
+    } else {
+      // 正常終了時
+        $pagetext .= "
+<BR>
+<CENTER>
+削除完了<BR>
+<BR>
+<A HREF=\"#\" ONCLICK=\"location.replace('./?p=$p');location.href='./?p=$p';\">≪一覧へ戻る≫</A>
+</CENTER>
+<BR>
+  <SCRIPT LANGUAGE=\"JavaScript\">
+<!--
+setTimeout(\"location.replace('./?p=$p');location.href='./?p=$p';\", 3000);
+//-->
+</SCRIPT>
+";
+    }
+  }
+
+  include "../../detail.inc.php";
+
+  // フッタ表示
+  include "../../footer.inc.php";
+?>

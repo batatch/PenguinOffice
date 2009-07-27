@@ -1,0 +1,234 @@
+<?php
+  include("../../config.inc.php"); include("../../lib.inc.php");
+  include("../../login_check.inc.php");
+
+  $linktext  = "<A HREF=\"../../\" CLASS=\"BAR\">トップページ</A> &gt; ";
+  $linktext .= "<A HREF=\"../\" CLASS=\"BAR\">メンバー一覧</A> &gt; ";
+  $linktext .= "<A HREF=\"./\" CLASS=\"BAR\">プロフィール変更</A> &gt; ";
+  $linktext .= "<FONT COLOR=#FFFF00>表示変更</FONT>";
+
+  include "../../header.inc.php";
+  flush();
+
+  include "../menu.inc.php";
+
+  if ($login && sizeof($MES)==0) {
+    $pagetext .= "<CENTER><BR>\n";
+    $pagetext .= "<TABLE BORDER=0 CELLPADDING=0 CELLSPACING=0><TR><TD>\n";
+    $pagetext .= "<TABLE BORDER=0 CELLPADDING=0 CELLSPACING=0><TR>\n";
+    $pagetext .= "<TD ALIGN=CENTER WIDTH=100>\n";
+    $pagetext .= "<TABLE BORDER=0 CELLPADDING=0 CELLSPACING=0 BGCOLOR=#999999 WIDTH=100 HEIGHT=19><TR>";
+    $pagetext .= "<TD WIDTH=7 VALIGN=TOP ALIGN=LEFT><IMG SRC=\"../../image/wr-l_t.gif\" WIDTH=7 HEIGHT=7></TD>";
+    $pagetext .= "<TD ALIGN=CENTER><A HREF=\"./\">個人情報</A>";
+    $pagetext .= "<TD WIDTH=7 VALIGN=TOP ALIGN=RIGHT><IMG SRC=\"../../image/wr-r_t.gif\" WIDTH=7 HEIGHT=7></TD>";
+    $pagetext .= "</TR></TABLE>\n";
+    $pagetext .= "</TD>\n";
+    $pagetext .= "<TD WIDTH=1></TD>\n";
+
+    ## マイグループ
+    $pagetext .= "<TD ALIGN=CENTER WIDTH=100>\n";
+    $pagetext .= "<TABLE BORDER=0 CELLPADDING=0 CELLSPACING=0 BGCOLOR=#999999 WIDTH=100 HEIGHT=19><TR>";
+    $pagetext .= "<TD WIDTH=7 VALIGN=TOP ALIGN=LEFT><IMG SRC=\"../../image/wr-l_t.gif\" WIDTH=7 HEIGHT=7></TD>";
+    $pagetext .= "<TD ALIGN=CENTER><A HREF=\"./mygroup.phtml\">マイグループ</A>";
+    $pagetext .= "<TD WIDTH=7 VALIGN=TOP ALIGN=RIGHT><IMG SRC=\"../../image/wr-r_t.gif\" WIDTH=7 HEIGHT=7></TD>";
+    $pagetext .= "</TR></TABLE>";
+    $pagetext .= "</TD>";
+    $pagetext .= "<TD WIDTH=1></TD>";
+
+    ## パスワード
+    $pagetext .= "<TD ALIGN=CENTER WIDTH=100>";
+    $pagetext .= "<TABLE BORDER=0 CELLPADDING=0 CELLSPACING=0 BGCOLOR=#999999 WIDTH=100 HEIGHT=19><TR>";
+    $pagetext .= "<TD WIDTH=7 VALIGN=TOP ALIGN=LEFT><IMG SRC=\"../../image/wr-l_t.gif\" WIDTH=7 HEIGHT=7></TD>";
+    $pagetext .= "<TD ALIGN=CENTER><A HREF=\"./passwd.phtml\">パスワード</A>";
+    $pagetext .= "<TD WIDTH=7 VALIGN=TOP ALIGN=RIGHT><IMG SRC=\"../../image/wr-r_t.gif\" WIDTH=7 HEIGHT=7></TD>";
+    $pagetext .= "</TR></TABLE>";
+    $pagetext .= "</TD>";
+    $pagetext .= "<TD WIDTH=1></TD>";
+
+    ## 表示変更
+    $pagetext .= "<TD ALIGN=CENTER WIDTH=100>";
+    $pagetext .= "<TABLE BORDER=0 CELLPADDING=0 CELLSPACING=0 BGCOLOR=#CCCCCC WIDTH=100 HEIGHT=19><TR>";
+    $pagetext .= "<TD WIDTH=7 VALIGN=TOP ALIGN=LEFT><IMG SRC=\"../../image/wr-l_t.gif\" WIDTH=7 HEIGHT=7></TD>";
+    $pagetext .= "<TD ALIGN=CENTER><FONT COLOR=".$bodyLinkColor."><B>表示変更</B></FONT>";
+    $pagetext .= "<TD WIDTH=7 VALIGN=TOP ALIGN=RIGHT><IMG SRC=\"../../image/wr-r_t.gif\" WIDTH=7 HEIGHT=7></TD>";
+    $pagetext .= "</TR></TABLE>";
+    $pagetext .= "</TD>";
+    $pagetext .= "<TD WIDTH=1></TD>";
+
+    ## CSV出力
+    $pagetext .= "<TD ALIGN=CENTER WIDTH=100>";
+    $pagetext .= "<TABLE BORDER=0 CELLPADDING=0 CELLSPACING=0 BGCOLOR=#999999 WIDTH=100 HEIGHT=19><TR>";
+    $pagetext .= "<TD WIDTH=7 VALIGN=TOP ALIGN=LEFT><IMG SRC=\"../../image/wr-l_t.gif\" WIDTH=7 HEIGHT=7></TD>";
+    $pagetext .= "<TD ALIGN=CENTER><A HREF=\"./csv.phtml\">CSV出力</A>";
+    $pagetext .= "<TD WIDTH=7 VALIGN=TOP ALIGN=RIGHT><IMG SRC=\"../../image/wr-r_t.gif\" WIDTH=7 HEIGHT=7></TD>";
+    $pagetext .= "</TR></TABLE>";
+    $pagetext .= "</TD>";
+    $pagetext .= "</TR></TABLE>";
+
+    $pagetext .= "<TABLE BORDER=0 CELLPADDING=0 CELLSPACING=0 WIDTH=504>";
+    $pagetext .= "<TR><TD ALIGN=CENTER VALIGN=TOP BGCOLOR=#CCCCCC>";
+    $pagetext .= "<FORM NAME=\"dialog\" ACTION=\"./update_display.phtml\" METHOD=POST>";
+    $pagetext .= "<BR>";
+
+    $pagetext .= "<SCRIPT Language=\"JavaScript\">\n";
+    $pagetext .= "<!--\n";
+    $pagetext .= "function ChangeColor(t,title_back,title_fore,top_back,top_fore,bottom_back,bottom_fore,menu_back,menu_fore,index_back,index_fore,body_back,body_fore,body_link,body_vlink,body_alink,body_hlink) {\n";
+    $pagetext .= "  t.d_title_back.value  = title_back;\n";
+    $pagetext .= "  t.d_title_fore.value  = title_fore;\n";
+    $pagetext .= "  t.d_top_back.value    = top_back;\n";
+    $pagetext .= "  t.d_top_fore.value    = top_fore;\n";
+    $pagetext .= "  t.d_bottom_back.value = bottom_back;\n";
+    $pagetext .= "  t.d_bottom_fore.value = bottom_fore;\n";
+    $pagetext .= "  t.d_menu_back.value   = menu_back;\n";
+    $pagetext .= "  t.d_menu_fore.value   = menu_fore;\n";
+    $pagetext .= "  t.d_index_back.value  = index_back;\n";
+    $pagetext .= "  t.d_index_fore.value  = index_fore;\n";
+    $pagetext .= "  t.d_body_back.value   = body_back;\n";
+    $pagetext .= "  t.d_body_fore.value   = body_fore;\n";
+    $pagetext .= "  t.d_body_link.value   = body_link;\n";
+    $pagetext .= "  t.d_body_vlink.value  = body_vlink;\n";
+    $pagetext .= "  t.d_body_alink.value  = body_alink;\n";
+    $pagetext .= "  t.d_body_hlink.value  = body_hlink;\n";
+    $pagetext .= "}\n";
+    $pagetext .= "\n";
+    $pagetext .= "function selectfrom_h(t) {\n";
+    $pagetext .= "  if (t.from_h[0].selected) {\n";
+    $pagetext .= "    t.from_m[0].selected = true;\n";
+    $pagetext .= "  } else {\n";
+    $pagetext .= "    if (t.from_m[0].selected == true) t.from_m[1].selected = true;\n";
+    $pagetext .= "  }\n";
+    $pagetext .= "}\n";
+    $pagetext .= "\n";
+    $pagetext .= "function selectto_h(t) {\n";
+    $pagetext .= "  if (t.to_h[0].selected) {\n";
+    $pagetext .= "    t.to_m[0].selected = true;\n";
+    $pagetext .= "  } else {\n";
+    $pagetext .= "    if (t.to_m[0].selected == true) t.to_m[1].selected = true;\n";
+    $pagetext .= "  }\n";
+    $pagetext .= "}\n";
+    $pagetext .= "// -->\n";
+    $pagetext .= "</SCRIPT>\n";
+
+    $pagetext .= "<TABLE BORDER=0 CELLPADDING=5><TR><TD>\n";
+    $pagetext .= "<FONT STYLE=\"font-size:8pt\">";
+    $pagetext .= "入力のデフォルト（規定）値を指定します。<BR>\n";
+    $pagetext .= "変更したい箇所を修正して「更新の実行」ボタンを押してください。<BR>\n";
+    $pagetext .= "</TD></TR></TABLE>\n";
+
+    $pagetext .= "<TABLE BORDER=0><TR><TD>\n";
+    $pagetext .= "<INPUT TYPE=HIDDEN NAME=disp_type VALUE=0>\n";
+
+    $sql = "select * from users where id='".$login_id."'";
+    $res = pg_query($conn, $sql);
+    if (pg_num_rows($res)>0) {
+      $row = pg_fetch_array($res,0);
+    }
+    $pagetext .= "<TABLE BORDER=0 CELLPADDING=4 CELLSPACING=1 BGCOLOR=#999999>\n";
+
+    $pagetext .= "<TR>\n";
+    $pagetext .= "<TD ALIGN=RIGHT NOWRAP VALIGN=TOP BGCOLOR=$td_back_left>予定の表示</TD>\n";
+    $pagetext .= "<TD ALIGN=LEFT BGCOLOR=$td_back>";
+    if ($row["viewsign"]=="t"){
+      $pagetext .= "<INPUT TYPE=RADIO NAME=\"viewsign\" VALUE=\"t\" CHECKED><FONT COLOR=#3333FF>する</FONT>&nbsp;";
+      $pagetext .= "<INPUT TYPE=RADIO NAME=\"viewsign\" VALUE=\"f\"><FONT COLOR=#FF3333>しない</FONT>\n";
+    } else {
+      $pagetext .= "<INPUT TYPE=RADIO NAME=\"viewsign\" VALUE=\"t\"><FONT COLOr=#3333FF>する</FONT>&nbsp;";
+      $pagetext .= "<INPUT TYPE=RADIO NAME=\"viewsign\" VALUE=\"f\" CHECKED><FONT COLOR=#FF3333>しない</FONT>\n";
+    }
+    $pagetext .= "</TD>\n";
+    $pagetext .= "</TR>\n";
+
+    $pagetext .= "<TR>\n";
+    $pagetext .= "<TD ALIGN=RIGHT NOWRAP VALIGN=TOP BGCOLOR=$td_back_left>先頭の曜日</TD>\n";
+    $pagetext .= "<TD ALIGN=LEFT BGCOLOR=$td_back>";
+    if ($row["from_h"]<>""){
+      $from_h = $row["from_h"];
+      $from_m = $row["from_m"];
+      $to_h   = $row["to_h"];
+      $to_m   = $row["to_m"];
+    } else {
+      $from_h = 9;
+      $from_m = 0;
+      $to_h   = -1;
+      $to_m   = -1;
+    }
+    if ($row["startmonday"]=="t"){
+      $pagetext .= "<INPUT TYPE=RADIO NAME=\"startmonday\" VALUE=\"t\" CHECKED>月曜日&nbsp;";
+      $pagetext .= "<INPUT TYPE=RADIO NAME=\"startmonday\" VALUE=\"f\"><FONT COLOR=#FF0000>日曜日</FONT>\n";
+    } else {
+      $pagetext .= "<INPUT TYPE=RADIO NAME=\"startmonday\" VALUE=\"t\">月曜日&nbsp;";
+      $pagetext .= "<INPUT TYPE=RADIO NAME=\"startmonday\" VALUE=\"f\" CHECKED><FONT COLOR=#FF0000>日曜日</FONT>\n";
+    }
+    $pagetext .= "</TD></TR>\n";
+
+    $pagetext .= "<TR STYLE=\"LINE-HEIGHT:16pt\">\n";
+    $pagetext .= "<TD ALIGN=RIGHT NOWRAP BGCOLOR=$td_back_left>新規登録時の<BR>時間帯設定</TD>\n";
+    $pagetext .= "<TD NOWRAP BGCOLOR=$td_back>開始時刻\n";
+    $pagetext .= "<SELECT NAME=\"from_h\" ONCHANGE=\"selectfrom_h(this.form)\">\n";
+    $pagetext .= "<OPTION VALUE=\"-1\"";
+    if ($from_h==-1){ $pagetext .= " SELECTED"; }
+    $pagetext .= ">--</OPTION>\n";
+    for ($i=0;$i<=23;$i++){
+      $pagetext .= "<OPTION VALUE=\"$i\"";
+      if ($i == $from_h){ $pagetext .= " SELECTED"; }
+      $pagetext .= ">";
+      if (strlen($i)==1) $pagetext .= "0";
+      $pagetext .=$i."</OPTION>\n";
+    }
+    $pagetext .= "</SELECT>：\n";
+    $pagetext .= "<SELECT NAME=\"from_m\">\n";
+    $pagetext .= "<OPTION VALUE=\"-1\"";
+    if ($from_m == -1){ $pagetext .= " SELECTED"; }
+    $pagetext .= ">--</OPTION>\n";
+    for ($i=0;$i<60;$i=$i+15){
+      $pagetext .= "<OPTION VALUE=\"$i\"";
+      if ($i == $from_m){ $pagetext .= " SELECTED"; }
+      $pagetext .= ">";
+      if (strlen($i)==1) $pagetext .= "0";
+      $pagetext .=$i."</OPTION>\n";
+    }
+    $pagetext .= "</SELECT>&nbsp;〜&nbsp;終了時刻\n";
+    $pagetext .= "<SELECT NAME=\"to_h\" ONCHANGE=\"selectto_h(this.form)\">\n";
+    $pagetext .= "<OPTION VALUE=\"-1\"";
+    if ($to_h == -1){ $pagetext .= " SELECTED"; }
+    $pagetext .= ">--</OPTION>\n";
+    for ($i=0;$i<=23;$i++){
+      $pagetext .= "<OPTION VALUE=\"$i\"";
+      if ($i == $to_h){ $pagetext .= " SELECTED"; }
+      $pagetext .= ">";
+      if (strlen($i)==1) $pagetext .= "0";
+      $pagetext .=$i."</OPTION>\n";
+    }
+    $pagetext .= "</SELECT>：\n";
+    $pagetext .= "<SELECT NAME=\"to_m\">\n";
+    $pagetext .= "<OPTION VALUE=\"-1\"";
+    if ($to_m == -1){ $pagetext .= " SELECTED"; }
+    $pagetext .= ">--</OPTION>\n";
+    for ($i=0;$i<60;$i=$i+15){
+      $pagetext .= "<OPTION VALUE=\"$i\"";
+      if ($i == $to_m){ $pagetext .= " SELECTED"; }
+      $pagetext .= ">";
+      if (strlen($i)==1) $pagetext .= "0";
+      $pagetext .=$i."</OPTION>\n";
+    }
+    $pagetext .= "</SELECT><BR>\n";
+    $pagetext .= "<FONT STYLE=\"FONT-SIZE:7pt;COLOR:#555555;LINE-HEIGHT:10pt\">";
+    $pagetext .= "&nbsp;新規の予定を登録する際のデフォルト時刻を設定しておくことができます。&nbsp";
+    $pagetext .= "</FONT>\n";
+    $pagetext .= "</TD>\n";
+    $pagetext .= "</TR>\n";
+
+    $pagetext .= "</TABLE>\n";
+    $pagetext .= "</TD></TR></TABLE><BR>\n";
+    $pagetext .= "<INPUT type=submit value=\"更新の実行\"><BR><BR>";
+    $pagetext .= "</TD></TR></TABLE>\n";
+    $pagetext .= "</TD></TR></TABLE>\n";
+
+    $pagetext .= "</FORM>";
+    $pagetext .= "</TD></TR></TABLE>\n";
+    $pagetext .= "<BR></CENTER>";
+  }
+
+  include "../../detail.inc.php";
+  include "../../footer.inc.php";
+?>

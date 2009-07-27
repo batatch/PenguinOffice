@@ -1,0 +1,150 @@
+<?php
+  include("../../config.inc.php"); include("../../lib.inc.php");
+  include("../../login_check.inc.php");
+
+  $linktext  = "<A HREF=\"../../\" CLASS=\"BAR\">トップページ</A> &gt; ";
+  $linktext .= "<A HREF=\"../\" CLASS=\"BAR\">メンバー一覧</A> &gt; ";
+  $linktext .= "<A HREF=\"./\" CLASS=\"BAR\">プロフィール変更</A> &gt; ";
+  $linktext .= "<FONT COLOR=#FFFF00>CSV出力</FONT>";
+
+  include "../../header.inc.php";
+  flush();
+
+  include "../menu.inc.php";
+
+  if ($login && sizeof($MES)==0) {
+    $pagetext .= "<CENTER><BR>\n";
+    $pagetext .= "<TABLE BORDER=0 CELLPADDING=0 CELLSPACING=0><TR><TD>\n";
+    $pagetext .= "<TABLE BORDER=0 CELLPADDING=0 CELLSPACING=0><TR>\n";
+    $pagetext .= "<TD ALIGN=CENTER WIDTH=100>\n";
+    $pagetext .= "<TABLE BORDER=0 CELLPADDING=0 CELLSPACING=0 BGCOLOR=#999999 WIDTH=100 HEIGHT=19><TR>";
+    $pagetext .= "<TD WIDTH=7 VALIGN=TOP ALIGN=LEFT><IMG SRC=\"../../image/wr-l_t.gif\" WIDTH=7 HEIGHT=7></TD>";
+    $pagetext .= "<TD ALIGN=CENTER><A HREF=\"./\">個人情報</A>";
+    $pagetext .= "<TD WIDTH=7 VALIGN=TOP ALIGN=RIGHT><IMG SRC=\"../../image/wr-r_t.gif\" WIDTH=7 HEIGHT=7></TD>";
+    $pagetext .= "</TR></TABLE>\n";
+    $pagetext .= "</TD>\n";
+    $pagetext .= "<TD WIDTH=1></TD>\n";
+
+    ## マイグループ
+    $pagetext .= "<TD ALIGN=CENTER WIDTH=100>\n";
+    $pagetext .= "<TABLE BORDER=0 CELLPADDING=0 CELLSPACING=0 BGCOLOR=#999999 WIDTH=100 HEIGHT=19><TR>";
+    $pagetext .= "<TD WIDTH=7 VALIGN=TOP ALIGN=LEFT><IMG SRC=\"../../image/wr-l_t.gif\" WIDTH=7 HEIGHT=7></TD>";
+    $pagetext .= "<TD ALIGN=CENTER><A HREF=\"./mygroup.phtml\">マイグループ</A>";
+    $pagetext .= "<TD WIDTH=7 VALIGN=TOP ALIGN=RIGHT><IMG SRC=\"../../image/wr-r_t.gif\" WIDTH=7 HEIGHT=7></TD>";
+    $pagetext .= "</TR></TABLE>";
+    $pagetext .= "</TD>";
+    $pagetext .= "<TD WIDTH=1></TD>";
+
+    ## パスワード
+    $pagetext .= "<TD ALIGN=CENTER WIDTH=100>";
+    $pagetext .= "<TABLE BORDER=0 CELLPADDING=0 CELLSPACING=0 BGCOLOR=#999999 WIDTH=100 HEIGHT=19><TR>";
+    $pagetext .= "<TD WIDTH=7 VALIGN=TOP ALIGN=LEFT><IMG SRC=\"../../image/wr-l_t.gif\" WIDTH=7 HEIGHT=7></TD>";
+    $pagetext .= "<TD ALIGN=CENTER><A HREF=\"./passwd.phtml\">パスワード</A>";
+    $pagetext .= "<TD WIDTH=7 VALIGN=TOP ALIGN=RIGHT><IMG SRC=\"../../image/wr-r_t.gif\" WIDTH=7 HEIGHT=7></TD>";
+    $pagetext .= "</TR></TABLE>";
+    $pagetext .= "</TD>";
+    $pagetext .= "<TD WIDTH=1></TD>";
+
+    ## 表示変更
+    $pagetext .= "<TD ALIGN=CENTER WIDTH=100>";
+    $pagetext .= "<TABLE BORDER=0 CELLPADDING=0 CELLSPACING=0 BGCOLOR=#999999 WIDTH=100 HEIGHT=19><TR>";
+    $pagetext .= "<TD WIDTH=7 VALIGN=TOP ALIGN=LEFT><IMG SRC=\"../../image/wr-l_t.gif\" WIDTH=7 HEIGHT=7></TD>";
+    $pagetext .= "<TD ALIGN=CENTER><A HREF=\"./display.phtml\">表示変更</A>";
+    $pagetext .= "<TD WIDTH=7 VALIGN=TOP ALIGN=RIGHT><IMG SRC=\"../../image/wr-r_t.gif\" WIDTH=7 HEIGHT=7></TD>";
+    $pagetext .= "</TR></TABLE>";
+    $pagetext .= "</TD>";
+    $pagetext .= "<TD WIDTH=1></TD>";
+
+    ## CSV出力
+    $pagetext .= "<TD ALIGN=CENTER WIDTH=100>";
+    $pagetext .= "<TABLE BORDER=0 CELLPADDING=0 CELLSPACING=0 BGCOLOR=#CCCCCC WIDTH=100 HEIGHT=19><TR>";
+    $pagetext .= "<TD WIDTH=7 VALIGN=TOP ALIGN=LEFT><IMG SRC=\"../../image/wr-l_t.gif\" WIDTH=7 HEIGHT=7></TD>";
+    $pagetext .= "<TD ALIGN=CENTER><FONT COLOR=".$bodyLinkColor."><B>CSV出力</B></FONT>";
+    $pagetext .= "<TD WIDTH=7 VALIGN=TOP ALIGN=RIGHT><IMG SRC=\"../../image/wr-r_t.gif\" WIDTH=7 HEIGHT=7></TD>";
+    $pagetext .= "</TR></TABLE>";
+    $pagetext .= "</TD>";
+    $pagetext .= "</TR></TABLE>";
+
+    $pagetext .= "<TABLE BORDER=0 CELLPADDING=0 CELLSPACING=0 WIDTH=504>";
+    $pagetext .= "<TR><TD ALIGN=CENTER VALIGN=TOP BGCOLOR=#CCCCCC>";
+    $pagetext .= "<FORM NAME=\"dialog\" ACTION=\"./?type=".$type."&mode=update\" METHOD=POST>";
+    $pagetext .= "<BR>";
+
+    if ($oid!="") {
+      $pagetext .= "<INPUT TYPE=\"hidden\" NAME=\"oid\" VALUE=\"".$oid."\">\n";
+    }
+
+    $pagetext .= "<TABLE BORDER=0 CELLPADDING=5><TR><TD>\n";
+    $pagetext .= "<FONT STYLE=\"font-size:8pt\">";
+    $pagetext .= "あなたのご利用データがＣＳＶ形式でダウンロードできます。<BR>\n";
+    $pagetext .= "ＣＳＶ形式のファイルは他のソフトウェア上で利用可能です。<BR>\n";
+    $pagetext .= "出力したいデータ欄の「ＣＳＶ出力」ボタンを押してください。<BR>\n";
+    $pagetext .= "</TD></TR></TABLE>\n";
+
+    $pagetext .= "<TABLE BORDER=0 CELLPADDING=4 CELLSPACING=1 BGCOLOR=#999999>\n";
+
+    $pagetext .= "<TR>\n";
+    $pagetext .= "<TD ALIGN=RIGHT NOWRAP BGCOLOR=$td_back_left>スケジュールデータ</TD>\n";
+    $pagetext .= "<TD ALIGN=RIGHT BGCOLOR=$td_back>";
+    $pagetext .=number_format(get_count("schedules","user_id='$login_id'"));
+    $pagetext .= "&nbsp;<INPUT TYPE=BUTTON VALUE=\"CSV出力\" onclick=\"window.open('./csvout.phtml?tbl=schedules&fld=user_id&id=$login_id','_blank')\">";
+    $pagetext .= "</TD>\n";
+    $pagetext .= "</TR>\n";
+
+    $pagetext .= "<TR>\n";
+    $pagetext .= "<TD ALIGN=RIGHT NOWRAP BGCOLOR=$td_back_left>施設予約データ</TD>\n";
+    $pagetext .= "<TD ALIGN=RIGHT BGCOLOR=$td_back>";
+    $pagetext .=number_format(get_count("rooms_reserve","user_id='$login_id'"));
+    $pagetext .= "&nbsp;<INPUT TYPE=BUTTON VALUE=\"CSV出力\" onclick=\"window.open('./csvout.phtml?tbl=rooms_reserve&fld=user_id&id=$login_id','_blank')\">";
+    $pagetext .= "</TD>\n";
+    $pagetext .= "</TR>\n";
+
+    $pagetext .= "<TR>\n";
+    $pagetext .= "<TD ALIGN=RIGHT NOWRAP BGCOLOR=$td_back_left>伝言メモ(送信)データ</TD>\n";
+    $pagetext .= "<TD ALIGN=RIGHT BGCOLOR=$td_back>";
+    $pagetext .=number_format(get_count("mail","user_id='$login_id'"));
+    $pagetext .= "&nbsp;<INPUT TYPE=BUTTON VALUE=\"CSV出力\" onclick=\"window.open('./csvout.phtml?tbl=mail&fld=user_id&id=$login_id','_blank')\">";
+    $pagetext .= "</TD>\n";
+    $pagetext .= "</TR>\n";
+
+    $pagetext .= "<TR>\n";
+    $pagetext .= "<TD ALIGN=RIGHT NOWRAP BGCOLOR=$td_back_left>備忘録データ</TD>\n";
+    $pagetext .= "<TD ALIGN=RIGHT BGCOLOR=$td_back>";
+    $pagetext .=number_format(get_count("todos","user_id='$login_id'"));
+    $pagetext .= "&nbsp;<INPUT TYPE=BUTTON VALUE=\"CSV出力\" onclick=\"window.open('./csvout.phtml?tbl=todos&fld=user_id&id=$login_id','_blank')\">";
+    $pagetext .= "</TD>\n";
+    $pagetext .= "</TR>\n";
+
+    $pagetext .= "<TR>\n";
+    $pagetext .= "<TD ALIGN=RIGHT NOWRAP BGCOLOR=$td_back_left>BBS投稿データ</TD>\n";
+    $pagetext .= "<TD ALIGN=RIGHT BGCOLOR=$td_back>";
+    $pagetext .=number_format(get_count("boards_post","user_id='$login_id'"));
+    $pagetext .= "&nbsp;<INPUT TYPE=BUTTON VALUE=\"CSV出力\" onclick=\"window.open('./csvout.phtml?tbl=boards_post&fld=user_id&id=$login_id','_blank')\">";
+    $pagetext .= "</TD>\n";
+    $pagetext .= "</TR>\n";
+
+    $pagetext .= "<TR>\n";
+    $pagetext .= "<TD ALIGN=RIGHT NOWRAP BGCOLOR=$td_back_left>回覧板データ</TD>\n";
+    $pagetext .= "<TD ALIGN=RIGHT BGCOLOR=$td_back>";
+    $pagetext .=number_format(get_count("circulas","user_id='$login_id'"));
+    $pagetext .= "&nbsp;<INPUT TYPE=BUTTON VALUE=\"CSV出力\" onclick=\"window.open('./csvout.phtml?tbl=circulas&fld=user_id&id=$login_id','_blank')\">";
+    $pagetext .= "</TD>\n";
+    $pagetext .= "</TR>\n";
+
+    $pagetext .= "<TR>\n";
+    $pagetext .= "<TD ALIGN=RIGHT NOWRAP BGCOLOR=$td_back_left>ワークフローデータ</TD>\n";
+    $pagetext .= "<TD ALIGN=RIGHT BGCOLOR=$td_back>";
+    $pagetext .=number_format(get_count("workflow","user_id='$login_id'"));
+    $pagetext .= "&nbsp;<INPUT TYPE=BUTTON VALUE=\"CSV出力\" onclick=\"window.open('./csvout.phtml?tbl=workflow&fld=user_id&id=$login_id','_blank')\">";
+    $pagetext .= "</TD>\n";
+    $pagetext .= "</TR>\n";
+
+    $pagetext .= "</TABLE><BR>\n";
+    $pagetext .= "</FORM>";
+    $pagetext .= "</TD></TR></TABLE>\n";
+    $pagetext .= "<BR></CENTER>";
+  }
+
+  include "../../detail.inc.php";
+  include "../../footer.inc.php";
+?>

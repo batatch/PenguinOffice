@@ -1,0 +1,2165 @@
+--
+-- Selected TOC Entries:
+--
+\connect - postgres
+
+--
+-- TOC Entry ID 14 (OID 891692)
+--
+-- Name: users_entry Type: TABLE Owner: postgres
+--
+
+CREATE TABLE "users_entry" (
+	"user_id" character varying(20) NOT NULL,
+	"group_id" character varying(20) NOT NULL,
+	"createstamp" timestamp with time zone,
+	"updatestamp" timestamp with time zone,
+	Constraint "users_entry_pkey" Primary Key ("group_id", "user_id")
+);
+
+--
+-- TOC Entry ID 15 (OID 891692)
+--
+-- Name: users_entry Type: ACL Owner: 
+--
+
+REVOKE ALL on "users_entry" from PUBLIC;
+GRANT ALL on "users_entry" to "postgres";
+GRANT INSERT,SELECT,UPDATE,DELETE on "users_entry" to "apache";
+
+--
+-- TOC Entry ID 16 (OID 891695)
+--
+-- Name: boards_post Type: TABLE Owner: postgres
+--
+
+CREATE TABLE "boards_post" (
+	"board_id" character varying(12) NOT NULL,
+	"seqno" integer NOT NULL,
+	"user_id" character varying(20),
+	"stamp" timestamp with time zone,
+	"serial" character varying,
+	"parent" character varying,
+	"subject" character varying,
+	"body" text,
+	"replysign" boolean
+);
+
+--
+-- TOC Entry ID 17 (OID 891695)
+--
+-- Name: boards_post Type: ACL Owner: 
+--
+
+REVOKE ALL on "boards_post" from PUBLIC;
+GRANT ALL on "boards_post" to "postgres";
+GRANT INSERT,SELECT,UPDATE,DELETE on "boards_post" to "apache";
+
+--
+-- TOC Entry ID 18 (OID 891700)
+--
+-- Name: events Type: TABLE Owner: postgres
+--
+
+CREATE TABLE "events" (
+	"seqno" integer NOT NULL,
+	"user_id" character varying(20) NOT NULL,
+	"datefrom" date NOT NULL,
+	"dateto" date,
+	"timefrom" timestamp with time zone,
+	"timeto" timestamp with time zone,
+	"disclosesign" boolean,
+	"title" character varying,
+	"note" character varying,
+	"shareflag" integer,
+	"sharelist" character varying,
+	"createstamp" timestamp with time zone,
+	"updatestamp" timestamp with time zone,
+	"update_user_id" character varying,
+	Constraint "events_pkey" Primary Key ("seqno")
+);
+
+--
+-- TOC Entry ID 19 (OID 891700)
+--
+-- Name: events Type: ACL Owner: 
+--
+
+REVOKE ALL on "events" from PUBLIC;
+GRANT ALL on "events" to "postgres";
+GRANT INSERT,SELECT,UPDATE,DELETE on "events" to "apache";
+
+--
+-- TOC Entry ID 20 (OID 891706)
+--
+-- Name: address_kind Type: TABLE Owner: postgres
+--
+
+CREATE TABLE "address_kind" (
+	"seqno" integer NOT NULL,
+	"key" integer NOT NULL,
+	"value" character varying NOT NULL
+);
+
+--
+-- TOC Entry ID 21 (OID 891706)
+--
+-- Name: address_kind Type: ACL Owner: 
+--
+
+REVOKE ALL on "address_kind" from PUBLIC;
+GRANT ALL on "address_kind" to "postgres";
+GRANT INSERT,SELECT,DELETE on "address_kind" to "apache";
+
+--
+-- TOC Entry ID 22 (OID 891711)
+--
+-- Name: address_log Type: TABLE Owner: postgres
+--
+
+CREATE TABLE "address_log" (
+	"seqno" integer NOT NULL,
+	"address_seqno" integer NOT NULL,
+	"data_seqno" integer,
+	"type" character varying,
+	"note" character varying,
+	"createstamp" timestamp with time zone NOT NULL,
+	"user_id" character varying,
+	Constraint "address_log_pkey" Primary Key ("address_seqno", "seqno")
+);
+
+--
+-- TOC Entry ID 23 (OID 891711)
+--
+-- Name: address_log Type: ACL Owner: 
+--
+
+REVOKE ALL on "address_log" from PUBLIC;
+GRANT ALL on "address_log" to "postgres";
+GRANT INSERT,SELECT,UPDATE,DELETE on "address_log" to "apache";
+
+--
+-- TOC Entry ID 24 (OID 891717)
+--
+-- Name: schedule_kind Type: TABLE Owner: postgres
+--
+
+CREATE TABLE "schedule_kind" (
+	"seqno" integer NOT NULL,
+	"key" integer NOT NULL,
+	"value" character varying NOT NULL,
+	"graphcolor" character varying
+);
+
+--
+-- TOC Entry ID 25 (OID 891717)
+--
+-- Name: schedule_kind Type: ACL Owner: 
+--
+
+REVOKE ALL on "schedule_kind" from PUBLIC;
+GRANT ALL on "schedule_kind" to "postgres";
+GRANT INSERT,SELECT on "schedule_kind" to "apache";
+
+--
+-- TOC Entry ID 26 (OID 891722)
+--
+-- Name: holiday Type: TABLE Owner: postgres
+--
+
+CREATE TABLE "holiday" (
+	"holiday" date,
+	"name" character varying
+);
+
+--
+-- TOC Entry ID 27 (OID 891739)
+--
+-- Name: boards_res Type: TABLE Owner: postgres
+--
+
+CREATE TABLE "boards_res" (
+	"board_id" character varying NOT NULL,
+	"seqno" integer NOT NULL,
+	"user_id" character varying NOT NULL,
+	"createstamp" timestamp with time zone,
+	Constraint "boards_res_pkey" Primary Key ("board_id", "seqno", "user_id")
+);
+
+--
+-- TOC Entry ID 28 (OID 891739)
+--
+-- Name: boards_res Type: ACL Owner: 
+--
+
+REVOKE ALL on "boards_res" from PUBLIC;
+GRANT ALL on "boards_res" to "postgres";
+GRANT ALL on "boards_res" to "apache";
+
+--
+-- TOC Entry ID 29 (OID 891745)
+--
+-- Name: circulas Type: TABLE Owner: postgres
+--
+
+CREATE TABLE "circulas" (
+	"seqno" integer NOT NULL,
+	"user_id" character varying NOT NULL,
+	"user_id_to" character varying NOT NULL,
+	"subject" character varying,
+	"body" character varying,
+	"sendtype" character varying,
+	"senddata" character varying,
+	"result_sign" boolean,
+	"createstamp" timestamp with time zone,
+	"updatestamp" timestamp with time zone,
+	Constraint "circulas_pkey" Primary Key ("seqno")
+);
+
+--
+-- TOC Entry ID 30 (OID 891745)
+--
+-- Name: circulas Type: ACL Owner: 
+--
+
+REVOKE ALL on "circulas" from PUBLIC;
+GRANT ALL on "circulas" to "postgres";
+GRANT ALL on "circulas" to "apache";
+
+--
+-- TOC Entry ID 31 (OID 891751)
+--
+-- Name: circulas_res Type: TABLE Owner: postgres
+--
+
+CREATE TABLE "circulas_res" (
+	"seqno" integer NOT NULL,
+	"user_id" character varying NOT NULL,
+	"createstamp" timestamp with time zone,
+	Constraint "circulas_res_pkey" Primary Key ("seqno", "user_id")
+);
+
+--
+-- TOC Entry ID 32 (OID 891751)
+--
+-- Name: circulas_res Type: ACL Owner: 
+--
+
+REVOKE ALL on "circulas_res" from PUBLIC;
+GRANT ALL on "circulas_res" to "postgres";
+GRANT ALL on "circulas_res" to "apache";
+
+--
+-- TOC Entry ID 33 (OID 891757)
+--
+-- Name: circulas_ret Type: TABLE Owner: postgres
+--
+
+CREATE TABLE "circulas_ret" (
+	"refno" integer NOT NULL,
+	"seqno" integer NOT NULL,
+	"user_id" character varying,
+	"note" character varying,
+	"result_sign" boolean,
+	"createstamp" timestamp with time zone,
+	Constraint "circulas_ret_pkey" Primary Key ("refno", "seqno")
+);
+
+--
+-- TOC Entry ID 34 (OID 891757)
+--
+-- Name: circulas_ret Type: ACL Owner: 
+--
+
+REVOKE ALL on "circulas_ret" from PUBLIC;
+GRANT ALL on "circulas_ret" to "postgres";
+GRANT ALL on "circulas_ret" to "apache";
+
+--
+-- TOC Entry ID 35 (OID 891763)
+--
+-- Name: workflow Type: TABLE Owner: postgres
+--
+
+CREATE TABLE "workflow" (
+	"seqno" integer NOT NULL,
+	"user_id" character varying NOT NULL,
+	"user_seqno" integer,
+	"flow_ids" character varying NOT NULL,
+	"flow_pat" character varying,
+	"result_seqno" integer,
+	"result_sign" boolean,
+	"subject" character varying,
+	"body1" character varying,
+	"body2" character varying,
+	"body3" character varying,
+	"body4" character varying,
+	"body5" character varying,
+	"retry_sign" boolean,
+	"createstamp" timestamp with time zone,
+	"updatestamp" timestamp with time zone,
+	Constraint "workflow_pkey" Primary Key ("seqno")
+);
+
+--
+-- TOC Entry ID 36 (OID 891763)
+--
+-- Name: workflow Type: ACL Owner: 
+--
+
+REVOKE ALL on "workflow" from PUBLIC;
+GRANT ALL on "workflow" to "postgres";
+GRANT ALL on "workflow" to "apache";
+
+--
+-- TOC Entry ID 37 (OID 891769)
+--
+-- Name: workflow_res Type: TABLE Owner: postgres
+--
+
+CREATE TABLE "workflow_res" (
+	"seqno" integer NOT NULL,
+	"user_id" character varying NOT NULL,
+	"createstamp" timestamp with time zone,
+	Constraint "workflow_res_pkey" Primary Key ("seqno", "user_id")
+);
+
+--
+-- TOC Entry ID 38 (OID 891769)
+--
+-- Name: workflow_res Type: ACL Owner: 
+--
+
+REVOKE ALL on "workflow_res" from PUBLIC;
+GRANT ALL on "workflow_res" to "postgres";
+GRANT ALL on "workflow_res" to "apache";
+
+--
+-- TOC Entry ID 39 (OID 891775)
+--
+-- Name: workflow_ret Type: TABLE Owner: postgres
+--
+
+CREATE TABLE "workflow_ret" (
+	"refno" integer NOT NULL,
+	"seqno" integer NOT NULL,
+	"user_id" character varying NOT NULL,
+	"result_sign" boolean,
+	"recognize_sign" boolean,
+	"note" character varying,
+	"createstamp" timestamp with time zone,
+	Constraint "workflow_ret_pkey" Primary Key ("refno", "seqno")
+);
+
+--
+-- TOC Entry ID 40 (OID 891775)
+--
+-- Name: workflow_ret Type: ACL Owner: 
+--
+
+REVOKE ALL on "workflow_ret" from PUBLIC;
+GRANT ALL on "workflow_ret" to "postgres";
+GRANT ALL on "workflow_ret" to "apache";
+
+--
+-- TOC Entry ID 41 (OID 891781)
+--
+-- Name: t_workflow Type: TABLE Owner: postgres
+--
+
+CREATE TABLE "t_workflow" (
+	"session_id" character varying NOT NULL,
+	"seqno" integer NOT NULL,
+	"status" character varying,
+	"createstamp" timestamp with time zone,
+	Constraint "t_workflow_pkey" Primary Key ("session_id", "seqno")
+);
+
+--
+-- TOC Entry ID 42 (OID 891781)
+--
+-- Name: t_workflow Type: ACL Owner: 
+--
+
+REVOKE ALL on "t_workflow" from PUBLIC;
+GRANT ALL on "t_workflow" to "postgres";
+GRANT ALL on "t_workflow" to "apache";
+
+--
+-- TOC Entry ID 43 (OID 891787)
+--
+-- Name: flows Type: TABLE Owner: postgres
+--
+
+CREATE TABLE "flows" (
+	"seqno" integer NOT NULL,
+	"id" character varying,
+	"name" character varying,
+	"user_ids" character varying,
+	"times" integer,
+	"createstamp" timestamp with time zone,
+	"updatestamp" timestamp with time zone,
+	Constraint "flows_pkey" Primary Key ("seqno")
+);
+
+--
+-- TOC Entry ID 44 (OID 891787)
+--
+-- Name: flows Type: ACL Owner: 
+--
+
+REVOKE ALL on "flows" from PUBLIC;
+GRANT ALL on "flows" to "postgres";
+GRANT ALL on "flows" to "apache";
+
+--
+-- TOC Entry ID 45 (OID 891793)
+--
+-- Name: tracking Type: TABLE Owner: postgres
+--
+
+CREATE TABLE "tracking" (
+	"serial" character varying,
+	"id" character varying,
+	"ip" character varying,
+	"url" character varying,
+	"uri" character varying,
+	"firstsign" boolean,
+	"calltime" timestamp with time zone,
+	"ref" character varying,
+	"agent" character varying,
+	"lastsign" boolean
+);
+
+--
+-- TOC Entry ID 46 (OID 891793)
+--
+-- Name: tracking Type: ACL Owner: 
+--
+
+REVOKE ALL on "tracking" from PUBLIC;
+GRANT ALL on "tracking" to "postgres";
+GRANT ALL on "tracking" to "apache";
+
+--
+-- TOC Entry ID 47 (OID 891798)
+--
+-- Name: address Type: TABLE Owner: postgres
+--
+
+CREATE TABLE "address" (
+	"seqno" integer NOT NULL,
+	"corp_name" character varying,
+	"corp_kana" character varying,
+	"corp_email" character varying,
+	"corp_url" character varying,
+	"corp_zip" character varying,
+	"corp_country" character varying,
+	"corp_state" character varying,
+	"corp_city" character varying,
+	"corp_street" character varying,
+	"corp_build" character varying,
+	"corp_tel" character varying,
+	"corp_fax" character varying,
+	"person_depa" character varying,
+	"person_post" character varying,
+	"person_name" character varying NOT NULL,
+	"person_kana" character varying NOT NULL,
+	"person_email" character varying,
+	"person_email2" character varying,
+	"person_birthday" date,
+	"person_dialin" character varying,
+	"person_sex" character varying,
+	"person_im" character varying,
+	"person_im_number" character varying,
+	"person_handy" character varying,
+	"person_zip" character varying,
+	"person_country" character varying,
+	"person_state" character varying,
+	"person_city" character varying,
+	"person_street" character varying,
+	"person_build" character varying,
+	"person_tel" character varying,
+	"person_fax" character varying,
+	"comment" character varying,
+	"kind_list" character varying,
+	"create_user_id" character varying,
+	"createstamp" timestamp with time zone,
+	"updatestamp" timestamp with time zone
+);
+
+--
+-- TOC Entry ID 48 (OID 891798)
+--
+-- Name: address Type: ACL Owner: 
+--
+
+REVOKE ALL on "address" from PUBLIC;
+GRANT ALL on "address" to "postgres";
+GRANT INSERT,SELECT,UPDATE,DELETE on "address" to "apache";
+
+--
+-- TOC Entry ID 49 (OID 891808)
+--
+-- Name: mail Type: TABLE Owner: postgres
+--
+
+CREATE TABLE "mail" (
+	"seqno" integer NOT NULL,
+	"user_id" character varying NOT NULL,
+	"address_seqno" integer,
+	"from" character varying NOT NULL,
+	"to" character varying,
+	"priority" integer NOT NULL,
+	"body" character varying,
+	"createstamp" timestamp with time zone,
+	"updatestamp" timestamp with time zone,
+	"subject" character varying,
+	Constraint "mail_pkey" Primary Key ("seqno")
+);
+
+--
+-- TOC Entry ID 50 (OID 891808)
+--
+-- Name: mail Type: ACL Owner: 
+--
+
+REVOKE ALL on "mail" from PUBLIC;
+GRANT ALL on "mail" to "postgres";
+GRANT INSERT,SELECT,UPDATE,DELETE on "mail" to "apache";
+
+--
+-- TOC Entry ID 51 (OID 891814)
+--
+-- Name: mail_res Type: TABLE Owner: postgres
+--
+
+CREATE TABLE "mail_res" (
+	"seqno" integer NOT NULL,
+	"user_id" character varying NOT NULL,
+	"createstamp" timestamp with time zone,
+	Constraint "mail_res_pkey" Primary Key ("seqno", "user_id")
+);
+
+--
+-- TOC Entry ID 52 (OID 891814)
+--
+-- Name: mail_res Type: ACL Owner: 
+--
+
+REVOKE ALL on "mail_res" from PUBLIC;
+GRANT ALL on "mail_res" to "postgres";
+GRANT ALL on "mail_res" to "apache";
+
+--
+-- TOC Entry ID 53 (OID 891820)
+--
+-- Name: rooms_reserve Type: TABLE Owner: postgres
+--
+
+CREATE TABLE "rooms_reserve" (
+	"seqno" integer NOT NULL,
+	"room_id" character varying(20) NOT NULL,
+	"user_id" character varying(20) NOT NULL,
+	"date" date NOT NULL,
+	"timefrom" timestamp with time zone NOT NULL,
+	"timeto" timestamp with time zone NOT NULL,
+	"note" character varying,
+	"member_count" integer,
+	"createstamp" timestamp with time zone,
+	"updatestamp" timestamp with time zone,
+	"update_user_id" character varying,
+	"schedule_seqno" integer,
+	Constraint "rooms_reserve_pkey" Primary Key ("seqno")
+);
+
+--
+-- TOC Entry ID 54 (OID 891820)
+--
+-- Name: rooms_reserve Type: ACL Owner: 
+--
+
+REVOKE ALL on "rooms_reserve" from PUBLIC;
+GRANT ALL on "rooms_reserve" to "postgres";
+GRANT INSERT,SELECT,UPDATE,DELETE on "rooms_reserve" to "apache";
+
+--
+-- TOC Entry ID 55 (OID 891826)
+--
+-- Name: todos Type: TABLE Owner: postgres
+--
+
+CREATE TABLE "todos" (
+   "seqno" int4 NOT NULL,
+   "user_id" varchar NOT NULL,
+   "priority" int4,
+   "subject" varchar,
+   "body" varchar,
+   "createstamp" timestamptz,
+   "updatestamp" timestamptz,
+   "begin_day" date,
+   "end_day" date,
+   "progress" int4
+);
+
+--
+-- TOC Entry ID 56 (OID 891826)
+--
+-- Name: todos Type: ACL Owner: 
+--
+
+REVOKE ALL on "todos" from PUBLIC;
+GRANT ALL on "todos" to "postgres";
+GRANT INSERT,SELECT,UPDATE,DELETE on "todos" to "apache";
+
+--
+-- TOC Entry ID 57 (OID 891831)
+--
+-- Name: boards Type: TABLE Owner: postgres
+--
+
+CREATE TABLE "boards" (
+	"id" character varying(12) NOT NULL,
+	"seqno" integer,
+	"name" character varying(28),
+	"name_kana" character varying(40),
+	"comment" character varying(100),
+	"admin_id" character varying(20),
+	"view_user_ids" character varying,
+	"view_group_ids" character varying,
+	"createstamp" timestamp with time zone,
+	"updatestamp" timestamp with time zone,
+	"sendsign" boolean
+);
+
+--
+-- TOC Entry ID 58 (OID 891831)
+--
+-- Name: boards Type: ACL Owner: 
+--
+
+REVOKE ALL on "boards" from PUBLIC;
+GRANT ALL on "boards" to "postgres";
+GRANT INSERT,SELECT,UPDATE,DELETE on "boards" to "apache";
+
+--
+-- TOC Entry ID 59 (OID 891836)
+--
+-- Name: rooms Type: TABLE Owner: postgres
+--
+
+CREATE TABLE "rooms" (
+	"seqno" integer NOT NULL,
+	"id" character varying NOT NULL,
+	"type" integer,
+	"name" character varying NOT NULL,
+	"manage_id" character varying,
+	"view_group_ids" character varying,
+	"view_user_ids" character varying,
+	"createstamp" timestamp with time zone,
+	"updatestamp" timestamp with time zone
+);
+
+--
+-- TOC Entry ID 60 (OID 891836)
+--
+-- Name: rooms Type: ACL Owner: 
+--
+
+REVOKE ALL on "rooms" from PUBLIC;
+GRANT ALL on "rooms" to "postgres";
+GRANT INSERT,SELECT,UPDATE,DELETE on "rooms" to "apache";
+
+--
+-- TOC Entry ID 61 (OID 891841)
+--
+-- Name: rooms_type Type: TABLE Owner: postgres
+--
+
+CREATE TABLE "rooms_type" (
+	"seqno" integer NOT NULL,
+	"id" integer NOT NULL,
+	"name" character varying NOT NULL,
+	Constraint "rooms_type_pkey" Primary Key ("id")
+);
+
+--
+-- TOC Entry ID 62 (OID 891841)
+--
+-- Name: rooms_type Type: ACL Owner: 
+--
+
+REVOKE ALL on "rooms_type" from PUBLIC;
+GRANT ALL on "rooms_type" to "postgres";
+GRANT INSERT,SELECT,UPDATE,DELETE on "rooms_type" to "apache";
+
+--
+-- TOC Entry ID 63 (OID 891847)
+--
+-- Name: groups Type: TABLE Owner: postgres
+--
+
+CREATE TABLE "groups" (
+	"seqno" integer NOT NULL,
+	"id" character varying(20) NOT NULL,
+	"name" character varying(80) NOT NULL,
+	"viewsign" boolean DEFAULT 't'::bool,
+	"createstamp" timestamp with time zone,
+	"updatestamp" timestamp with time zone
+);
+
+--
+-- TOC Entry ID 64 (OID 891847)
+--
+-- Name: groups Type: ACL Owner: 
+--
+
+REVOKE ALL on "groups" from PUBLIC;
+GRANT ALL on "groups" to "postgres";
+GRANT INSERT,SELECT,UPDATE,DELETE on "groups" to "apache";
+
+--
+-- TOC Entry ID 65 (OID 891849)
+--
+-- Name: links Type: TABLE Owner: postgres
+--
+
+CREATE TABLE "links" (
+	"seqno" integer,
+	"type" character varying,
+	"user_id" character varying,
+	"path" character varying,
+	"icon" character varying,
+	"title" character varying,
+	"url" character varying,
+	"comment" character varying,
+	"orig_title" character varying,
+	"pagetext" character varying,
+	"linksign" boolean,
+	"keitaisign" boolean,
+	"view_group_ids" character varying,
+	"view_user_ids" character varying,
+	"createstamp" timestamp with time zone,
+	"updatestamp" timestamp with time zone,
+	"modifystamp" timestamp with time zone
+);
+
+--
+-- TOC Entry ID 66 (OID 891849)
+--
+-- Name: links Type: ACL Owner: 
+--
+
+REVOKE ALL on "links" from PUBLIC;
+GRANT ALL on "links" to "postgres";
+GRANT INSERT,SELECT,UPDATE,DELETE on "links" to "apache";
+
+--
+-- TOC Entry ID 67 (OID 891854)
+--
+-- Name: admin Type: TABLE Owner: postgres
+--
+
+CREATE TABLE "admin" (
+	"name" character varying,
+	"name_kana" character varying,
+	"email" character varying,
+	"company" character varying,
+	"company_kana" character varying,
+	"url" character varying,
+	"zip" character varying,
+	"country" character varying,
+	"state" character varying,
+	"city" character varying,
+	"street" character varying,
+	"build" character varying,
+	"area" character varying,
+	"tel" character varying,
+	"fax" character varying,
+	"depa" character varying,
+	"post" character varying,
+	"service_name" character varying,
+	"startdate" date,
+	"logoutsecond" integer,
+	"interval" integer,
+	"sunday" boolean,
+	"monday" boolean,
+	"tuesday" boolean,
+	"wednesday" boolean,
+	"thursday" boolean,
+	"friday" boolean,
+	"saturday" boolean,
+	"account" integer,
+	"ftpsize" integer,
+	"createstamp" timestamp with time zone,
+	"updatestamp" timestamp with time zone
+);
+
+--
+-- TOC Entry ID 68 (OID 891854)
+--
+-- Name: admin Type: ACL Owner: 
+--
+
+REVOKE ALL on "admin" from PUBLIC;
+GRANT ALL on "admin" to "postgres";
+GRANT INSERT,SELECT,UPDATE,DELETE on "admin" to "apache";
+
+--
+-- TOC Entry ID 69 (OID 891859)
+--
+-- Name: schedules Type: TABLE Owner: postgres
+--
+
+CREATE TABLE "schedules" (
+	"seqno" integer NOT NULL,
+	"ref_seqno" integer,
+	"user_id" character varying NOT NULL,
+	"create_user_id" character varying,
+	"update_user_id" character varying,
+	"datefrom" date NOT NULL,
+	"dateto" date,
+	"timefrom" timestamp with time zone,
+	"timeto" timestamp with time zone,
+	"opensign" boolean,
+	"shareflag" integer,
+	"sharelist" character varying,
+	"viewsign" boolean,
+	"kind" character varying,
+	"note" character varying,
+	"address_seqno" integer,
+	"createstamp" timestamp with time zone,
+	"updatestamp" timestamp with time zone,
+	Constraint "schdules_pkey" Primary Key ("seqno")
+);
+
+--
+-- TOC Entry ID 70 (OID 891859)
+--
+-- Name: schedules Type: ACL Owner: 
+--
+
+REVOKE ALL on "schedules" from PUBLIC;
+GRANT ALL on "schedules" to "postgres";
+GRANT INSERT,SELECT,UPDATE,DELETE on "schedules" to "apache";
+
+--
+-- TOC Entry ID 2 (OID 891865)
+--
+-- Name: emoji_seqno_seq Type: SEQUENCE Owner: postgres
+--
+
+CREATE SEQUENCE "emoji_seqno_seq" start 1 increment 1 maxvalue 9223372036854775807 minvalue 1 cache 1;
+
+--
+-- TOC Entry ID 4 (OID 891867)
+--
+-- Name: emoji_name_seq Type: SEQUENCE Owner: postgres
+--
+
+CREATE SEQUENCE "emoji_name_seq" start 1 increment 1 maxvalue 9223372036854775807 minvalue 1 cache 1;
+
+--
+-- TOC Entry ID 6 (OID 891869)
+--
+-- Name: emoji_code_i_seq Type: SEQUENCE Owner: postgres
+--
+
+CREATE SEQUENCE "emoji_code_i_seq" start 1 increment 1 maxvalue 9223372036854775807 minvalue 1 cache 1;
+
+--
+-- TOC Entry ID 8 (OID 891871)
+--
+-- Name: emoji_code_j_seq Type: SEQUENCE Owner: postgres
+--
+
+CREATE SEQUENCE "emoji_code_j_seq" start 1 increment 1 maxvalue 9223372036854775807 minvalue 1 cache 1;
+
+--
+-- TOC Entry ID 10 (OID 891873)
+--
+-- Name: emoji_code_ez_seq Type: SEQUENCE Owner: postgres
+--
+
+CREATE SEQUENCE "emoji_code_ez_seq" start 1 increment 1 maxvalue 9223372036854775807 minvalue 1 cache 1;
+
+--
+-- TOC Entry ID 12 (OID 891875)
+--
+-- Name: emoji_color_i_seq Type: SEQUENCE Owner: postgres
+--
+
+CREATE SEQUENCE "emoji_color_i_seq" start 1 increment 1 maxvalue 9223372036854775807 minvalue 1 cache 1;
+
+--
+-- TOC Entry ID 71 (OID 891889)
+--
+-- Name: users_location Type: TABLE Owner: postgres
+--
+
+CREATE TABLE "users_location" (
+	"seqno" integer NOT NULL,
+	"user_id" character varying NOT NULL,
+	"code" character varying,
+	"text" character varying NOT NULL,
+	"updatestamp" timestamp with time zone NOT NULL
+);
+
+--
+-- TOC Entry ID 72 (OID 891889)
+--
+-- Name: users_location Type: ACL Owner: 
+--
+
+REVOKE ALL on "users_location" from PUBLIC;
+GRANT ALL on "users_location" to "postgres";
+GRANT ALL on "users_location" to "apache";
+
+--
+-- TOC Entry ID 73 (OID 891894)
+--
+-- Name: locations Type: TABLE Owner: postgres
+--
+
+CREATE TABLE "locations" (
+	"seqno" integer NOT NULL,
+	"id" integer NOT NULL,
+	"name" character varying NOT NULL,
+	"createstamp" timestamp with time zone,
+	"updatestamp" timestamp with time zone
+);
+
+--
+-- TOC Entry ID 74 (OID 891894)
+--
+-- Name: locations Type: ACL Owner: 
+--
+
+REVOKE ALL on "locations" from PUBLIC;
+GRANT ALL on "locations" to "postgres";
+GRANT ALL on "locations" to "apache";
+
+--
+-- TOC Entry ID 75 (OID 891899)
+--
+-- Name: users_duty Type: TABLE Owner: postgres
+--
+
+CREATE TABLE "users_duty" (
+	"workdate" timestamp with time zone NOT NULL,
+	"user_id" character varying NOT NULL,
+	"startstamp" timestamp with time zone,
+	"endstamp" timestamp with time zone,
+	"goesstamp" timestamp with time zone,
+	"backstamp" timestamp with time zone,
+	"note" character varying,
+	"createstamp" timestamp with time zone,
+	"updatestamp" timestamp with time zone
+);
+
+--
+-- TOC Entry ID 76 (OID 891899)
+--
+-- Name: users_duty Type: ACL Owner: 
+--
+
+REVOKE ALL on "users_duty" from PUBLIC;
+GRANT DELETE on "users_duty" to PUBLIC;
+GRANT ALL on "users_duty" to "postgres";
+GRANT ALL on "users_duty" to "apache";
+
+--
+-- TOC Entry ID 77 (OID 891904)
+--
+-- Name: process Type: TABLE Owner: postgres
+--
+
+CREATE TABLE "process" (
+	"process_id" character varying
+);
+
+--
+-- TOC Entry ID 78 (OID 891904)
+--
+-- Name: process Type: ACL Owner: 
+--
+
+REVOKE ALL on "process" from PUBLIC;
+GRANT ALL on "process" to "postgres";
+GRANT ALL on "process" to "apache";
+
+--
+-- TOC Entry ID 79 (OID 891909)
+--
+-- Name: alarm Type: TABLE Owner: postgres
+--
+
+CREATE TABLE "alarm" (
+	"seqno" integer NOT NULL,
+	"datatype" character varying NOT NULL,
+	"dataseqno" integer NOT NULL,
+	"mailfrom" character varying,
+	"mailto" character varying,
+	"subject" character varying NOT NULL,
+	"body" character varying NOT NULL,
+	"fileflag" boolean,
+	"boundary" character varying,
+	"createstamp" timestamp with time zone,
+	"sendstamp" timestamp with time zone,
+	"sendflag" boolean
+);
+
+--
+-- TOC Entry ID 80 (OID 891909)
+--
+-- Name: alarm Type: ACL Owner: 
+--
+
+REVOKE ALL on "alarm" from PUBLIC;
+GRANT ALL on "alarm" to "postgres";
+GRANT ALL on "alarm" to "apache";
+
+--
+-- TOC Entry ID 81 (OID 1223578)
+--
+-- Name: users Type: TABLE Owner: postgres
+--
+
+CREATE TABLE "users" (
+	"seqno" integer NOT NULL,
+	"id" character varying NOT NULL,
+	"passwd" character varying NOT NULL,
+	"name" character varying NOT NULL,
+	"name_kana" character varying,
+	"name_ryaku" character varying,
+	"email" character varying,
+	"email_sub" character varying,
+	"handy" character varying,
+	"birthday" date,
+	"sex" character varying,
+	"depa" character varying,
+	"post" character varying,
+	"dialin" character varying,
+	"note" character varying,
+	"startmonday" boolean,
+	"from_h" integer,
+	"from_m" integer,
+	"to_h" integer,
+	"to_m" integer,
+	"mygroup" character varying,
+	"master_id" character varying,
+	"secretary_id" character varying,
+	"righthandman_ids" character varying,
+	"pop3type" character varying,
+	"pop3server" character varying,
+	"pop3id" character varying,
+	"pop3passwd" character varying,
+	"address_flag" integer,
+	"admin_sign" boolean,
+	"viewsign" boolean,
+	"eventsign" boolean,
+	"workflow_sign" boolean,
+	"download_sign" boolean,
+	"mygrouptopsign" boolean,
+	"utn" character varying,
+	"onetime_passwd" character varying,
+	"session" character varying,
+	"session_id" character varying,
+	"session_laststamp" timestamp with time zone,
+	"passwd_updatestamp" timestamp with time zone,
+	"createstamp" timestamp with time zone,
+	"updatestamp" timestamp with time zone
+);
+
+--
+-- TOC Entry ID 82 (OID 1223578)
+--
+-- Name: users Type: ACL Owner: 
+--
+
+REVOKE ALL on "users" from PUBLIC;
+GRANT ALL on "users" to "postgres";
+GRANT INSERT,SELECT,UPDATE,DELETE on "users" to "apache";
+
+--
+-- Data for TOC Entry ID 164 (OID 891692)
+--
+-- Name: users_entry Type: TABLE DATA Owner: postgres
+--
+
+
+INSERT INTO "users_entry" ("user_id","group_id","createstamp","updatestamp") VALUES ('admin','default',NULL,NULL);
+INSERT INTO "users_entry" ("user_id","group_id","createstamp","updatestamp") VALUES ('penguin','dai1','2004-02-29 11:12:09.073738+09','2004-02-29 11:12:09.073738+09');
+--
+-- Data for TOC Entry ID 165 (OID 891695)
+--
+-- Name: boards_post Type: TABLE DATA Owner: postgres
+--
+
+
+--
+-- Data for TOC Entry ID 166 (OID 891700)
+--
+-- Name: events Type: TABLE DATA Owner: postgres
+--
+
+
+--
+-- Data for TOC Entry ID 167 (OID 891706)
+--
+-- Name: address_kind Type: TABLE DATA Owner: postgres
+--
+
+
+INSERT INTO "address_kind" ("seqno","key","value") VALUES (2,2,'見込客');
+INSERT INTO "address_kind" ("seqno","key","value") VALUES (1,3,'仕入先');
+INSERT INTO "address_kind" ("seqno","key","value") VALUES (1,1,'得意先');
+--
+-- Data for TOC Entry ID 168 (OID 891711)
+--
+-- Name: address_log Type: TABLE DATA Owner: postgres
+--
+
+
+--
+-- Data for TOC Entry ID 169 (OID 891717)
+--
+-- Name: schedule_kind Type: TABLE DATA Owner: postgres
+--
+
+
+INSERT INTO "schedule_kind" ("seqno","key","value","graphcolor") VALUES (2,2,'打合せ','#FF5555');
+INSERT INTO "schedule_kind" ("seqno","key","value","graphcolor") VALUES (1,1,'営業','#FFAAAA');
+INSERT INTO "schedule_kind" ("seqno","key","value","graphcolor") VALUES (3,3,'会議','#AAAAAA');
+INSERT INTO "schedule_kind" ("seqno","key","value","graphcolor") VALUES (4,4,'制作','#3333FF');
+INSERT INTO "schedule_kind" ("seqno","key","value","graphcolor") VALUES (5,5,'出張','#555555');
+--
+-- Data for TOC Entry ID 170 (OID 891722)
+--
+-- Name: holiday Type: TABLE DATA Owner: postgres
+--
+
+
+INSERT INTO "holiday" ("holiday","name") VALUES ('2001-01-01','正月');
+INSERT INTO "holiday" ("holiday","name") VALUES ('2001-01-02','正月休み');
+INSERT INTO "holiday" ("holiday","name") VALUES ('2001-01-03','正月休み');
+INSERT INTO "holiday" ("holiday","name") VALUES ('2002-01-01','正月');
+INSERT INTO "holiday" ("holiday","name") VALUES ('2002-01-02','正月休み');
+INSERT INTO "holiday" ("holiday","name") VALUES ('2002-01-03','正月休み');
+INSERT INTO "holiday" ("holiday","name") VALUES ('2001-02-11','建国記念の日');
+INSERT INTO "holiday" ("holiday","name") VALUES ('2001-04-29','みどりの日');
+INSERT INTO "holiday" ("holiday","name") VALUES ('2001-01-08','成人の日');
+INSERT INTO "holiday" ("holiday","name") VALUES ('2001-01-12','(振替休日)');
+INSERT INTO "holiday" ("holiday","name") VALUES ('2001-03-20','春分の日');
+INSERT INTO "holiday" ("holiday","name") VALUES ('2001-04-30','(振替休日)');
+INSERT INTO "holiday" ("holiday","name") VALUES ('2001-05-03','憲法記念日');
+INSERT INTO "holiday" ("holiday","name") VALUES ('2001-05-04','国民の休日');
+INSERT INTO "holiday" ("holiday","name") VALUES ('2001-05-05','こどもの日');
+INSERT INTO "holiday" ("holiday","name") VALUES ('2001-07-20','海の日');
+INSERT INTO "holiday" ("holiday","name") VALUES ('2001-09-15','敬老の日');
+INSERT INTO "holiday" ("holiday","name") VALUES ('2001-09-23','秋分の日');
+INSERT INTO "holiday" ("holiday","name") VALUES ('2001-09-24','(振替休日)');
+INSERT INTO "holiday" ("holiday","name") VALUES ('2001-10-08','体育の日');
+INSERT INTO "holiday" ("holiday","name") VALUES ('2001-11-03','文化の日');
+INSERT INTO "holiday" ("holiday","name") VALUES ('2001-11-23','勤労感謝の日');
+INSERT INTO "holiday" ("holiday","name") VALUES ('2001-12-23','天皇誕生日');
+INSERT INTO "holiday" ("holiday","name") VALUES ('2001-12-24','(振替休日)');
+INSERT INTO "holiday" ("holiday","name") VALUES ('2002-01-14','成人の日');
+INSERT INTO "holiday" ("holiday","name") VALUES ('2002-02-11','建国記念の日');
+INSERT INTO "holiday" ("holiday","name") VALUES ('2002-03-21','春分の日');
+INSERT INTO "holiday" ("holiday","name") VALUES ('2002-04-29','みどりの日');
+INSERT INTO "holiday" ("holiday","name") VALUES ('2002-05-03','憲法記念日');
+INSERT INTO "holiday" ("holiday","name") VALUES ('2002-05-04','国民の休日');
+INSERT INTO "holiday" ("holiday","name") VALUES ('2002-05-05','こどもの日');
+INSERT INTO "holiday" ("holiday","name") VALUES ('2002-05-06','振替休日');
+INSERT INTO "holiday" ("holiday","name") VALUES ('2002-07-20','海の日');
+INSERT INTO "holiday" ("holiday","name") VALUES ('2002-09-15','敬老の日');
+INSERT INTO "holiday" ("holiday","name") VALUES ('2002-09-16','振替休日');
+INSERT INTO "holiday" ("holiday","name") VALUES ('2002-09-23','秋分の日');
+INSERT INTO "holiday" ("holiday","name") VALUES ('2002-10-14','体育の日');
+INSERT INTO "holiday" ("holiday","name") VALUES ('2002-11-03','文化の日');
+INSERT INTO "holiday" ("holiday","name") VALUES ('2002-11-04','振替休日');
+INSERT INTO "holiday" ("holiday","name") VALUES ('2002-11-23','勤労感謝の日');
+INSERT INTO "holiday" ("holiday","name") VALUES ('2002-12-23','天皇誕生日');
+INSERT INTO "holiday" ("holiday","name") VALUES ('2003-01-01','元日');
+INSERT INTO "holiday" ("holiday","name") VALUES ('2003-01-13','成人の日');
+INSERT INTO "holiday" ("holiday","name") VALUES ('2003-02-11','建国記念の日');
+INSERT INTO "holiday" ("holiday","name") VALUES ('2003-03-21','春分の日');
+INSERT INTO "holiday" ("holiday","name") VALUES ('2003-04-29','みどりの日');
+INSERT INTO "holiday" ("holiday","name") VALUES ('2003-05-03','憲法記念日');
+INSERT INTO "holiday" ("holiday","name") VALUES ('2003-05-05','こどもの日');
+INSERT INTO "holiday" ("holiday","name") VALUES ('2003-07-21','海の日');
+INSERT INTO "holiday" ("holiday","name") VALUES ('2003-09-15','敬老の日');
+INSERT INTO "holiday" ("holiday","name") VALUES ('2003-09-23','秋分の日');
+INSERT INTO "holiday" ("holiday","name") VALUES ('2003-10-13','体育の日');
+INSERT INTO "holiday" ("holiday","name") VALUES ('2003-11-03','文化の日');
+INSERT INTO "holiday" ("holiday","name") VALUES ('2003-11-23','勤労感謝の日');
+INSERT INTO "holiday" ("holiday","name") VALUES ('2003-11-24','振替休日');
+INSERT INTO "holiday" ("holiday","name") VALUES ('2003-12-23','天皇誕生日');
+INSERT INTO "holiday" ("holiday","name") VALUES ('2004-01-01','元日');
+INSERT INTO "holiday" ("holiday","name") VALUES ('2004-01-12','成人の日');
+INSERT INTO "holiday" ("holiday","name") VALUES ('2004-02-11','建国記念の日');
+INSERT INTO "holiday" ("holiday","name") VALUES ('2004-03-20','春分の日');
+INSERT INTO "holiday" ("holiday","name") VALUES ('2004-04-29','みどりの日');
+INSERT INTO "holiday" ("holiday","name") VALUES ('2004-05-03','憲法記念日');
+INSERT INTO "holiday" ("holiday","name") VALUES ('2004-05-04','国民の休日');
+INSERT INTO "holiday" ("holiday","name") VALUES ('2004-05-05','こどもの日');
+INSERT INTO "holiday" ("holiday","name") VALUES ('2004-07-19','海の日');
+INSERT INTO "holiday" ("holiday","name") VALUES ('2004-09-20','敬老の日');
+INSERT INTO "holiday" ("holiday","name") VALUES ('2004-09-23','秋分の日');
+INSERT INTO "holiday" ("holiday","name") VALUES ('2004-10-11','体育の日');
+INSERT INTO "holiday" ("holiday","name") VALUES ('2004-11-03','文化の日');
+INSERT INTO "holiday" ("holiday","name") VALUES ('2004-11-23','勤労感謝の日');
+INSERT INTO "holiday" ("holiday","name") VALUES ('2004-12-23','天皇誕生日');
+INSERT INTO "holiday" ("holiday","name") VALUES ('2005-01-01','元日');
+INSERT INTO "holiday" ("holiday","name") VALUES ('2005-01-10','成人の日');
+INSERT INTO "holiday" ("holiday","name") VALUES ('2005-02-11','建国記念の日');
+INSERT INTO "holiday" ("holiday","name") VALUES ('2005-03-20','春分の日');
+INSERT INTO "holiday" ("holiday","name") VALUES ('2005-03-21','振替休日');
+INSERT INTO "holiday" ("holiday","name") VALUES ('2005-04-29','みどりの日');
+INSERT INTO "holiday" ("holiday","name") VALUES ('2005-05-03','憲法記念日');
+INSERT INTO "holiday" ("holiday","name") VALUES ('2005-05-04','国民の休日');
+INSERT INTO "holiday" ("holiday","name") VALUES ('2005-05-05','こどもの日');
+INSERT INTO "holiday" ("holiday","name") VALUES ('2005-07-18','海の日');
+INSERT INTO "holiday" ("holiday","name") VALUES ('2005-09-19','敬老の日');
+INSERT INTO "holiday" ("holiday","name") VALUES ('2005-09-23','秋分の日');
+INSERT INTO "holiday" ("holiday","name") VALUES ('2005-10-10','体育の日');
+INSERT INTO "holiday" ("holiday","name") VALUES ('2005-11-03','文化の日');
+INSERT INTO "holiday" ("holiday","name") VALUES ('2005-11-23','勤労感謝の日');
+INSERT INTO "holiday" ("holiday","name") VALUES ('2005-12-23','天皇誕生日');
+INSERT INTO "holiday" ("holiday","name") VALUES ('2006-01-01','元日');
+INSERT INTO "holiday" ("holiday","name") VALUES ('2006-01-02','振替休日');
+INSERT INTO "holiday" ("holiday","name") VALUES ('2006-01-09','成人の日');
+INSERT INTO "holiday" ("holiday","name") VALUES ('2006-02-11','建国記念の日');
+INSERT INTO "holiday" ("holiday","name") VALUES ('2006-03-21','春分の日');
+INSERT INTO "holiday" ("holiday","name") VALUES ('2006-04-29','みどりの日');
+INSERT INTO "holiday" ("holiday","name") VALUES ('2006-05-03','憲法記念日');
+INSERT INTO "holiday" ("holiday","name") VALUES ('2006-05-04','国民の休日');
+INSERT INTO "holiday" ("holiday","name") VALUES ('2006-05-05','こどもの日');
+INSERT INTO "holiday" ("holiday","name") VALUES ('2006-07-17','海の日');
+INSERT INTO "holiday" ("holiday","name") VALUES ('2006-09-18','敬老の日');
+INSERT INTO "holiday" ("holiday","name") VALUES ('2006-09-23','秋分の日');
+INSERT INTO "holiday" ("holiday","name") VALUES ('2006-10-09','体育の日');
+INSERT INTO "holiday" ("holiday","name") VALUES ('2006-11-03','文化の日');
+INSERT INTO "holiday" ("holiday","name") VALUES ('2006-11-23','勤労感謝の日');
+INSERT INTO "holiday" ("holiday","name") VALUES ('2006-12-23','天皇誕生日');
+--
+-- Data for TOC Entry ID 171 (OID 891739)
+--
+-- Name: boards_res Type: TABLE DATA Owner: postgres
+--
+
+
+--
+-- Data for TOC Entry ID 172 (OID 891745)
+--
+-- Name: circulas Type: TABLE DATA Owner: postgres
+--
+
+
+--
+-- Data for TOC Entry ID 173 (OID 891751)
+--
+-- Name: circulas_res Type: TABLE DATA Owner: postgres
+--
+
+
+--
+-- Data for TOC Entry ID 174 (OID 891757)
+--
+-- Name: circulas_ret Type: TABLE DATA Owner: postgres
+--
+
+
+--
+-- Data for TOC Entry ID 175 (OID 891763)
+--
+-- Name: workflow Type: TABLE DATA Owner: postgres
+--
+
+
+--
+-- Data for TOC Entry ID 176 (OID 891769)
+--
+-- Name: workflow_res Type: TABLE DATA Owner: postgres
+--
+
+
+--
+-- Data for TOC Entry ID 177 (OID 891775)
+--
+-- Name: workflow_ret Type: TABLE DATA Owner: postgres
+--
+
+
+--
+-- Data for TOC Entry ID 178 (OID 891781)
+--
+-- Name: t_workflow Type: TABLE DATA Owner: postgres
+--
+
+
+--
+-- Data for TOC Entry ID 179 (OID 891787)
+--
+-- Name: flows Type: TABLE DATA Owner: postgres
+--
+
+
+INSERT INTO "flows" ("seqno","id","name","user_ids","times","createstamp","updatestamp") VALUES (1,'1','雛形ワークフロー','admin,master',0,NULL,'2004-04-16 14:51:18.144232+09');
+--
+-- Data for TOC Entry ID 180 (OID 891793)
+--
+-- Name: tracking Type: TABLE DATA Owner: postgres
+--
+
+
+--
+-- Data for TOC Entry ID 181 (OID 891798)
+--
+-- Name: address Type: TABLE DATA Owner: postgres
+--
+
+
+--
+-- Data for TOC Entry ID 182 (OID 891808)
+--
+-- Name: mail Type: TABLE DATA Owner: postgres
+--
+
+
+--
+-- Data for TOC Entry ID 183 (OID 891814)
+--
+-- Name: mail_res Type: TABLE DATA Owner: postgres
+--
+
+
+--
+-- Data for TOC Entry ID 184 (OID 891820)
+--
+-- Name: rooms_reserve Type: TABLE DATA Owner: postgres
+--
+
+
+--
+-- Data for TOC Entry ID 185 (OID 891826)
+--
+-- Name: todos Type: TABLE DATA Owner: postgres
+--
+
+
+--
+-- Data for TOC Entry ID 186 (OID 891831)
+--
+-- Name: boards Type: TABLE DATA Owner: postgres
+--
+
+
+INSERT INTO "boards" ("id","seqno","name","name_kana","comment","admin_id","view_user_ids","view_group_ids","createstamp","updatestamp","sendsign") VALUES ('default',1,'デフォルト会議室','デフォルトカイギシツ','','',NULL,NULL,NULL,'2004-04-14 14:37:40.41194+09','f');
+--
+-- Data for TOC Entry ID 187 (OID 891836)
+--
+-- Name: rooms Type: TABLE DATA Owner: postgres
+--
+
+
+INSERT INTO "rooms" ("seqno","id","type","name","manage_id","view_group_ids","view_user_ids","createstamp","updatestamp") VALUES (1,'BIHIN1',2,'プロジェクター','',NULL,NULL,'2002-05-24 13:48:00+09','2002-07-08 22:31:42+09');
+INSERT INTO "rooms" ("seqno","id","type","name","manage_id","view_group_ids","view_user_ids","createstamp","updatestamp") VALUES (3,'ROOM01',1,'会議室','',NULL,NULL,'2001-11-26 19:45:48+09','2002-06-26 21:58:30+09');
+INSERT INTO "rooms" ("seqno","id","type","name","manage_id","view_group_ids","view_user_ids","createstamp","updatestamp") VALUES (2,'CAR01',3,'社有車','admin','','','2001-11-26 19:45:09+09','2001-11-26 21:36:37+09');
+--
+-- Data for TOC Entry ID 188 (OID 891841)
+--
+-- Name: rooms_type Type: TABLE DATA Owner: postgres
+--
+
+
+INSERT INTO "rooms_type" ("seqno","id","name") VALUES (1,1,'会議室');
+INSERT INTO "rooms_type" ("seqno","id","name") VALUES (2,2,'備品');
+INSERT INTO "rooms_type" ("seqno","id","name") VALUES (3,3,'車');
+--
+-- Data for TOC Entry ID 189 (OID 891847)
+--
+-- Name: groups Type: TABLE DATA Owner: postgres
+--
+
+
+INSERT INTO "groups" ("seqno","id","name","viewsign","createstamp","updatestamp") VALUES (1,'dai1','第一グループ','t',NULL,NULL);
+INSERT INTO "groups" ("seqno","id","name","viewsign","createstamp","updatestamp") VALUES (2,'dai2','第二グループ','t',NULL,NULL);
+--
+-- Data for TOC Entry ID 190 (OID 891849)
+--
+-- Name: links Type: TABLE DATA Owner: postgres
+--
+
+
+--
+-- Data for TOC Entry ID 191 (OID 891854)
+--
+-- Name: admin Type: TABLE DATA Owner: postgres
+--
+
+
+INSERT INTO "admin" ("name","name_kana","email","company","company_kana","url","zip","country","state","city","street","build","area","tel","fax","depa","post","service_name","startdate","logoutsecond","interval","sunday","monday","tuesday","wednesday","thursday","friday","saturday","account","ftpsize","createstamp","updatestamp") VALUES ('サポート係','サポートカカリ','support@penguin.ne.jp','有限会社ペンギンファクトリー','ペンギンファクトリー','http://www.penguin.co.jp/contents/office.phtml','600-8815','','京都府','京都市下京区','中堂寺粟田町93','京都リサーチパーク スタジオ棟','075','325-5590','325-5599','','代表取締役','Penguin Office Ver2.0.1',NULL,10800,15,'t','f','f','f','f','f','t',50,1000,NULL,'2004-04-14 14:12:41.482273+09');
+--
+-- Data for TOC Entry ID 192 (OID 891859)
+--
+-- Name: schedules Type: TABLE DATA Owner: postgres
+--
+
+
+--
+-- Data for TOC Entry ID 193 (OID 891889)
+--
+-- Name: users_location Type: TABLE DATA Owner: postgres
+--
+
+
+--
+-- Data for TOC Entry ID 194 (OID 891894)
+--
+-- Name: locations Type: TABLE DATA Owner: postgres
+--
+
+
+INSERT INTO "locations" ("seqno","id","name","createstamp","updatestamp") VALUES (1,1,'在席',NULL,NULL);
+INSERT INTO "locations" ("seqno","id","name","createstamp","updatestamp") VALUES (2,2,'不在',NULL,NULL);
+INSERT INTO "locations" ("seqno","id","name","createstamp","updatestamp") VALUES (3,3,'移動中',NULL,NULL);
+--
+-- Data for TOC Entry ID 195 (OID 891899)
+--
+-- Name: users_duty Type: TABLE DATA Owner: postgres
+--
+
+
+--
+-- Data for TOC Entry ID 196 (OID 891904)
+--
+-- Name: process Type: TABLE DATA Owner: postgres
+--
+
+
+--
+-- Data for TOC Entry ID 197 (OID 891909)
+--
+-- Name: alarm Type: TABLE DATA Owner: postgres
+--
+
+
+--
+-- Data for TOC Entry ID 198 (OID 1223578)
+--
+-- Name: users Type: TABLE DATA Owner: postgres
+--
+
+
+INSERT INTO "users" ("seqno","id","passwd","name","name_kana","name_ryaku","email","email_sub","handy","birthday","sex","depa","post","dialin","note","startmonday","from_h","from_m","to_h","to_m","mygroup","master_id","secretary_id","righthandman_ids","pop3type","pop3server","pop3id","pop3passwd","address_flag","admin_sign","viewsign","eventsign","workflow_sign","download_sign","mygrouptopsign","utn","onetime_passwd","session","session_id","session_laststamp","passwd_updatestamp","createstamp","updatestamp") VALUES (1,'admin','admin','管理者','カンリシャ','管理者','fuga@hoge.com','','','1970-04-14','man','','','',NULL,'t',9,0,-1,-1,'','','','','','','','',NULL,'t','t','t',NULL,'t','t','','xdlxz5F0JSlxxXKNO2u1','',NULL,'2004-04-16 15:24:27.683005+09',NULL,NULL,'2004-04-16 15:21:24.158824+09');
+INSERT INTO "users" ("seqno","id","passwd","name","name_kana","name_ryaku","email","email_sub","handy","birthday","sex","depa","post","dialin","note","startmonday","from_h","from_m","to_h","to_m","mygroup","master_id","secretary_id","righthandman_ids","pop3type","pop3server","pop3id","pop3passwd","address_flag","admin_sign","viewsign","eventsign","workflow_sign","download_sign","mygrouptopsign","utn","onetime_passwd","session","session_id","session_laststamp","passwd_updatestamp","createstamp","updatestamp") VALUES (2,'penguin','enNOdWP00iOaY','辺吟 変゜田','ペンギンペンタ','ペンタ','',NULL,NULL,NULL,'',NULL,NULL,NULL,NULL,'t',-1,-1,-1,-1,NULL,NULL,'','',NULL,NULL,NULL,NULL,NULL,'f','t','t',NULL,'t',NULL,NULL,NULL,NULL,'3833fc7a042fee8c9aaa39bcf3ab628f','2004-04-16 23:30:15.65103+09','2004-04-08 11:19:11.167948+09','2004-02-29 11:14:06.361997+09','2004-04-10 13:31:33.707898+09');
+--
+-- TOC Entry ID 83 (OID 927510)
+--
+-- Name: "serial_forums_post_key" Type: INDEX Owner: postgres
+--
+
+CREATE INDEX serial_forums_post_key ON boards_post USING btree (serial);
+
+--
+-- TOC Entry ID 84 (OID 927511)
+--
+-- Name: "address_kind_key_key" Type: INDEX Owner: postgres
+--
+
+CREATE UNIQUE INDEX address_kind_key_key ON address_kind USING btree ("key");
+
+--
+-- TOC Entry ID 85 (OID 927512)
+--
+-- Name: "address_kind_seqno_key" Type: INDEX Owner: postgres
+--
+
+CREATE INDEX address_kind_seqno_key ON address_kind USING btree (seqno);
+
+--
+-- TOC Entry ID 86 (OID 927513)
+--
+-- Name: "address_log_address_seqno" Type: INDEX Owner: postgres
+--
+
+CREATE INDEX address_log_address_seqno ON address_log USING btree (address_seqno);
+
+--
+-- TOC Entry ID 87 (OID 927514)
+--
+-- Name: "address_log_createstamp" Type: INDEX Owner: postgres
+--
+
+CREATE INDEX address_log_createstamp ON address_log USING btree (createstamp);
+
+--
+-- TOC Entry ID 88 (OID 927515)
+--
+-- Name: "address_log_seqno" Type: INDEX Owner: postgres
+--
+
+CREATE INDEX address_log_seqno ON address_log USING btree (seqno);
+
+--
+-- TOC Entry ID 89 (OID 927516)
+--
+-- Name: "schdule_kind_key_key" Type: INDEX Owner: postgres
+--
+
+CREATE UNIQUE INDEX schdule_kind_key_key ON schedule_kind USING btree ("key");
+
+--
+-- TOC Entry ID 90 (OID 927517)
+--
+-- Name: "holiday_pkey" Type: INDEX Owner: postgres
+--
+
+CREATE UNIQUE INDEX holiday_pkey ON holiday USING btree (holiday);
+
+--
+-- TOC Entry ID 91 (OID 927525)
+--
+-- Name: "circulas_user_id_key" Type: INDEX Owner: postgres
+--
+
+CREATE INDEX circulas_user_id_key ON circulas USING btree (user_id);
+
+--
+-- TOC Entry ID 92 (OID 927526)
+--
+-- Name: "circulas_result_sign_key" Type: INDEX Owner: postgres
+--
+
+CREATE INDEX circulas_result_sign_key ON circulas USING btree (result_sign);
+
+--
+-- TOC Entry ID 93 (OID 927527)
+--
+-- Name: "circulas_updatestamp_key" Type: INDEX Owner: postgres
+--
+
+CREATE INDEX circulas_updatestamp_key ON circulas USING btree (updatestamp);
+
+--
+-- TOC Entry ID 94 (OID 927528)
+--
+-- Name: "circulas_ret_user_id_key" Type: INDEX Owner: postgres
+--
+
+CREATE INDEX circulas_ret_user_id_key ON circulas_ret USING btree (user_id);
+
+--
+-- TOC Entry ID 95 (OID 927529)
+--
+-- Name: "circulas_ret_result_sign_key" Type: INDEX Owner: postgres
+--
+
+CREATE INDEX circulas_ret_result_sign_key ON circulas_ret USING btree (result_sign);
+
+--
+-- TOC Entry ID 96 (OID 927530)
+--
+-- Name: "workflow_user_id_key" Type: INDEX Owner: postgres
+--
+
+CREATE INDEX workflow_user_id_key ON workflow USING btree (user_id);
+
+--
+-- TOC Entry ID 97 (OID 927531)
+--
+-- Name: "workflow_updatestamp_key" Type: INDEX Owner: postgres
+--
+
+CREATE INDEX workflow_updatestamp_key ON workflow USING btree (updatestamp);
+
+--
+-- TOC Entry ID 98 (OID 927532)
+--
+-- Name: "workflow_ret_user_id_key" Type: INDEX Owner: postgres
+--
+
+CREATE INDEX workflow_ret_user_id_key ON workflow_ret USING btree (user_id);
+
+--
+-- TOC Entry ID 99 (OID 927533)
+--
+-- Name: "workflow_ret_result_sign_key" Type: INDEX Owner: postgres
+--
+
+CREATE INDEX workflow_ret_result_sign_key ON workflow_ret USING btree (result_sign);
+
+--
+-- TOC Entry ID 100 (OID 927534)
+--
+-- Name: "workflow_ret_recognize_sign_key" Type: INDEX Owner: postgres
+--
+
+CREATE INDEX workflow_ret_recognize_sign_key ON workflow_ret USING btree (recognize_sign);
+
+--
+-- TOC Entry ID 101 (OID 927535)
+--
+-- Name: "flows_id_key" Type: INDEX Owner: postgres
+--
+
+CREATE INDEX flows_id_key ON flows USING btree (id);
+
+--
+-- TOC Entry ID 102 (OID 927536)
+--
+-- Name: "tracking_serial_key" Type: INDEX Owner: postgres
+--
+
+CREATE INDEX tracking_serial_key ON tracking USING btree (serial);
+
+--
+-- TOC Entry ID 103 (OID 927537)
+--
+-- Name: "tracking_id_key" Type: INDEX Owner: postgres
+--
+
+CREATE INDEX tracking_id_key ON tracking USING btree (id);
+
+--
+-- TOC Entry ID 104 (OID 927538)
+--
+-- Name: "tracking_ip_key" Type: INDEX Owner: postgres
+--
+
+CREATE INDEX tracking_ip_key ON tracking USING btree (ip);
+
+--
+-- TOC Entry ID 105 (OID 927539)
+--
+-- Name: "tracking_url_key" Type: INDEX Owner: postgres
+--
+
+CREATE INDEX tracking_url_key ON tracking USING btree (url);
+
+--
+-- TOC Entry ID 106 (OID 927540)
+--
+-- Name: "tracking_uri_key" Type: INDEX Owner: postgres
+--
+
+CREATE INDEX tracking_uri_key ON tracking USING btree (uri);
+
+--
+-- TOC Entry ID 107 (OID 927541)
+--
+-- Name: "tracking_firstsign_key" Type: INDEX Owner: postgres
+--
+
+CREATE INDEX tracking_firstsign_key ON tracking USING btree (firstsign);
+
+--
+-- TOC Entry ID 108 (OID 927542)
+--
+-- Name: "tracking_calltime_key" Type: INDEX Owner: postgres
+--
+
+CREATE INDEX tracking_calltime_key ON tracking USING btree (calltime);
+
+--
+-- TOC Entry ID 109 (OID 927543)
+--
+-- Name: "tracking_ref_key" Type: INDEX Owner: postgres
+--
+
+CREATE INDEX tracking_ref_key ON tracking USING btree (ref);
+
+--
+-- TOC Entry ID 110 (OID 927544)
+--
+-- Name: "tracking_agent_key" Type: INDEX Owner: postgres
+--
+
+CREATE INDEX tracking_agent_key ON tracking USING btree (agent);
+
+--
+-- TOC Entry ID 111 (OID 927545)
+--
+-- Name: "tracking_lastsign_key" Type: INDEX Owner: postgres
+--
+
+CREATE INDEX tracking_lastsign_key ON tracking USING btree (lastsign);
+
+--
+-- TOC Entry ID 112 (OID 927546)
+--
+-- Name: "address_ukey" Type: INDEX Owner: postgres
+--
+
+CREATE UNIQUE INDEX address_ukey ON address USING btree (seqno);
+
+--
+-- TOC Entry ID 113 (OID 927549)
+--
+-- Name: "mail_user_id_key" Type: INDEX Owner: postgres
+--
+
+CREATE INDEX mail_user_id_key ON mail USING btree (user_id);
+
+--
+-- TOC Entry ID 114 (OID 927550)
+--
+-- Name: "mail_priority_key" Type: INDEX Owner: postgres
+--
+
+CREATE INDEX mail_priority_key ON mail USING btree (priority);
+
+--
+-- TOC Entry ID 115 (OID 927551)
+--
+-- Name: "mail_to_key" Type: INDEX Owner: postgres
+--
+
+CREATE INDEX mail_to_key ON mail USING btree ("to");
+
+--
+-- TOC Entry ID 116 (OID 927552)
+--
+-- Name: "mail_createstamp_key" Type: INDEX Owner: postgres
+--
+
+CREATE INDEX mail_createstamp_key ON mail USING btree (createstamp);
+
+--
+-- TOC Entry ID 117 (OID 927553)
+--
+-- Name: "mail_updatestamp_key" Type: INDEX Owner: postgres
+--
+
+CREATE INDEX mail_updatestamp_key ON mail USING btree (updatestamp);
+
+--
+-- TOC Entry ID 118 (OID 927554)
+--
+-- Name: "mail_from_key" Type: INDEX Owner: postgres
+--
+
+CREATE INDEX mail_from_key ON mail USING btree ("from");
+
+--
+-- TOC Entry ID 119 (OID 927555)
+--
+-- Name: "boards_post_user_id" Type: INDEX Owner: postgres
+--
+
+CREATE INDEX boards_post_user_id ON boards_post USING btree (user_id);
+
+--
+-- TOC Entry ID 120 (OID 927556)
+--
+-- Name: "address_log_user_id" Type: INDEX Owner: postgres
+--
+
+CREATE INDEX address_log_user_id ON address_log USING btree (user_id);
+
+--
+-- TOC Entry ID 121 (OID 927557)
+--
+-- Name: "boards_post_parent" Type: INDEX Owner: postgres
+--
+
+CREATE INDEX boards_post_parent ON boards_post USING btree (parent);
+
+--
+-- TOC Entry ID 122 (OID 927559)
+--
+-- Name: "boards_post_board_id" Type: INDEX Owner: postgres
+--
+
+CREATE INDEX boards_post_board_id ON boards_post USING btree (board_id);
+
+--
+-- TOC Entry ID 123 (OID 927560)
+--
+-- Name: "boards_post_stamp" Type: INDEX Owner: postgres
+--
+
+CREATE INDEX boards_post_stamp ON boards_post USING btree (stamp);
+
+--
+-- TOC Entry ID 124 (OID 927561)
+--
+-- Name: "schedule_kind_seqno" Type: INDEX Owner: postgres
+--
+
+CREATE UNIQUE INDEX schedule_kind_seqno ON schedule_kind USING btree (seqno);
+
+--
+-- TOC Entry ID 125 (OID 927562)
+--
+-- Name: "boards_post_ukey" Type: INDEX Owner: postgres
+--
+
+CREATE UNIQUE INDEX boards_post_ukey ON boards_post USING btree (board_id, seqno);
+
+--
+-- TOC Entry ID 126 (OID 927564)
+--
+-- Name: "rooms_reserve_date_key" Type: INDEX Owner: postgres
+--
+
+CREATE INDEX rooms_reserve_date_key ON rooms_reserve USING btree (date);
+
+--
+-- TOC Entry ID 127 (OID 927565)
+--
+-- Name: "rooms_reserve_room_id_key" Type: INDEX Owner: postgres
+--
+
+CREATE INDEX rooms_reserve_room_id_key ON rooms_reserve USING btree (room_id);
+
+--
+-- TOC Entry ID 128 (OID 927566)
+--
+-- Name: "rooms_reserve_timefrom_key" Type: INDEX Owner: postgres
+--
+
+CREATE INDEX rooms_reserve_timefrom_key ON rooms_reserve USING btree (timefrom);
+
+--
+-- TOC Entry ID 129 (OID 927567)
+--
+-- Name: "rooms_reserve_timeto_key" Type: INDEX Owner: postgres
+--
+
+CREATE INDEX rooms_reserve_timeto_key ON rooms_reserve USING btree (timeto);
+
+--
+-- TOC Entry ID 130 (OID 927568)
+--
+-- Name: "rooms_reserve_user_id_key" Type: INDEX Owner: postgres
+--
+
+CREATE INDEX rooms_reserve_user_id_key ON rooms_reserve USING btree (user_id);
+
+--
+-- TOC Entry ID 131 (OID 927569)
+--
+-- Name: "todos_seqno_key" Type: INDEX Owner: postgres
+--
+
+CREATE  INDEX "todos_seqno_key" ON "todos" ("seqno");
+
+--
+-- TOC Entry ID 132 (OID 927570)
+--
+-- Name: "todos_priority_key" Type: INDEX Owner: postgres
+--
+
+CREATE  INDEX "todos_priority_key" ON "todos" ("priority");
+
+--
+-- TOC Entry ID 133 (OID 927571)
+--
+-- Name: "todos_user_id" Type: INDEX Owner: postgres
+--
+
+CREATE  INDEX "todos_user_id" ON "todos" ("user_id");
+
+--
+-- Name: "todos_begin_day_key" Type: INDEX Owner: postgres
+--
+
+CREATE  INDEX "todos_begin_day_key" ON "todos" ("begin_day");
+
+--
+-- Name: "todos_end_day_key" Type: INDEX Owner: postgres
+--
+
+CREATE  INDEX "todos_end_day_key" ON "todos" ("end_day");
+
+--
+-- TOC Entry ID 134 (OID 927572)
+--
+-- Name: "boards_createstamp" Type: INDEX Owner: postgres
+--
+
+CREATE INDEX boards_createstamp ON boards USING btree (createstamp);
+
+--
+-- TOC Entry ID 135 (OID 927573)
+--
+-- Name: "boards_pkey" Type: INDEX Owner: postgres
+--
+
+CREATE UNIQUE INDEX boards_pkey ON boards USING btree (id);
+
+--
+-- TOC Entry ID 136 (OID 927574)
+--
+-- Name: "boards_seqno" Type: INDEX Owner: postgres
+--
+
+CREATE UNIQUE INDEX boards_seqno ON boards USING btree (seqno);
+
+--
+-- TOC Entry ID 137 (OID 927575)
+--
+-- Name: "rooms_id_key" Type: INDEX Owner: postgres
+--
+
+CREATE INDEX rooms_id_key ON rooms USING btree (id);
+
+--
+-- TOC Entry ID 138 (OID 927576)
+--
+-- Name: "rooms_pkey" Type: INDEX Owner: postgres
+--
+
+CREATE UNIQUE INDEX rooms_pkey ON rooms USING btree (seqno);
+
+--
+-- TOC Entry ID 139 (OID 927578)
+--
+-- Name: "keitaisign_links_key" Type: INDEX Owner: postgres
+--
+
+CREATE INDEX keitaisign_links_key ON links USING btree (keitaisign);
+
+--
+-- TOC Entry ID 140 (OID 927579)
+--
+-- Name: "links_path_key" Type: INDEX Owner: postgres
+--
+
+CREATE INDEX links_path_key ON links USING btree ("path");
+
+--
+-- TOC Entry ID 141 (OID 927580)
+--
+-- Name: "links_seqno" Type: INDEX Owner: postgres
+--
+
+CREATE UNIQUE INDEX links_seqno ON links USING btree (seqno);
+
+--
+-- TOC Entry ID 142 (OID 927581)
+--
+-- Name: "links_seqno_key" Type: INDEX Owner: postgres
+--
+
+CREATE INDEX links_seqno_key ON links USING btree (seqno);
+
+--
+-- TOC Entry ID 143 (OID 927582)
+--
+-- Name: "links_type_key" Type: INDEX Owner: postgres
+--
+
+CREATE INDEX links_type_key ON links USING btree ("type");
+
+--
+-- TOC Entry ID 144 (OID 927583)
+--
+-- Name: "links_user_id_key" Type: INDEX Owner: postgres
+--
+
+CREATE INDEX links_user_id_key ON links USING btree (user_id);
+
+--
+-- TOC Entry ID 145 (OID 927584)
+--
+-- Name: "schedules_datefrom" Type: INDEX Owner: postgres
+--
+
+CREATE INDEX schedules_datefrom ON schedules USING btree (datefrom);
+
+--
+-- TOC Entry ID 146 (OID 927585)
+--
+-- Name: "schedules_kind" Type: INDEX Owner: postgres
+--
+
+CREATE INDEX schedules_kind ON schedules USING btree (kind);
+
+--
+-- TOC Entry ID 147 (OID 927586)
+--
+-- Name: "schedules_ref_seqno" Type: INDEX Owner: postgres
+--
+
+CREATE INDEX schedules_ref_seqno ON schedules USING btree (ref_seqno);
+
+--
+-- TOC Entry ID 148 (OID 927587)
+--
+-- Name: "schedules_user_id" Type: INDEX Owner: postgres
+--
+
+CREATE INDEX schedules_user_id ON schedules USING btree (user_id);
+
+--
+-- TOC Entry ID 149 (OID 927588)
+--
+-- Name: "users_location_user_id_key" Type: INDEX Owner: postgres
+--
+
+CREATE INDEX users_location_user_id_key ON users_location USING btree (user_id);
+
+--
+-- TOC Entry ID 150 (OID 927589)
+--
+-- Name: "seqno_location_ukey" Type: INDEX Owner: postgres
+--
+
+CREATE UNIQUE INDEX seqno_location_ukey ON locations USING btree (seqno);
+
+--
+-- TOC Entry ID 151 (OID 927590)
+--
+-- Name: "users_duty_ukey" Type: INDEX Owner: postgres
+--
+
+CREATE UNIQUE INDEX users_duty_ukey ON users_duty USING btree (user_id, workdate);
+
+--
+-- TOC Entry ID 152 (OID 927591)
+--
+-- Name: "users_location_seqno_key" Type: INDEX Owner: postgres
+--
+
+CREATE INDEX users_location_seqno_key ON users_location USING btree (seqno);
+
+--
+-- TOC Entry ID 153 (OID 927592)
+--
+-- Name: "users_location_ukey" Type: INDEX Owner: postgres
+--
+
+CREATE UNIQUE INDEX users_location_ukey ON users_location USING btree (user_id, seqno);
+
+--
+-- TOC Entry ID 154 (OID 927593)
+--
+-- Name: "alarm_ukey" Type: INDEX Owner: postgres
+--
+
+CREATE UNIQUE INDEX alarm_ukey ON alarm USING btree (seqno);
+
+--
+-- TOC Entry ID 155 (OID 927594)
+--
+-- Name: "alarm_sendstamp_key" Type: INDEX Owner: postgres
+--
+
+CREATE INDEX alarm_sendstamp_key ON alarm USING btree (sendstamp);
+
+--
+-- TOC Entry ID 156 (OID 927595)
+--
+-- Name: "alarm_datatype_key" Type: INDEX Owner: postgres
+--
+
+CREATE INDEX alarm_datatype_key ON alarm USING btree (datatype);
+
+--
+-- TOC Entry ID 157 (OID 927596)
+--
+-- Name: "alarm_dataseqno_key" Type: INDEX Owner: postgres
+--
+
+CREATE INDEX alarm_dataseqno_key ON alarm USING btree (dataseqno);
+
+--
+-- TOC Entry ID 158 (OID 927602)
+--
+-- Name: "admin_ukey" Type: INDEX Owner: postgres
+--
+
+CREATE UNIQUE INDEX admin_ukey ON admin USING btree (company);
+
+--
+-- TOC Entry ID 159 (OID 927619)
+--
+-- Name: "groups_seqno" Type: INDEX Owner: postgres
+--
+
+CREATE UNIQUE INDEX groups_seqno ON groups USING btree (seqno);
+
+--
+-- TOC Entry ID 160 (OID 1223586)
+--
+-- Name: "onetime_passwd_users_key" Type: INDEX Owner: postgres
+--
+
+CREATE INDEX onetime_passwd_users_key ON users USING btree (onetime_passwd);
+
+--
+-- TOC Entry ID 161 (OID 1223587)
+--
+-- Name: "session_users_key" Type: INDEX Owner: postgres
+--
+
+CREATE INDEX session_users_key ON users USING btree ("session");
+
+--
+-- TOC Entry ID 162 (OID 1223588)
+--
+-- Name: "users_id" Type: INDEX Owner: postgres
+--
+
+CREATE UNIQUE INDEX users_id ON users USING btree (id);
+
+--
+-- TOC Entry ID 163 (OID 1223589)
+--
+-- Name: "users_ukey" Type: INDEX Owner: postgres
+--
+
+CREATE UNIQUE INDEX users_ukey ON users USING btree (seqno);
+
+--
+-- TOC Entry ID 3 (OID 891865)
+--
+-- Name: emoji_seqno_seq Type: SEQUENCE SET Owner: postgres
+--
+
+SELECT setval ('"emoji_seqno_seq"', 1, false);
+
+--
+-- TOC Entry ID 5 (OID 891867)
+--
+-- Name: emoji_name_seq Type: SEQUENCE SET Owner: postgres
+--
+
+SELECT setval ('"emoji_name_seq"', 1, false);
+
+--
+-- TOC Entry ID 7 (OID 891869)
+--
+-- Name: emoji_code_i_seq Type: SEQUENCE SET Owner: postgres
+--
+
+SELECT setval ('"emoji_code_i_seq"', 1, false);
+
+--
+-- TOC Entry ID 9 (OID 891871)
+--
+-- Name: emoji_code_j_seq Type: SEQUENCE SET Owner: postgres
+--
+
+SELECT setval ('"emoji_code_j_seq"', 1, false);
+
+--
+-- TOC Entry ID 11 (OID 891873)
+--
+-- Name: emoji_code_ez_seq Type: SEQUENCE SET Owner: postgres
+--
+
+SELECT setval ('"emoji_code_ez_seq"', 1, false);
+
+--
+-- TOC Entry ID 13 (OID 891875)
+--
+-- Name: emoji_color_i_seq Type: SEQUENCE SET Owner: postgres
+--
+
+SELECT setval ('"emoji_color_i_seq"', 1, false);
+

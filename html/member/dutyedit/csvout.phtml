@@ -1,0 +1,72 @@
+<?php
+  include "../../config.inc.php"; include "../../lib.inc.php";
+  include "../../login_check.inc.php"; // ログインチェック
+
+  if (is_numeric($y) && is_numeric($m) && checkdate($m,1,$y)) {
+    $firststamp = mktime(0, 0, 0, $m, 1, $y);
+  } else {
+    $m = date("m",time()+86400*6);
+    $y = date("Y",time()+86400*6);
+    $firststamp = mktime(0, 0, 0, $m, 1, $y);
+  }
+
+  $next_y = $y; $next_m = $m + 1;
+  if ($next_m>12) {
+    $next_y = $y + 1; $next_m = 1;
+  }
+  $prev_y = $y; $prev_m = $m - 1;
+  if ($prev_m<1) {
+    $prev_y = $y- 1; $prev_m = 12;
+  }
+  $laststamp = mktime(0, 0, 0, $next_m, 1, $next_y)-86400;
+
+  // ダウンロードテーブルオープン
+  $sql = "SELECT * FROM users_duty WHERE user_id='".$login_id."' AND workdate>='".date("Y-m-d",$firststamp)."' AND workdate<='".date("Y-m-d",$laststamp)."' ORDER BY workdate";
+  $res = pg_query($conn,$sql);
+  $cnt = pg_num_rows($res);
+
+  // 件数確認
+  if ($cnt<1) {
+    $MES[] = "データ未登録";
+  }
+
+  // エラー処理
+  if (sizeof($MES)>0) {
+    header("HTTP/1.1 404 Not Found");
+  } else {
+    // ヘッダー出力
+//    header("Content-Type: application/octet-stream\n"); 
+    header("Content-Type: application/download"); 
+    header("Content-Disposition: attachment; filename=\"timecard.csv\""); 
+    header("Content-Disposition: filename=\"timecard.csv\""); 
+    header("Content-Description: Generated Data");
+    header("Content-Transfer-Encoding: binary"); 
+
+    print euc2sjis('"日付","出社時刻","退社時刻","外出時刻","戻り時刻","コメント"'."\n");
+    for ($i=0;$i<$cnt;$i++) {
+      $row = pg_fetch_array($res,$i);
+      print '"'.date("Y/m/d",date2timestamp($row["workdate"])).'",';
+      if ($row["startstamp"]!="") {
+        print '"'.date("H:i",datetime2timestamp($row["startstamp"])).'",';
+      } else {
+        print ',';
+      }
+      if ($row["endstamp"]!="") {
+        print '"'.date("H:i",datetime2timestamp($row["endstamp"])).'",';
+      } else {
+        print ',';
+      }
+      if ($row["goesstamp"]!="") {
+        print '"'.date("H:i",datetime2timestamp($row["goesstamp"])).'",';
+      } else {
+        print ',';
+      }
+      if ($row["backstamp"]!="") {
+        print '"'.date("H:i",datetime2timestamp($row["backstamp"])).'",';
+      } else {
+        print ',';
+      }
+      print '"'.$note.'"'."\n";
+    }
+  }
+?>

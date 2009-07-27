@@ -1,0 +1,136 @@
+<?
+include "../../config.inc.php"; include "../../lib.inc.php";
+include "../../language.inc.php";
+
+$linktext  = "<A HREF=\"../../\" CLASS=\"BAR\">トップページ</A> &gt; ";
+$linktext .= "<A HREF=\"../\" CLASS=\"BAR\">予定表</A> &gt; ";
+if (empty($s)) {
+	$linktext .= "<A HREF=\"./\" CLASS=\"BAR\">予定の登録</A> &gt; ";
+} else {
+	$linktext .= "<A HREF=\"./&s=$s\" CLASS=\"BAR\">予定の確認</A> &gt; ";
+}
+$linktext .= "<FONT COLOR=#FFFF00>削除</FONT>";
+
+include "../../login_check.inc.php";
+
+if ($login && sizeof($MES)==0) {
+	// 削除処理
+	$sql = "SELECT * FROM schedules where seqno=".$seqno;
+	$res = pg_query($conn,$sql);
+	if(pg_num_rows($res)==0){
+		$DMES[] = "指定された情報は既に削除されています";
+	} else {
+		$row = pg_fetch_array($res,0);
+		
+		$user_id        = $row["user_id"];
+		$create_user_id = $row["create_user_id"];
+		$ref_seqno      = $row["ref_seqno"];
+		
+		$address_seqno      = $row["address_seqno"];
+		$address_log__seqno = $row["address_log_seqno"];
+		
+		// スケジュール削除
+		$sql = "DELETE FROM schedules WHERE seqno=".$seqno." or ref_seqno=".$seqno;
+		$res = pg_query($conn,$sql);
+		if($res==false){
+			$DMES[] = "削除に失敗しました";
+		}
+
+		// 過去のアラームデータがあれば削除
+		$sql = "DELETE FROM alarm WHERE datatype='schedule' AND dataseqno=".$seqno;
+		pg_query($conn, $sql);
+
+		// 共有スケジュール時は親スケジュールから自身を除外
+		if ($ref_seqno != "" and $user_id != $create_user_id) {
+			$sql = "SELECT * FROM schedules where seqno=".$ref_seqno;
+			$res = pg_query($conn,$sql);
+			if (pg_num_rows($res)>0) {
+				$row = pg_fetch_array($res,0);
+				$userid_to = $row["sharelist"];
+				// UserIDの再整列と自身を除外
+				$userids = split(",",$userid_to);
+				if (sizeof($userids)>0) {
+					while (list($key,$val)=each($userids)) {
+						$idfind = false;
+						if (sizeof($new_userids)>0) {
+							while (list($new_key,$new_val)=each($new_userids)) {
+								if ($new_val==$val) {
+									$idfind = true;
+									break;
+								}
+							}
+						}
+						if (!$idfind) {
+							$sql_user = "select * from users where id='".$val."'";
+							$res_user = pg_query($conn, $sql_user);
+							$cnt_user = pg_num_rows($res_user);
+							if ($cnt_user>0) {
+								$row_user = pg_fetch_array($res_user,0);
+								$new_userids[$row_user["seqno"]] = $val;
+							}
+						}
+					}
+				}
+				
+				if (sizeof($new_userids)>0) {
+					ksort($new_userids);
+					reset($new_userids);
+					$userid_to = "";
+					while (list($key,$val)=each($new_userids)) {
+						if ($val != $user_id) {
+							if ($userid_to != "") { $userid_to .= ","; }
+							$userid_to .= $val;
+						}
+					}
+				}
+				
+				$sql = "UPDATE schedules SET sharelist='".$userid_to."' WHERE seqno=".$ref_seqno;
+				$res = pg_query($conn,$sql);
+			}
+		}
+		
+		// 施設予約の削除
+		$sql = "DELETE FROM rooms_reserve WHERE schedule_seqno=".$seqno;
+		$res = pg_query($conn,$sql);
+		
+		// 住所録ログの削除
+		if ($address_seqno>0 && $address_log_seqno>0) {
+			$sql = "DELETE FROM address_log WHERE address_seqno=".$address_seqno." AND seqno=".$address_log_seqno." AND data_seqno=".$seqno;
+			$res = pg_query($conn,$sql);
+			if($res==false){
+				//          $DMES[] = "住所録ログの削除に失敗しました";
+			}
+		}
+	}
+}
+
+if (sizeof($DMES)>0) {
+	// エラーメッセージ出力
+	include "../../header.inc.php";
+	
+	$pagetext .= "<TABLE width=100%><TR><TD align=center><FONT color=\"#FF0000\">";
+	$pagetext .= "<BR>\n";
+	while (list($key,$val)=each($DMES)) {
+		$pagetext .= $val."<BR>";
+	}
+	$pagetext .= "<BR>\n";
+	$pagetext .= "<INPUT type=\"button\" value=\"戻る\" onClick=\"history.back()\"><BR>";
+	$pagetext .= "</TD></TR></TABLE>\n";
+	
+	include "../../detail.inc.php";
+	include "../../footer.inc.php";
+} else {
+	// 正常処理
+	$returl = "../";
+	if ($p=="top") {
+		$returl = "../../";
+	} elseif ($_COOKIE["sch_move"]=="daily") {
+		$returl = "../daily.phtml";
+	} elseif ($_COOKIE["sch_move"]=="monthly") {
+		$returl = "../monthly.phtml";
+	} elseif ($_COOKIE["sch_move"]=="yearly") {
+		$returl = "../yearly.phtml";
+	}
+	Header("Location: ".$returl);
+}
+?>

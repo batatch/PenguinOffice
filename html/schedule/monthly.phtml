@@ -1,0 +1,807 @@
+<?
+  $linktext  = "<A HREF=\"../\" ALT=\"トップページ\" CLASS=\"BAR\">トップページ</A> &gt; ";
+  $linktext .= "<FONT COLOR=#FFFF00>予定表:月表示</FONT>";
+
+  include "../config.inc.php";
+  include "../lib.inc.php";
+  include "../language.inc.php";
+
+  $user_count = get_count("users",""); // 利用者総数
+
+  $headertext .= "Set-Cookie: sch_move=monthly; path=/;\n";
+  if (!empty($y)) $headertext .= "Set-Cookie: sch_y=$y; path=/;\n";
+  if (!empty($m)) $headertext .= "Set-Cookie: sch_m=$m; path=/;\n";
+  if (!empty($d)) $headertext .= "Set-Cookie: sch_d=$d; path=/;\n";
+  if (empty($y)) $y = $_COOKIE["sch_y"];
+  if (empty($m)) $m = $_COOKIE["sch_m"];
+  if (empty($d)) $d = $_COOKIE["sch_d"];
+
+  $hour_from = 9; // 1日の開始基準時
+
+  include "../header.inc.php";
+  
+  if ($login) {
+    $sql = "select * from users where id='".$login_id."'";
+    $res = pg_query($conn, $sql);
+    if (pg_num_rows($res)<1) {
+    } else {
+      $row = pg_fetch_array($res,0);
+      $eventsign = $row["eventsign"];
+      $sql_secret = "select * from users where secretary_id='".$login_id."'";
+      $res_secret = pg_query($conn, $sql_secret);
+      $cnt_secret = pg_num_rows($res_secret);
+      if ($cnt_secret>0) {
+        for ($i=0;$i<$cnt_secret;$i++) {
+          $row_secret = pg_fetch_array($res_secret,$i);
+          $master_ids[] = $row_secret["id"];
+          if ($master_checkid != "") { $master_checkid .= ","; }
+          $master_checkid .= $row_secret["id"];
+        }
+      }
+    }
+
+    //現在日の設定
+    if ($y=="" or $y==0 or !is_numeric($y) or $m=="" or $m==0 or !is_numeric($m)) {
+      $tempdate = getdate();
+      $y = $tempdate["year"];
+      $m = $tempdate["mon"];
+    }
+
+    //表示開始日の調整
+    $tempstamp = mktime(0, 0, 0, $m, 1, $y);
+    $tempdate = getdate($tempstamp);
+    $w = $tempdate["wday"];
+
+    # 表示を月曜日初めか日曜日初めかで判断
+    $start_mon = get_first("users","startmonday","id='".$login_id."'","f");
+    if ($start_mon == "f"){
+      $stamp_s = $tempstamp - 86400 * $w;
+    } else {
+      $stamp_s = $tempstamp - 86400 * ($w-1);
+    }
+    $date_s = getdate($stamp_s);
+    $year_s = $date_s["year"];
+    $mon_s = $date_s["mon"];
+    $day_s = $date_s["mday"];
+
+    $stamp_e = $stamp_s + 86400 * 6;
+    $date_e = getdate($stamp_e);
+    $year_e = $date_e["year"];
+    $mon_e = $date_e["mon"];
+    $day_e = $date_e["mday"];
+
+    if ($other == "") $other = $login_id;
+
+    print "<SCRIPT LANGUAGE=\"JavaScript\">\n";
+    print "<!--\n";
+    print "function reload(o){\n";
+    print "  var v = o.options[o.selectedIndex].value;\n";
+    print "  o.selectedIndex = 0;\n";
+    print "  if (v!=\"\" && v!=\"null\") {\n";
+    print "    location.href='./monthly.phtml?other='+v+'&id=$id&y=$y&m=$m&d=$d';\n";
+    print "  }\n";
+    print "}\n";
+    print "function selectmonth(f){\n";
+
+    $cy = $y - 1;  // 月
+    $cm = $m + 5;  // 年
+
+    for ($i=0;$i<=12;$i++){
+      $cm = $cm + 1;
+      if ($cm >= 13){
+        $cy = $cy + 1;
+        $cm = $cm - 12;
+      }
+
+      print "if (f.month.selectedIndex == $i)";
+      print "{location.href=\"./monthly.phtml?other=".$other."&y=".$cy."&m=".$cm."\"}\n";
+    }
+    print "}\n";
+    print "//-->\n";
+    print "</SCRIPT>\n";
+?>
+<TABLE BORDER=0 CELLSPACING=0 CELLPADDING=0 WIDTH=100%><FORM>
+<TR><TH ALIGN=LEFT NOWRAP>
+<?
+    // 開始日 終了日の算出
+    $today = getdate();
+    if ($y=="") {
+      $y = $today["year"];
+      $m = $today["mon"];
+    }
+
+    $first = getdate(mktime(0, 0, 1, $m, 1, $y));
+
+    $next_y = $y;
+    $next_m = $m + 1;
+    if ($next_m>12) {
+      $next_y = $y + 1;
+      $next_m = 1;
+    }
+
+    $next2_y = $next_y;
+    $next2_m = $next_m + 1;
+    if ($next2_m>12) {
+      $next2_y = $next_y + 1;
+      $next2_m = 1;
+    }
+
+    $prev_y = $y;
+    $prev_m = $m - 1;
+    if ($prev_m<1) {
+      $prev_y = $y- 1;
+      $prev_m = 12;
+    }
+
+    $prev2_y = $prev_y;
+    $prev2_m = $prev_m - 1;
+    if ($prev2_m<1) {
+      $prev2_y = $prev_y- 1;
+      $prev2_m = 12;
+    }
+
+    $last = getdate(mktime(0, 0, 1, $next_m, 1, $next_y)-86400);
+
+    // 各ユーザー表示
+    $selected = false;
+
+    print "表示相手:\n";
+    print "<SELECT NAME=\"other\" onchange=\"reload(this)\" STYLE=\"width:180px\">\n";
+
+    // 自身の情報獲得
+    $sql_user = "SELECT * FROM users WHERE id = '".$login_id."'";
+    $res_user = pg_query($conn,$sql_user);
+    $cnt_user = pg_num_rows($res_user);
+
+    $res_user = pg_query($conn,$sql_user);
+    $cnt_user = pg_num_rows($res_user);
+
+    if ($cnt_user>0) {
+      $row_user = pg_fetch_array($res_user,0);
+      if (trim($row_user["name_ryaku"])!="") {
+        $name_ryaku = $row_user["name_ryaku"];
+      } else {
+        $name_ryaku = $row_user["name"];
+      }
+    } else {
+      $name_ryaku = "";
+    }
+
+    print "<OPTION VALUE=\"".$login_id."\"";
+    if ($other == $login_id){
+      $selected = true;
+      print " SELECTED";
+    }
+    print ">".$name_ryaku."</OPTION>\n";
+
+    // マスター情報(秘書機能)
+    if (sizeof($master_ids)>0) {
+      while(list($seq,$master_id)=each($master_ids)) {
+        $sql_users  = "SELECT seqno, id, name_ryaku, name FROM users WHERE id='".$master_id."'";
+        $res_users = pg_query($conn,$sql_users);
+        $cnt_users = pg_num_rows($res_users);
+        if ($cnt_users>0) {
+          $row_users = pg_fetch_array($res_users,0);
+
+          print "<OPTION VALUE=\"$master_id\"";
+          if (trim($row_users["name_ryaku"])!="") {
+            $entry_name = $row_users["name_ryaku"];
+          } else {
+            $entry_name = $row_users["name"];
+          }
+          if ($selected==false && $master_id==$other) {
+            $selected = true;
+            print " SELECTED";
+          }
+          print ">".$entry_name."</OPTION>\n";
+        }
+      }
+    }
+
+    print "<OPTION VALUE=\"\">----------------</OPTION>\n";
+
+    // 自分のエントリー情報獲得
+#    $sql_group = "SELECT * FROM groups RIGHT JOIN users_entry ON groups.id=users_entry.group_id WHERE users_entry.user_id='".$login_id."' or groups.viewsign='t' ORDER BY seqno";
+    $sql_group = "SELECT groups.id,min(groups.name)as name,min(groups.seqno)as seqno from groups LEFT JOIN users_entry ON groups.id=users_entry.group_id WHERE user_id = '".$login_id."' or groups.viewsign='t' GROUP BY groups.id ORDER BY min(groups.seqno)";
+    $res_group = pg_query($conn,$sql_group);
+    if (pg_num_rows($res_group)>0){
+      for ($i=0;$i<pg_num_rows($res_group);$i++){
+        $row_group = pg_fetch_array($res_group,$i);
+				if (get_count("users_entry","group_id='".$row_group["id"]."'")>0) {
+	        print "<OPTION VALUE=\"\">【".$row_group["name"]."】</OPTION>\n";
+				}
+        // ユーザー情報によるid,name獲得
+        $sql_entry = "SELECT * FROM users_entry INNER JOIN users ON users_entry.user_id = users.id WHERE users.id<>'".$login_id."' AND group_id='".$row_group["id"]."' ORDER BY users.seqno";
+        $res_entry = pg_query($conn,$sql_entry);
+        if (pg_num_rows($res_entry)>0){
+          for ($j=0;$j<pg_num_rows($res_entry);$j++){
+            $row_entry = pg_fetch_array($res_entry,$j);
+            $entry_id   = $row_entry["id"];
+            if (trim($row_entry["name_ryaku"])!="") {
+              $entry_name = $row_entry["name_ryaku"];
+            } else {
+              $entry_name = $row_entry["name"];
+            }
+            print "<OPTION VALUE=\"$entry_id\"";
+            if ($selected==false && $entry_id == $other){
+              $selected = true;
+              print " SELECTED";
+            }
+            print ">&nbsp;&nbsp;".$entry_name."</OPTION>\n";
+          }
+        }
+      }
+    }
+    print "</SELECT>\n";
+
+    print "<A HREF=\"../member/?id=".$other."\">";
+    print "<IMG SRC=\"../image/clip.gif\" WIDTH=10 HEIGHT=11 BORDER=0 ALT=\"プロフィール\">";
+    print "</A>";
+
+    if ($login_id != $other) {
+      print "&nbsp;<A HREF=\"../mail/add/?id=".$other."&y=".$y."&m=".$m."&d=".$d."\"><IMG SRC=\"../image/mail.gif\" WIDTH=13 HEIGHT=11 BORDER=0 ALT=\"伝言\"></A>";
+    }
+?>
+</TH>
+<TH ALIGN=RIGHT NOWRAP>
+<A HREF="./add/?y=<? echo $y ?>&m=<? echo $m ?>&d=1&ey=<? echo $y ?>&em=<? echo $m ?>&ed=1"><IMG SRC="../image/entrysadd.gif" WIDTH=10 HEIGHT=9 BORDER="0" ALT="予定の追加">新しい予定</A>&nbsp;
+<?
+    if ($eventsign=="t") {
+?>
+<A HREF="../event/add/?y=<? echo $y ?>&m=<? echo $m ?>&d=1&ey=<? echo $y ?>&em=<? echo $m ?>&ed=1"><IMG SRC="../image/entrysadd2.gif" WIDTH=10 HEIGHT=9 BORDER="0" ALT="イベントの追加">新しいイベント</A>&nbsp;
+<?
+    }
+?>
+</TH>
+</FORM></TR></TABLE>
+<?php
+    // 年月表示
+    print "<TABLE BORDER=0 CELLSPACING=0 CELLPADDING=2 WIDTH=100%><TR>\n";
+    print "<TD ALIGN=RIGHT VALIGN=MIDDLE WIDTH=45% NOWRAP>";
+    print "<A HREF=\"./monthly.phtml?y=".$prev_y."&m=".$prev_m."&other=".$other."\"><IMG SRC=\"../image/right1.gif\" BORDER=0 ALT=\"前の月\"></A></TD>\n";
+
+    // カレンダーメニュー（月単位）
+    print "<TD ALIGN=LEFT WIDTH=110 NOWRAP>\n";
+    print "<FORM><SELECT NAME=\"month\" onChange=\"selectmonth(this.form)\">\n";
+    $cy = $y - 1; // 年
+    $cm = $m + 5; // 月
+    for ($i=1;$i<=13;$i++){
+      $cm = $cm + 1;
+      if ($cm >= 13){
+        $cy = $cy + 1;
+        $cm = $cm - 12;
+      }
+      print "<OPTION";
+      if ($cy == $y and $cm == $m){
+        print " SELECTED>【";
+      } else {
+        print ">　";
+      }
+      print $cy."年";
+      if (strlen($cm) == 1){
+        print "0";
+      }
+      if ($cy == $y and $cm == $m){
+        print $cm."月】\n";
+      } else {
+        print $cm."月\n";
+      }
+    }
+    print "</SELECT></TD></FORM>\n";
+    // カレンダーメニュー終了
+
+    print "<TD ALIGN=LEFT VALIGN=MIDDLE NOWRAP><A HREF=\"./monthly.phtml?id=$id&y=".$next_y."&m=".$next_m."&other=".$other."\"><IMG SRC=\"../image/left1.gif\" BORDER=0 ALT=\"次の月\"></A></TD>\n";
+
+    print "<TD ALIGN=RIGHT NOWRAP>";
+    print "<A HREF=\"./daily.phtml?id=$id&y=".$today["year"]."&m=".$today["mon"]."&d=".$today["mday"]."\"><IMG SRC=\"./image/today.gif\" BORDER=0 ALT=\"今日\"></A>";
+    print "<A HREF=\"./?id=$id&y=".$today["year"]."&m=".$today["mon"]."&d=".$today["mday"]."\"><IMG SRC=\"./image/toweek.gif\" BORDER=0 ALT=\"今週\"></A>";
+    print "<A HREF=\"./monthly.phtml?id=$id&y=".$today["year"]."&m=".$today["mon"]."&d=".$today["mday"]."\"><IMG SRC=\"./image/tomonth.gif\" BORDER=0 ALT=\"今月\"></A>";
+    print "<A HREF=\"./yearly.phtml?id=$id&y=".$today["year"]."&m=".$today["mon"]."&d=".$today["mday"]."\"><IMG SRC=\"./image/yearly.gif\" BORDER=0 ALT=\"年表示\"></A>";
+    print "</TD>\n";
+    print "</TR></TABLE>\n";
+
+    // 曜日表示
+    print "<TABLE BORDER=0 CELLSPACING=1 CELLPADDING=2 WIDTH=100% BGCOLOR=#999999><TR HEIGHT=23>\n";
+    if ($start_mon == "f"){  // 月曜先頭か判断
+      for ($col=0;$col<7;$col++) {
+        print "<TH WIDTH=14% ALIGN=CENTER BGCOLOR=\"".$wcolor_titleback[$col]."\"><FONT COLOR=\"".$wcolor_title[$col]."\">".$wname[$col]."</FONT></TH>";
+      }
+    } else {
+      for ($col=1;$col<8;$col++) {
+        if ($col == 7){ $col = 0; }
+        print "<TH WIDTH=14% ALIGN=CENTER BGCOLOR=\"".$wcolor_titleback[$col]."\"><FONT COLOR=\"".$wcolor_title[$col]."\">".$wname[$col]."</FONT></TH>\n";
+        if ($col == 0){ break; }
+      }
+    }
+    print "</TR>\n";
+
+    // カレンダー表示
+    $draw   = false;
+    $drawin = false;
+    $d = 0;
+
+    $row=0;
+
+    while (true) {
+      if ($start_mon == "f"){
+        $col = 0;
+      } else {
+        $col = 1; // 月曜日
+      }
+      while (true) {
+        $daytype = "";
+        // 前月まで
+        if ($draw == false) {
+          if ($start_mon == "f" && $first["wday"]==$col || $start_mon == "t" && ($first["wday"]==$col || $first["wday"]==0 && $col==7)) {
+            $drawin = true;
+            $draw = true;
+          }
+        }
+        if ($draw) {
+          $d++; 
+          if ($d <= $last["mday"]) {
+            $checkdate = date("Y-m-d",mktime(0,0,0,$m,$d,$y));
+            // 祭日チェック
+            $sql_holiday = "select * from holiday where holiday='".$checkdate."'";
+            $res_holiday = pg_query($conn, $sql_holiday);
+
+            if (pg_num_rows($res_holiday)<1) {
+              $daytype = "normal";
+            } else {
+              $daytype = "holiday";
+              $row_holiday = pg_fetch_array($res_holiday,0);
+              $holiday = $row_holiday["name"];
+            }
+          }
+        }
+
+        // 表示データ作成
+        switch ($daytype) {
+        case "":
+          $backcolor = $wcolor_back[$col];
+          $forecolor = $wcolor[$col];
+          if (!$drawin) {
+            // 当月以前
+            if ($start_mon == "f"){
+              $diff = $col - $first["wday"];
+            } else {
+              if ($first["wday"]==0) {
+                $diff = $col - 7;
+              } else {
+                $diff = $col - $first["wday"];
+              }
+            }
+            $wd = getdate((mktime(0, 0, 1, $m, 1, $y)+(86400*$diff)));
+            $checkdate = date("Y-m-d",mktime(0,0,0,$wd["mon"],$wd["mday"],$wd["year"]));
+            $daytext = "<A HREF=\"./daily.phtml?id=$login_id&y=$prev_y&m=$prev_m&d=".$wd["mday"]."\" style=\"#\">".$wd["mday"]."</A>";
+          } else {
+            // 当月以降
+            $diff = $col-$last["wday"]-1;
+            $wd = getdate((mktime(0, 0, 1, $next_m, 1, $next_y)+(86400*$diff)));
+            $checkdate = date("Y-m-d",mktime(0,0,0,$wd["mon"],$wd["mday"],$wd["year"]));
+            $daytext = "<A HREF=\"./daily.phtml?id=$login_id&y=$next_y&m=$next_m&d=".$wd["mday"]."\" style=\"#\">".$wd["mday"]."</A>";
+          }
+          break;
+        case "normal":
+          $backcolor = $wcolor_back[$col];
+          $forecolor = $wcolor[$col];
+          $daytext = "<A HREF=\"./daily.phtml?id=$login_id&y=$y&m=$m&d=$d\" style=\"#\">".$d."</A>";
+          break;
+        case "holiday":
+          $backcolor = $wcolor_back[7];
+          $forecolor = $wcolor[7];
+          $daytext = "<A HREF=\"./daily.phtml?id=$login_id&y=$y&m=$m&d=$d\" style=\"#\">".$d."</a>";
+          break;
+        }
+
+        if ($daytype != "") {
+          if ($y==$today["year"] and $m==$today["mon"] and $d==$today["mday"]) {
+            // 今日
+            $daytext = eregi_replace("#","color:#FFFFFF;font-weight:bold",$daytext);
+            $backcolor = "#AAAAFF";
+          } else {
+            // 今日以外
+            $sql_event  = "SELECT * FROM events WHERE ";
+            $sql_event .= "((datefrom='".$checkdate."' or dateto='".$checkdate."') or ";
+            $sql_event .= "(datefrom<='".$checkdate."' and dateto>='".$checkdate."')) ";
+            $sql_event .= " and (user_id='".$login_id."' or (sharelist ~* '(^|,|\t)".$login_id."(,|\t|$)'";
+            if (sizeof($master_ids)>0) {
+              reset($master_ids);
+              while(list($seq,$master_id)=each($master_ids)) {
+                if ($master_id != "") { $sql_event .= " or sharelist ~* '(^|,|\t)".$master_id."(,|\t|$)'"; }
+              }
+            }
+            $sql_event .= "))";
+            $sql_event .= " ORDER BY datefrom,coalesce(timefrom,'1970-04-14 00:00:00'),dateto,coalesce(timeto,'1970-04-14 00:00:00')";
+            print "<!--";
+            $res_event = pg_query($conn, $sql_event);
+            $cnt_event = pg_num_rows($res_event);
+            print "-->";
+
+            $sql = "SELECT * FROM schedules WHERE ";
+            $sql .= "((datefrom='".$checkdate."' or dateto='".$checkdate."') or ";
+            $sql .= "(datefrom<='".$checkdate."' and dateto>='".$checkdate."')) and ";
+
+            if ($other == $login_id) {
+              $ownersign = true;
+            } else {
+              $ownersign = false;
+              if (sizeof($master_ids)>0) {
+                reset($master_ids);
+                while(list($seq,$master_id)=each($master_ids)) {
+                  if ($master_id == $other) {
+                    $ownersign = true;
+                    break;
+                  }
+                }
+              }
+            }
+
+            $righthandman_ids = get_first("users","righthandman_ids","id='".$other."'",""); // 右腕情報の取得
+
+            if ($ownersign) {
+              $sql .= "(user_id='".$other."') ";
+            } else {
+              if (($righthandman_ids != "" && eregi("(^|,)".$login_id."(,|$)",$righthandman_ids))) {
+                $sql .= "(user_id='".$other."') ";
+              } else {
+                $sql .= "(user_id='".$other."' and opensign='t') ";
+              }
+            }
+            $sql .= " ORDER BY datefrom,coalesce(timefrom,'1970-04-14 00:00:00'),dateto,coalesce(timeto,'1970-04-14 00:00:00')";
+            print "<!--";
+            $res = pg_query($conn, $sql);
+            $cnt = pg_num_rows($res);
+            print "-->";
+
+            $daytext = eregi_replace("#","color:".$forecolor.";font-weight:bold",$daytext);
+          }
+        } else {
+          // 今日以外(別の月)
+          $sql_event  = "SELECT * FROM events WHERE ";
+          $sql_event .= "((datefrom='".$checkdate."' or dateto='".$checkdate."') or ";
+          $sql_event .= "(datefrom<='".$checkdate."' and dateto>='".$checkdate."')) ";
+          $sql_event .= " and (user_id='".$login_id."' or (sharelist ~* '(^|,|\t)".$login_id."(,|\t|$)'";
+          if (sizeof($master_ids)>0) {
+            while(list($seq,$master_id)=each($master_ids)) {
+              if ($master_id != "") { $sql_event .= " or sharelist ~* '(^|,|\t)".$master_id."(,|\t|$)'"; }
+            }
+          }
+          $sql_event .= "))";
+          $sql_event .= " ORDER BY datefrom,coalesce(timefrom,'1970-04-14 00:00:00'),dateto,coalesce(timeto,'1970-04-14 00:00:00')";
+          print "<!--";
+          $res_event = pg_query($conn, $sql_event);
+          $cnt_event = pg_num_rows($res_event);
+          print "-->";
+
+          $sql = "SELECT * FROM schedules WHERE ";
+          $sql .= "((datefrom='".$checkdate."' or dateto='".$checkdate."') or ";
+          $sql .= "(datefrom<='".$checkdate."' and dateto>='".$checkdate."')) and ";
+
+          if ($other == $login_id) {
+            $ownersign = true;
+          } else {
+            $ownersign = false;
+            if (sizeof($master_ids)>0) {
+              reset($master_ids);
+              while(list($seq,$master_id)=each($master_ids)) {
+                if ($master_id == $other) {
+                  $ownersign = true;
+                  break;
+                }
+              }
+            }
+          }
+
+          $righthandman_ids = get_first("users","righthandman_ids","id='".$other."'",""); // 右腕情報の取得
+
+          if ($ownersign) {
+            $sql .= "(user_id='".$other."') ";
+          } else {
+            if (($righthandman_ids != "" && eregi("(^|,)".$login_id."(,|$)",$righthandman_ids))) {
+              $sql .= "(user_id='".$other."') ";
+            } else {
+              $sql .= "(user_id='".$other."' and opensign='t') ";
+            }
+          }
+          $sql .= " ORDER BY datefrom,coalesce(timefrom,'1970-04-14 00:00:00'),dateto,coalesce(timeto,'1970-04-14 00:00:00')";
+          print "<!--";
+          $res = pg_query($conn, $sql);
+          $cnt = pg_num_rows($res);
+          print "-->";
+          $daytext = eregi_replace("#","color:#999999;font-weight:normal",$daytext);
+        }
+
+        // スケジュールの有無判定
+        $sql_event  = "SELECT * FROM events WHERE ";
+        $sql_event .= "((datefrom='".$checkdate."' or dateto='".$checkdate."') or ";
+        $sql_event .= "(datefrom<='".$checkdate."' and dateto>='".$checkdate."')) ";
+        $sql_event .= " and (user_id='".$login_id."' or (sharelist ~* '(^|,|\t)".$login_id."(,|\t|$)'";
+        if (sizeof($master_ids)>0) {
+          while(list($seq,$master_id)=each($master_ids)) {
+            if ($master_id != "") { $sql_event .= " or sharelist ~* '(^|,|\t)".$master_id."(,|\t|$)'"; }
+          }
+        }
+        $sql_event .= "))";
+        $sql_event .= " ORDER BY datefrom,coalesce(timefrom,'1970-04-14 00:00:00'),dateto,coalesce(timeto,'1970-04-14 00:00:00')";
+        print "<!--";
+        $res_event = pg_query($conn,$sql_event);
+        $cnt_event = pg_num_rows($res_event);
+        print "-->";
+
+        $sql  = "SELECT * FROM schedules WHERE ";
+        $sql .= "((datefrom='".$checkdate."' or dateto='".$checkdate."') or ";
+        $sql .= "(datefrom<='".$checkdate."' and dateto>='".$checkdate."')) and ";
+        if ($other == $login_id) {
+          $ownersign = true;
+        } else {
+          $ownersign = false;
+          if (sizeof($master_ids)>0) {
+            reset($master_ids);
+            while(list($seq,$master_id)=each($master_ids)) {
+              if ($master_id == $other) {
+                $ownersign = true;
+                break;
+              }
+            }
+          }
+        }
+
+        $righthandman_ids = get_first("users","righthandman_ids","id='".$other."'",""); // 右腕情報の取得
+        if ($ownersign) {
+          $sql .= "(user_id='".$other."') ";
+        } else {
+          if (($righthandman_ids != "" && eregi("(^|,)".$login_id."(,|$)",$righthandman_ids))) {
+            $sql .= "(user_id='".$other."') ";
+          } else {
+            $sql .= "(user_id='".$other."' and opensign='t') ";
+          }
+        }
+        $sql .= " ORDER BY datefrom,coalesce(timefrom,'1970-04-14 00:00:00'),dateto,coalesce(timeto,'1970-04-14 00:00:00')";
+        print "<!--";
+        $res = pg_query($conn,$sql);
+        $cnt = pg_num_rows($res);
+        print "-->";
+
+        $check_y = date("Y",date2timestamp($checkdate));
+        $check_m = date("m",date2timestamp($checkdate));
+        $check_d = date("d",date2timestamp($checkdate));
+
+        if ($col==0) {
+          print "<TR>";
+        }
+        print "<td width=14% valign=top align=left bgcolor=\"".$backcolor."\" nowrap>";
+        // 日
+        print "<TABLE BORDER=0 CELLPADDING=0 CELLSPACING=0 WIDTH=100%><TR><TD ALIGN=LEFT>";
+        print $daytext;
+        print "</TD><TD ALIGN=RIGHT>&nbsp;";
+        // スケジュールデータ表示
+        if (($start_mon == "f" && $col==0) || ($start_mon != "f" && $col==1)) {
+          print "<A HREF=\"./?id=$login_id&y=".$check_y."&m=".$check_m."&d=".$check_d."\" style=\"#\"><FONT STYLE=\"background-color:#C0C0C0\">週表示</FONT></a>";
+        }
+        print "</TD></TR></TABLE>";
+        ### 誕生日!!
+        if ($user_count<=20) {
+          if ($m < 10){
+            $bir_m = "0".$m;
+          } else {
+            $bir_m = $m;
+          }
+          if ($d < 10){
+            $bir_d = "0".$d;
+          } else {
+            $bir_d = $d;
+          }
+          $sql_birth = "SELECT * FROM users where birthday ~* '-".$bir_m."-".$bir_d."'";
+          $res_birth = pg_query($conn,$sql_birth);
+          if (pg_num_rows($res_birth)){
+            $row_birth = pg_fetch_array($res_birth,0);
+            print "<A HREF=\"../member/?id=".$row_birth["id"]."\">";
+            if (trim($row_birth["name_ryaku"])=="") {
+              $bir_name = $row_birth["name"];
+            } else {
+              $bir_name = $row_birth["name_ryaku"];
+            }
+            print "<img src=\"../image/bd.gif\" border=0 alt=\"".$bir_name.$birthday_comment."\"><FONT STYLE=\"font-size:8pt\" COLOR=#FF0055>".$bir_name."</FONT></a>\n";
+          }
+        }
+        // イベント出力開始
+        if ($cnt_event!=0) {
+          print "<TABLE BORDER=0 CELLPADDING=0 CELLSPACING=0 WIDTH=100% bgcolor=$logout_backcolor ><TR>";
+          for($r=0;$r<$cnt_event;$r++) {
+            print "<TR>";
+            if ($r<$cnt_event-1) {
+              print "<TD STYLE=\"border-bottom-style:dotted;border-bottom-width:1;border-bottom-color:#555555\">";
+            } else {
+              print "<TD>";
+            }
+            $row_event = pg_fetch_array($res_event,$r);
+            if ($row_event["datefrom"]!=$row_event["dateto"]) {
+//              print "<SPAN STYLE=\"background-color:".$menu_backcolor."\"><font color=".$logout_forecolor.">";
+            }
+            print "<font color=".$title_forecolor.">";
+
+            print "<A HREF=\"../event/add/?y=".$y."&m=".$m."&d=1&s=".$row_event["seqno"]."&other=".$other."\" STYLE=\"font-weight:normal;color:".$logout_forecolor."\">";
+            $outtext = "";
+            if ($row_event["datefrom"]==$checkdate and $row_event["timefrom"]!="") {
+              $outtext .= date("H:i",datetime2timestamp($row_event["timefrom"]));
+            }
+            if (($row_event["datefrom"]==$checkdate and $row_event["timefrom"]!="") or ($row_event["dateto"]==$checkdate and $row_event["timeto"]!="")) {
+              $outtext .= "-";
+            }
+            if ($row_event["dateto"]==$checkdate and $row_event["timeto"]!="") {
+              $outtext .= date("H:i",datetime2timestamp($row_event["timeto"]));
+            }
+            print "</FONT>";
+            if ($outtext != "") {
+              print $outtext."<BR>\n";
+            }
+            $textlen = 17;
+            print mb_strcut(preg_replace("/\x0D\x0A|\x0D|\x0A|\r\n/"," ",$row_event["title"]),0,100,"EUC-JP");
+            print "</A>";
+            print "</TD>\n";
+            print "</TR>\n";
+          }
+          print "</TABLE>\n";
+        }
+        // イベント出力終了
+
+        // スケジュール出力開始
+        if ($cnt!=0) {
+          print "<TABLE BORDER=0 CELLPADDING=0 CELLSPACING=0 WIDTH=100%><TR>";
+          for($r=0;$r<$cnt;$r++) {
+            $row = pg_fetch_array($res,$r);
+
+            // 開始〜終了時刻の計算
+            if ($row["datefrom"]==$checkdate and $row["timefrom"]!="") {
+              $fromtime = datetime2timestamp($row["timefrom"]);
+            } elseif($row["datefrom"]!=$checkdate) {
+              $fromtime = datetime2timestamp("1970/04/14 00:00:00");
+            } else {
+              if ($row["timeto"]!="") {
+                $fromtime = datetime2timestamp($row["timeto"])-7199; # 決まってなければ２時間引く
+              } else {
+                $fromtime = datetime2timestamp("1970/04/14 0".$hour_from.":00:00");
+              }
+            }
+            if ($row["dateto"]==$checkdate and $row["timeto"]!="") {
+              $totime = datetime2timestamp($row["timeto"]);
+            } elseif($row["dateto"]!=$checkdate) {
+              $totime = datetime2timestamp("1970/04/14 23:59:00");
+            } else {
+              if ($row["timefrom"]!="") {
+                $totime = datetime2timestamp($row["timefrom"])+7199; # 決まってなければ２時間足す
+              } else {
+                $totime = datetime2timestamp("1970/04/14 0".$hour_from.":00:00");
+              }
+            }
+
+            print "<TR>";
+            if ($r<$cnt-1) {
+              print "<TD STYLE=\"border-bottom-style:dotted;border-bottom-width:1;border-bottom-color:#555555\">";
+            } else {
+              print "<TD>";
+            }
+
+            // 表示する？
+            if ($row["viewsign"]=="t"
+             || $row["viewsign"]==""
+             || $row["user_id"]==$login_id
+             || ($master_checkid != "" && eregi("(^|,)".$row["user_id"]."(,|$)",$master_checkid))
+             || ($righthandman_ids != "" && eregi("(^|,)".$login_id."(,|$)",$righthandman_ids))
+             || $row["create_user_id"]==$login_id) {
+              $view = "on";
+            } else {
+              $view = "off";
+            }
+            if ($row["create_user_id"]!="" and $row["create_user_id"]!=$row["user_id"]) {
+              print "<img src=\"../image/share.gif\" border=\"0\" alt=\"共有\" ALIGN=MIDDLE>";
+            } elseif($row["sharelist"]!="") {
+              print "<img src=\"../image/base.gif\" BORDER=0 alt=\"共有\" ALIGN=MIDDLE>";
+            }
+            if ($row["opensign"]!="t") {
+              print "<img src=\"../image/key.gif\" border=\"0\" alt=\"非公開\" ALIGN=MIDDLE>";
+            } else {
+              if ($row["viewsign"]=="f" && ($row["create_user_id"]==$login_id || $row["user_id"]==$login_id || eregi("(^|,)".$row["user_id"]."(,|$)",$master_checkid) || eregi("(^|,)".$login_id."(,|$)",$righthandman_ids))) {
+                print "<img src=\"../image/eye.gif\" border=\"0\" alt=\"非表示\" ALIGN=MIDDLE>";
+              }
+            }
+            if ($row["datefrom"]!=$row["dateto"]) {
+#              print "<SPAN STYLE=\"background-color:".$menu_backcolor."\"><font color=".$menu_forecolor.">";
+            }
+
+            if ($view=="on") {
+              print "<A HREF=\"./add/?y=".$y."&m=".$m."&d=1&s=".$row["seqno"]."&other=".$other."\" STYLE=\"font-weight:normal\">";
+            } else {
+              print "<FONT COLOR=\"".$bodyLinkColor."\">";
+            }
+            $outtext = "";
+            if ($row["datefrom"]==$checkdate and $row["timefrom"]!="") {
+              $outtext .= date("H:i",datetime2timestamp($row["timefrom"]));
+            }
+            if (($row["datefrom"]==$checkdate and $row["timefrom"]!="") or ($row["dateto"]==$checkdate and $row["timeto"]!="")) {
+              $outtext .= "-";
+            }
+            if ($row["dateto"]==$checkdate and $row["timeto"]!="") {
+              $outtext .= date("H:i",datetime2timestamp($row["timeto"]));
+            }
+            if ($backtime!="" && $backtime>$fromtime) { // ﾌﾞｯｷﾝｸﾞ時は紫表示
+              print "<FONT COLOR=#CC00CC>";
+            }
+            if ($outtext != "") {
+              print $outtext."<BR>\n";
+            }
+            if ($row["opensign"]!="t") {
+              $textlen = 15;
+            } elseif ($row["sharesign"]=="t") {
+              $textlen = 14;
+            } else {
+              $textlen = 17;
+            }
+            if ($view=="on") {
+              print mb_strcut(preg_replace("/\x0D\x0A|\x0D|\x0A|\r\n/"," ",$row["note"]),0,100,"EUC-JP");
+            } else {
+              print "&lt;非表示&gt;";
+            }
+            if ($view=="on") {
+              print "</A>";
+            } else {
+              print "</FONT>";
+            }
+            $backtime = $totime; // 前の予定終了時刻を保存
+
+            print "</TD>\n";
+            print "</TR>\n";
+
+          }
+          print "</TABLE>\n";
+        }
+        $backtime = "";
+        // スケジュール出力終了
+
+        if ($cnt_event==0 and $cnt==0) {
+          print "&nbsp;\n";
+        }
+
+        if ($other == $login_id || $master_checkid !="" && eregi("(^|,)".$other."(,|$)",$master_checkid)) {
+          print "<DIV ALIGN=RIGHT>";
+          print "<A HREF=\"./add/?id=".$other."&ey=$check_y&em=$check_m&ed=$check_d\"><IMG SRC=\"../image/entrysadd.gif\" WIDTH=10 HEIGHT=9 BORDER=0 ALT=\"予定の追加\"></A>";
+          print "</DIV>";
+        }
+        print "</TD>\n";
+
+        // データチェック
+        $col++;
+        if ($start_mon == "f"){
+          if ($col>6) {
+            $col = 0;
+            $col_end = "t";
+          } else {
+            $col_end = "f";
+          }
+          if ($col_end == "t"){ break; }
+        } else {
+          if ($col>7) {
+            $col = 1;
+            $col_end = "t";
+          } else {
+            $col_end = "f";
+          }
+          if ($col_end == "t"){ break; }
+        }
+      }
+      print "</tr>\n";
+
+      $row++;
+      if ($d >= $last["mday"]) {
+        break;
+      }
+    }
+    print "</table>\n";
+
+    print "</TD></TR></TABLE>\n";
+    print "<BR>\n";
+  }
+  // フッタ表示
+  include ("../footer.inc.php");
+?>

@@ -1,0 +1,480 @@
+<?php
+  include ("../config.inc.php");
+  include ("../lib.inc.php");
+
+  // 表示中の掲示板ID
+  if (!empty($_POST["board"]) || !empty($_GET["board"])) {
+    $board = $_REQUEST["board"];
+    $headertext .= "Set-Cookie: board_id=".$board."; path=/;\n";
+  } else {
+    $board = $_COOKIE["board_id"];
+  }
+
+  // 前回設定値の保存と復旧(Cookie使用)
+  if (!empty($_POST["viewtype"]) || !empty($_GET["viewtype"])) {
+    $viewtype = $_REQUEST["viewtype"];
+    $headertext .= "Set-Cookie: board_viewtype=".$viewtype."; path=/;\n";
+  } else {
+    $viewtype = $_COOKIE["board_viewtype"];
+  }
+  if (!empty($_POST["vieworder"]) || !empty($_GET["vieworder"])) {
+    $vieworder = $_REQUEST["vieworder"];
+    $headertext .= "Set-Cookie: board_vieworder=".$vieworder."; path=/;\n";
+  } else {
+    $vieworder = $_COOKIE["board_vieworder"];
+  }
+  if (empty($viewtype))  $viewtype  = "thread";
+  if (empty($vieworder)) $vieworder = "desc";
+
+  if (!empty($_REQUEST["kwd"])) {
+    $kwd = textsafe(stripslashes($_REQUEST["kwd"]));
+    $headertext .= "Set-Cookie: board_kwd=".urlencode($kwd)."; path=/;\n";
+  } else {
+    $kwd = urldecode($_COOKIE["board_kwd"]);
+  }
+
+  // リンク用テキストの設定
+  $linktext  = "<A HREF=\"../\" ALT=\"トップページ\" CLASS=\"BAR\">トップページ</A> &gt; ";
+  $linktext .= "<FONT COLOR=#FFFF00>BBS</FONT> ";
+
+  // 検索機能の使用?
+  $search    = true;
+  $searchuri = $toppath."/bulletin/";
+
+  // ヘッダ表示
+  include ("../header.inc.php");
+
+  // 所属グループの獲得
+  if ($login) {
+    $sql_entry = "SELECT * FROM users_entry WHERE user_id='$login_id'";
+    $res_entry = pg_query($conn,$sql_entry);
+    $cnt_entry = pg_num_rows($res_entry);
+    if ($cnt_entry>0) {
+      for ($i=0;$i<$cnt_entry;$i++) {
+        $row_entry = pg_fetch_array($res_entry,$i);
+        $groups[] = $row_entry["group_id"];
+      }
+    }
+  }
+
+  // 機能別メニュー内容の取得
+  include ("./menu.inc.php");
+
+  // 変数の初期値
+  if (empty($_GET["p"])) { $p = 1; } else { $p = $_GET["p"]; }
+
+  if ($login && sizeof($MES)==0) {
+    // 前処理
+#    $pagetext  = "";
+
+    // JavaScript 書き出し
+    $pagetext .= "
+<SCRIPT LANGUAGE = \"JavaScript\">
+<!--
+function remove(seqno) {
+  if (confirm(\"発言を削除してもよろしいですか？\")) {
+    location.href='./remove/?no='+seqno;
+  }
+}
+//-->
+</SCRIPT>";
+
+    // 談話室情報の獲得
+    $sql  = "SELECT * FROM boards WHERE (id='".urldecode($board)."') ORDER BY seqno; ";
+    $res_board = pg_query($conn, $sql);
+    $cnt_board = pg_num_rows($res_board);
+    if ($cnt_board>0) {
+      $row_board = pg_fetch_array($res_board,0);
+      $board_name = $row_board["name"];
+      $admin_id   = $row_board["admin_id"];
+      $group_ids  = $row_board["view_group_ids"];
+      $user_ids   = $row_board["view_user_ids"];
+
+      $sql_user = "select seqno,id,name_ryaku from users where id='".$row_board["admin_id"]."'";
+      $res_user = pg_query($conn,$sql_user);
+      if (pg_num_rows($res_user)>0){
+         $admin_name = pg_result($res_user,0,"name_ryaku");
+      } else {
+        $admin_name = "";
+      }
+    } else {
+      $board_name = "";
+      $admin_id   = "";
+      $group_ids  = "";
+      $user_ids   = "";
+    }
+
+    $pagetext .= "<TABLE BORDER=0 CELLSPACING=0 CELLPADDING=0 WIDTH=100%><TR><TD ALIGN=RIGHT>";
+    $pagetext .= "<A HREF=\"./post/\"><IMG SRC=\"../image/entrysadd.gif\" WIDTH=10 HEIGHT=9 BORDER=0> 新しい投稿</A>&nbsp;";
+    $pagetext .= "</TD></TR></TABLE>\n";
+
+    $pagetext .= "<TABLE BORDER=0 CELLSPACING=0 CELLPADDING=4 WIDTH=100%><TR>\n";
+
+    $pagetext .= "<TD ALIGN=LEFT>[".$board_name."]";
+    if ($admin_id!="" && $admin_name!="") {
+      $pagetext .= "&nbsp;管理者 : <A HREF=\"../../member/?id=$admin_id\">$admin_name<IMG SRC=\"../image/clip.gif\" BORDER=0 WIDTH=10 HEIGHT=11 ALIGN=ABSMIDDLE></A>";
+    }
+    $pagetext .= "</TD>\n";
+    $pagetext .= "<TD ALIGN=RIGHT HEIGHT=22>\n";
+
+    // スレッド順・投稿順選択
+    $pagetext .= "<SELECT TYPE=RADIO NAME=\"viewtype\" ONCHANGE=\"location.href='./?viewtype='+this.value\">\n";
+    $pagetext .= "<OPTION VALUE=\"thread\"";
+    if ($viewtype=="thread") $pagetext .= " SELECTED";
+    $pagetext .= ">スレッド順</OPTION>\n";
+    $pagetext .= "<OPTION VALUE=\"posted\"";
+    if ($viewtype=="posted") $pagetext .= " SELECTED";
+    $pagetext .= ">投稿順</OPTION>\n";
+    $pagetext .= "</SELECT>\n";
+
+    // 昇順・降順選択
+    $pagetext .= "<INPUT TYPE=RADIO NAME=\"vieworder\" VALUE=\"asc\"";
+    if ($vieworder=="asc") $pagetext .= " CHECKED";
+    $pagetext .= " ONCLICK=\"location.href='./?vieworder=asc'\">昇順";
+    $pagetext .= "<INPUT TYPE=RADIO NAME=\"vieworder\" VALUE=\"desc\"";
+    if ($vieworder=="desc") $pagetext .= " CHECKED";
+    $pagetext .= " ONCLICK=\"location.href='./?vieworder=desc'\">降順\n";
+    $pagetext .= "</TD></TR></TABLE>\n";
+
+    $kwd = trim($kwd);
+
+    // 表示制限の確認
+    $view = false;
+    if ($admin_sign=="t" || $admin_id==$login_id || ($group_ids=="" && $user_ids=="")) {
+      $view = true;
+    } else {
+      if ($group_ids!="") {
+        $view_group_id = split(",",$group_ids);
+        if (sizeof($view_group_id)>0) while (list($seq,$id)=each($view_group_id)) {
+          if (sizeof($groups)>0) {
+            reset($groups);
+            while (list($gseq,$gid)=each($groups)) {
+              if ($gid==$id) { $view = true; break; }
+            }
+          }
+        }
+      }
+      if ($user_ids!="") {
+        $view_user_id = split(",",$user_ids);
+        if (sizeof($view_user_id)>0) while (list($seq,$id)=each($view_user_id)) {
+          if ($login_id==$id) { $view = true; break; }
+        }
+      }
+    }
+
+    // BBSヘッダー書き出し
+    if ($viewtype=="posted") {
+      $board_rows = $board_rows_posted;
+    } else {
+      $board_rows = $board_rows_thread;
+    }
+
+    ## SQL生成
+    if ($viewtype=="posted") { // 投稿順
+      if ($vieworder=="asc") {
+        $sql  = "SELECT * FROM boards_post WHERE board_id='".$board."' ORDER BY stamp";
+      } else {
+        $sql  = "SELECT * FROM boards_post WHERE board_id='".$board."' ORDER BY stamp DESC";
+      }
+    } else {                   // スレ順
+      if ($vieworder=="asc") {
+        $sql  = "SELECT * FROM boards_post WHERE board_id='".$board."' AND parent='' ORDER BY stamp";
+      } else {
+        $sql  = "SELECT * FROM boards_post WHERE board_id='".$board."' AND parent='' ORDER BY stamp DESC";
+      }
+    }
+    $res_post = pg_query($conn, $sql);
+    $cnt_post = pg_num_rows($res_post);
+
+    if (!$view) {
+      $cnt_post=0;
+    }
+
+    if ($cnt_post>0) {
+      $allpages = floor($cnt_post/$board_rows)+1;
+      if ($p>$allpages) $p = 1;
+
+      $s_row = ($p-1) * $board_rows;
+      $e_row = $p * $board_rows - 1;
+      if ($e_row>$cnt_post-1) {$e_row = $cnt_post-1;}
+      if ($cnt_post-1>$e_row) {$nextpage = true;}
+    }
+
+    // ヘッダー表示
+    $pagetext .= "<TABLE BORDER=0 CELLPADDING=0 CELLSPACING=0 WIDTH=100%><TR><TD>\n";
+    $pagetext .= "<TABLE BORDER=0 CELLPADDING=0 CELLSPACING=0 WIDTH=100%>\n";
+    if ($viewtype=="posted") { // 投稿順
+      $pagetext .= "<TR BGCOLOR=#999999 HEIGHT=22>";
+      $pagetext .= "<TH ALIGN=LEFT><FONT COLOR=#FFFFFF>&nbsp;タイトル</TH>";
+      $pagetext .= "<TH WIDTH=100 ALIGN=CENTER><FONT COLOR=#FFFFFF>発言者</TH>";
+      $pagetext .= "</TR>\n";
+    } else { // スレ順
+      $pagetext .= "<TR BGCOLOR=#999999 HEIGHT=22>";
+      $pagetext .= "<TH ALIGN=LEFT><FONT COLOR=#FFFFFF>&nbsp;タイトル</TH>";
+      $pagetext .= "<TH WIDTH=100 ALIGN=CENTER><FONT COLOR=#FFFFFF>発言者</TH>";
+      $pagetext .= "</TR>\n";
+    }
+
+    // 発言表示
+    if ($cnt_post>0) {
+      for ($i=$s_row;$i<=$e_row;$i++) {
+        if ($bg_sign){
+          $bgcolor = $bg_dark;
+          $bg_sign = false;
+        } else {
+          $bgcolor = $bg_light;
+          $bg_sign = true;
+        }
+
+        $row_post = pg_fetch_array($res_post,$i);
+        $sql  = "SELECT * FROM boards_post WHERE board_id='".$board."' and parent='".$row_post["serial"]."'";
+        $res_reply = pg_query($conn, $sql);
+        $cnt_reply = pg_num_rows($res_reply);
+        drawRow($row_post,strval($cnt_reply),strval($i+1==$cnt_post));
+      }
+    } else {
+      // 発言なし
+      $pagetext .= "<TR>\n";
+      if ($viewtype=="posted") {
+        $pagetext .= "<TD COLSPAN=4 ALIGN=CENTER HEIGHT=22>発言はありません</TD>\n";
+      } else {
+        $pagetext .= "<TD COLSPAN=4 ALIGN=CENTER HEIGHT=22>発言はありません</TD>\n";
+      }
+      $pagetext .= "</TR>\n";
+    }
+    $pagetext .= "</TABLE>\n";
+    $pagetext .= "</TD></TR></TABLE>\n";
+    $pagetext .= "</TD></TR></TABLE><br>\n";
+
+
+    // ページ情報の表示
+    if ($allpages>1) {
+      $pagetext .= "<CENTER>";
+
+      $r = 0;
+      $s_p = $p - 4;
+      $e_p = $p + 4;
+      if ($s_p<1) {
+        $r = 1-$s_p;
+        $s_p = $s_p + $r;
+        $e_p = $e_p + $r;
+      } elseif ($e_p>$allpages) {
+        $r = $e_p - $allpages;
+        $s_p = $s_p - $r;
+        $e_p = $e_p - $r;
+      }
+      if ($s_p < 1) $s_p = 1;
+      if ($e_p > $allpages) $e_p = $allpages;
+
+      if ($p>1) {
+        $pagetext .= "<A HREF=\"./?p=".($p-1)."\">";
+        $pagetext .= "前のページ";
+        $pagetext .= "</A>";
+      } else {
+        $pagetext .= "<FONT COLOR=#999999>前のページ</FONT>";
+      }
+
+      $pagetext .= "&nbsp;&nbsp;";
+
+      if ($s_p != 1) {
+        $pagetext .= "<A HREF=\"./p=".($s_p-1)."\">&lt;</A>&nbsp;";
+      }
+
+      for ($i=$s_p;$i<=$e_p;$i++){
+        if ($p!=$i) {
+          $pagetext .= "[<A HREF=\"./?p=".$i."\">".$i."</A>]";
+        } else {
+          $pagetext .= "[".$i."]";
+        }
+        $pagetext .= "&nbsp;";
+      }
+
+      if ($e_p != $allpages) {
+        $pagetext .= "<A HREF=\"./?p=".($e_p+1)."\">&gt;</A>";
+      }
+
+      $pagetext .= "&nbsp;";
+
+      if ($nextpage) {
+        $pagetext .= "<A HREF=\"./?p=".($p+1)."\">";
+        $pagetext .= "次のページ";
+        $pagetext .= "</A>";
+      } else {
+        $pagetext .= "<FONT COLOR=#999999>次のページ</FONT>";
+      }
+
+      $pagetext .= "&nbsp;";
+      $pagetext .= "</CENTER><BR>\n";
+    }
+  }
+
+
+  // 明細表示
+  include ("../detail.inc.php");
+
+  // フッタ表示
+  include ("../footer.inc.php");
+exit;
+
+##### BBS用関数 ####################################################################################################
+
+function drawRow($row,$reply,$last) {
+  global $conn, $kwd, $viewtype, $vieworder, $p;
+  global $login_id;
+  global $bgcolor;
+  global $board, $pagetext;
+
+  $body = textsafe($row["body"]);
+
+  // 部分表示の場合
+  $bodys = split("\n",$body);
+
+  $findkeyword = false;
+
+  $subject = $row["subject"];
+  if ($subject=="") { $subject="(no subject)"; }
+  if (strlen($subject)>50) $subject = mb_strcut($subject,0,50)." ...";
+  $subject = str_highlight($kwd,$subject);
+
+  $sql_kidoku = "SELECT * FROM boards_res WHERE board_id='$board' AND seqno=".$row["seqno"]." AND user_id='$login_id'";
+  $res_kidoku = pg_query($conn,$sql_kidoku);
+  $cnt_kidoku = pg_num_rows($res_kidoku);
+
+  if ($viewtype == "posted") {
+    ## 投稿順 ##
+    $pagetext .= "<TR BGCOLOR=".$bgcolor." HEIGHT=21><TD STYLE=\"spacing:2px;padding:2px\">";
+    $pagetext .= "&nbsp;<A HREF=\"./view/?board=".$board."&p=$p&no=".$row["seqno"]."\">";
+    if ($cnt_kidoku==0) {
+      $pagetext .= "<FONT COLOR=#FF0033>".$subject."</FONT>";
+    } else {
+      $pagetext .= $subject;
+    }
+    $pagetext .= "</A>";
+    $pagetext .= " <FONT COLOR=#666666>".date("n月j日 H:i",datetime2timestamp($row["stamp"]))."";
+    $pagetext .= "</TD>\n";
+
+  } else {
+    /* スレッド順 */
+    if ($row["serial"]!="") {
+      if ($vieworder=="asc") {
+        $sql = "SELECT * FROM boards_post WHERE board_id='".$board."' AND parent='".$row["serial"]."' ORDER BY stamp";
+      } else {
+        $sql = "SELECT * FROM boards_post WHERE board_id='".$board."' AND parent='".$row["serial"]."' ORDER BY stamp DESC";
+      }
+      $res_reply = pg_query($conn, $sql);
+      $cnt_reply = pg_num_rows($res_reply);
+    } else {
+      $cnt_reply = 0;
+    }
+    $pagetext .= "<TR BGCOLOR=$bgcolor HEIGHT=21>";
+    $pagetext .= "<TD NOWRAP><TABLE BORDER=0 CELLPADDING=0 CELLSPACING=0><TR><TD NOWRAP>";
+
+    $trees = split("\t",$reply);
+
+    if (sizeof($trees)==1) {
+      if ($cnt_reply<1) {
+#      if ($last) {
+        $pagetext .= "<IMG SRC=\"../image/thread_1.gif\" WIDTH=15 HEIGHT=21 BORDER=0>";
+      } else {
+        $pagetext .= "<IMG SRC=\"../image/thread_3.gif\" WIDTH=15 HEIGHT=21 BORDER=0>";
+      }
+    } else {
+      for ($i=1;$i<sizeof($trees);$i++) {
+        if ($i+1 == sizeof($trees)) {
+          if ($trees[$i]>0) {
+            $pagetext .= "<IMG SRC=\"../image/thread_7.gif\" WIDTH=15 HEIGHT=21 BORDER=0>"; # ┗
+          } else {
+            $pagetext .= "<IMG SRC=\"../image/thread_6.gif\" WIDTH=15 HEIGHT=21 BORDER=0>"; # ┣
+          }
+        } else {
+          if ($trees[$i]>0) {
+            if ($trees[$i-1]>0) {
+              $pagetext .= "<IMG SRC=\"../image/thread_0.gif\" WIDTH=15 HEIGHT=21 BORDER=0>"; # なし
+            } else {
+              if ($trees[$i]>0) {
+                $pagetext .= "<IMG SRC=\"../image/thread_0.gif\" WIDTH=15 HEIGHT=21 BORDER=0>"; # なし
+              } else {
+                $pagetext .= "<IMG SRC=\"../image/thread_5.gif\" WIDTH=15 HEIGHT=21 BORDER=0>"; # ┃
+              }
+            }
+          } else {
+            if ($trees[$i-1]>0) {
+              $pagetext .= "<IMG SRC=\"../image/thread_5.gif\" WIDTH=15 HEIGHT=21 BORDER=0>"; # ┃
+            } else {
+              if ($trees[$i]>0) {
+                $pagetext .= "<img src=\"../image/thread_0.gif\" width=15 height=21 border=0>"; # なし
+              } else {
+                $pagetext .= "<img src=\"../image/thread_5.gif\" width=15 height=21 border=0>"; # ┃
+              }
+            }
+          }
+        }
+      }
+      if ($cnt_reply>0) {
+        $pagetext .= "<IMG SRC=\"../image/thread_8.gif\" WIDTH=15 HEIGHT=21 BORDER=0>"; # ┳
+      } else {
+        $pagetext .= "<IMG SRC=\"../image/thread_4.gif\" WIDTH=15 HEIGHT=21 BORDER=0>"; # ━
+      }
+    }
+    $pagetext .= "</TD><TD NOWRAP>";
+
+    $pagetext .= "&nbsp;<A HREF=\"./view/?board=".$board."&p=$p&no=".$row["seqno"]."\">";
+    if ($cnt_kidoku==0) {
+      $pagetext .= "<FONT COLOR=#FF0033>".$subject."</FONT>";
+    } else {
+      $pagetext .= $subject;
+    }
+    $pagetext .= "</A>";
+    $pagetext .= " <FONT COLOR=#666666>".date("n月j日 H:i",datetime2timestamp($row["stamp"]))."";
+    $pagetext .= "</TD>";
+
+    $pagetext .= "</TR></TABLE></TD>";
+  }
+
+  if ($row["user_id"]<>"") {
+    $sql_user = "SELECT id,name_ryaku FROM users WHERE id='".$row["user_id"]."'";
+    $res_user = pg_query($conn,$sql_user);
+    if (pg_num_rows($res_user)>0){
+      $user_name = pg_result($res_user,0,"name_ryaku");
+    } else {
+      $user_name = "不明";
+    }
+    $pagetext .= "<TD NOWRAP ALIGN=CENTER><A HREF=\"../../member/?id=".$row["user_id"]."\">".$user_name."</A></TD>\n";
+  } else {
+    $pagetext .= "<TD ALIGN=CENTER>-</TD>\n";
+  }
+
+  $pagetext .= "</TR>\n";
+
+  if ($viewtype=="posted") {
+    return 0;
+  } else {
+    if ($cnt_reply>0) {
+      $reply = "";
+
+      for ($j=0;$j<sizeof($trees);$j++) {
+#        if (($j+1)==sizeof($trees)) {
+#          $reply .= "0\t";
+#        } else {
+          $reply .= $trees[$j]."\t";
+#        }
+      }
+
+      for ($k=0;$k<$cnt_reply;$k++) {
+        $row_reply = pg_fetch_array($res_reply,$k);
+        if ($k+1==$cnt_reply) {
+          $add_reply = $reply."1";
+          $last = true;
+        } else {
+          $add_reply = $reply."0";
+          $last = false;
+        }
+
+#$pagetext .= "<TR HEIGHT=1 BGCOLOR=#999999><TD COLSPAN=2></TD></TR>";
+        $ret_count = drawRow($row_reply,$add_reply,$last);
+      }
+    }
+    return $cnt_reply + $ret_count;
+  }
+}
+?>

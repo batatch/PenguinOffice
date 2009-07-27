@@ -1,0 +1,664 @@
+<?php
+include "../../config.inc.php"; include "../../lib.inc.php";
+include "../../language.inc.php";
+
+$linktext  = "<A HREF=\"../../\" CLASS=\"BAR\">トップページ</A> &gt; ";
+$linktext .= "<A HREF=\"../\" CLASS=\"BAR\">管理者メニュー</A> &gt; ";
+$linktext .= "<A HREF=\"./?p=$p\">ユーザー設定</A> &gt; ";
+if (empty($seqno)) {
+  $linktext .= "<FONT COLOR=#FFFF00>ユーザーの登録</FONT> ";
+} else {
+  $linktext .= "<FONT COLOR=#FFFF00>ユーザーの確認</FONT> ";
+}
+include "../../login_check.inc.php";
+
+$pagetext = "";
+if ($login && $admin_sign=="t") {
+  // 変数処理
+  if (!empty($_POST["seqno"]))              $seqno              = $_POST["seqno"];
+  if (!empty($_POST["id"]))                 $id                 = $_POST["id"];
+  if (!empty($_POST["passwd"]))             $passwd             = $_POST["passwd"];
+  if (!empty($_POST["email"]))              $email              = $_POST["email"];
+  if (!empty($_POST["email_sub"]))          $email_sub          = $_POST["email_sub"];
+  if (!empty($_POST["name"]))               $name               = $_POST["name"];
+  if (!empty($_POST["name_kana"]))          $name_kana          = $_POST["name_kana"];
+  if (!empty($_POST["name_ryaku"]))         $name_ryaku         = $_POST["name_ryaku"];
+  if (!empty($_POST["birthday"]))           $birthday           = $_POST["birthday"];
+  if (!empty($_POST["birthday_Y"]))         $birthday_Y         = $_POST["birthday_Y"];
+  if (!empty($_POST["birthday_M"]))         $birthday_M         = $_POST["birthday_M"];
+  if (!empty($_POST["birthday_D"]))         $birthday_D         = $_POST["birthday_D"];
+  if (!empty($_POST["sex"]))                $sex                = $_POST["sex"];
+  if (!empty($_POST["depa"]))               $depa               = $_POST["depa"];
+  if (!empty($_POST["post"]))               $post               = $_POST["post"];
+  if (!empty($_POST["dialin"]))             $dialin             = $_POST["dialin"];
+  if (!empty($_POST["handy"]))              $handy              = $_POST["handy"];
+  if (!empty($_POST["startmonday"]))        $startmonday        = $_POST["startmonday"];
+  if (!empty($_POST["from_h"]))             $from_h             = $_POST["from_h"];
+  if (!empty($_POST["from_m"]))             $from_m             = $_POST["from_m"];
+  if (!empty($_POST["to_h"]))               $to_h               = $_POST["to_h"];
+  if (!empty($_POST["to_m"]))               $to_m               = $_POST["to_m"];
+  if (!empty($_POST["master_id"]))          $master_id          = $_POST["master_id"];
+  if (!empty($_POST["viewsign"]))           $viewsign           = $_POST["viewsign"];
+  if (!empty($_POST["eventsign"]))          $eventsign          = $_POST["eventsign"];
+  if (!empty($_POST["secretary_id"]))       $secretary_id       = $_POST["secretary_id"];
+  if (!empty($_POST["righthandman_id_to"])) $righthandman_id_to = $_POST["righthandman_id_to"];
+  if (!empty($_POST["righthandman_ids_to"]))$righthandman_ids_to= $_POST["righthandman_ids_to"];
+  if (!empty($_POST["admin_sign"]))         $admin_sign         = $_POST["admin_sign"];
+  if (!empty($_POST["download_sign"]))      $download_sign      = $_POST["download_sign"];
+  if (!empty($_POST["workflow_sign"]))      $workflow_sign      = $_POST["workflow_sign"];
+  if (!empty($_POST["address_flag"]))       $address_flag       = $_POST["address_flag"];
+
+  // 文字列整形
+  $id         = textsafe($id);
+  $passwd     = textsafe($passwd);
+  $passwd2    = textsafe($passwd2);
+  $email      = textsafe($email);
+  $email_sub  = textsafe($email_sub);
+  $name       = textsafe($name);
+  $name_kana  = textsafe($name_kana);
+  $name_ryaku = textsafe($name_ryaku);
+  $depa       = textsafe($depa);
+  $post       = textsafe($post);
+  $dialin     = textsafe($dialin);
+  $handy      = textsafe($handy);
+
+  if (!file_exists($basepath.$toppath."/i")) {
+    $email_sub = "";
+  }
+
+  // 配列整形
+  if ($righthandman_id_to!="") {
+    $righthandman_id_to_back = "";
+    $users_entry = split(",",$righthandman_id_to);
+    if (sizeof($users_entry)>0) {
+      for ($i=0;$i<sizeof($users_entry);$i++) {
+        if ($users_entry[$i]!="") {
+          $righthandman_id_find = false;
+          if ($i>0) {
+            for ($j=0;$j<$i;$j++) {
+              if ($users_entry[$i]==$users_entry[$j]) {
+                $righthandman_id_find = true;
+                break;
+              }
+            }
+          }
+          if (!$righthandman_id_find) {
+            if ($righthandman_id_to_back!="") $righthandman_id_to_back .= ",";
+            $righthandman_id_to_back .= $users_entry[$i];
+          }
+        }
+      }
+    }
+  }
+
+  // ＩＤ
+  if(strlen($id) == 0){
+    $DMES[] = "ＩＤが入力されていません";
+  } elseif (strlen($id) < 4) {
+    $DMES[] = "ＩＤは4文字以上にして下さい";
+  } elseif (strlen($id) > 20) {
+    $DMES[] = "ＩＤは20文字以下にして下さい";
+  } else {
+    for ($i=0;$i<strlen($id);$i++) {
+      $ASC = ord(substr($id,$i,1));
+      if (($ASC<ord("0") or $ASC>ord("9")) and ($ASC<ord("a") or $ASC>ord("z")) and ($ASC<ord("A") or $ASC>ord("Z"))
+       and ($ASC<>ord("_")) and ($ASC<>ord("-"))) {
+        $DMES[] = "ＩＤは英数字、_(アンダーバー)、-(ハイフン)で指定してください";
+        break;
+      }
+    }
+    if (sizeof($DMES)==0) {
+      if ($id=="root" or $id=="admin" or $id=="administrator" or $id=="superuser" or $id=="all") {
+        $DMES[] = "指定されたＩＤを使うことはできません";
+      }
+    }
+  }
+  if (sizeof($DMES)==0) {
+    if (empty($seqno)) {
+      $ret_seqno = get_first("users","seqno","id='$id'",0);
+    } else {
+      $ret_seqno = get_first("users","seqno","id='$id' AND id <>'$old_id'",0);
+    }
+    if ($ret_seqno > 0){
+      $DMES[] = "入力されたＩＤは既に使用されています";
+    }
+  }
+  if (sizeof($DMES)==0) {
+    if (empty($seqno)) {
+      if (get_first("admin","account","",99)<get_count("users","")+1) {
+        $DMES[] = "これ以上ユーザーを登録することはできません。契約数を確認してください";
+      }
+    }
+  }
+  // パスワード
+  if (empty($seqno)) {
+    if(strlen($passwd) == 0){
+      $DMES[] = "パスワードが入力されていません";
+    } elseif (strlen($passwd) < 6) {
+      $DMES[] = "パスワードは6文字以上にして下さい";
+    } elseif (strlen($passwd) > 12) {
+      $DMES[] = "パスワードは12文字以下にして下さい";
+    } elseif(!preg_match("/^[\w\|]+$/i",$passwd)) {
+      $DMES[] = "パスワードは英字または数字で指定してください";
+    } elseif($passwd != $passwd2) {
+      $DMES[] = "パスワードと確認用のパスワードが一致していません";
+    }
+  }
+  // メールアドレス
+  if ($email=="@")  $email = "";
+  if (!empty($email) && $email!=""){
+    if (!is_email($email)){
+      $DMES[] = "メールアドレスが正しくありません";
+    } else {
+      if (strlen($email)>100){
+        $DMES[] = "メールアドレスが長すぎます(100文字まで)";
+      } else {
+        $STR = $email;
+        $LEN = strlen($STR);
+        for ($i=0;$i<$LEN;$i++) {
+          $ASC = ord(substr($STR,$i,1));
+          if ( ( $ASC<ord("0") or $ASC>ord("9") ) and ($ASC<ord("a") or $ASC>ord("z") ) and ($ASC<ord("A") or $ASC>ord("Z") ) and ( $ASC<>ord("@") ) and ( $ASC<>ord(".") ) and ( $ASC<>ord("_") ) and ( $ASC<>ord("-") ) ) {
+            $DMES[] = "メールアドレスは以下の文字を利用してご記入ください。<BR>半角英数字、@（アットマーク）、.（ドット）、_（アンダーバー）、-（ハイフン）";
+              break;
+          }
+          $POS = strpos($STR,"@");
+          if (($POS == false) or ($POS == 0)) {
+            $DMES[] = "メールアドレスが正しくありません";
+            break;
+          } else {
+            $NS=substr($STR,$POS+1);
+            if (checkdnsrr($NS,"ANY") == false) {
+              $DMES[] = "メールアドレスに含まれているドメインが正しくありません";
+              break;
+            }
+          }
+        }
+      }
+    }
+  }
+  // 携帯メールアドレス
+  if ($email_sub=="@")  $email_sub = "";
+  if (!empty($email_sub) && $email_sub!=""){
+    if (!is_email($email_sub)){
+      $DMES[] = "携帯メールアドレスが正しくありません";
+    } else {
+      if (strlen($email_sub)>100){
+        $DMES[] = "携帯メールアドレスが長すぎます(100文字まで)";
+      } else {
+        $STR = $email_sub;
+        $LEN = strlen($STR);
+        for ($i=0;$i<$LEN;$i++) {
+          $ASC = ord(substr($STR,$i,1));
+          if ( ( $ASC<ord("0") or $ASC>ord("9") ) and ($ASC<ord("a") or $ASC>ord("z") ) and ($ASC<ord("A") or $ASC>ord("Z") ) and ( $ASC<>ord("@") ) and ( $ASC<>ord(".") ) and ( $ASC<>ord("_") ) and ( $ASC<>ord("-") ) ) {
+            $DMES[] = "携帯メールアドレスは以下の文字を利用してご記入ください。<BR>半角英数字、@（アットマーク）、.（ドット）、_（アンダーバー）、-（ハイフン）";
+              break;
+          }
+          $POS = strpos($STR,"@");
+          if (($POS == false) or ($POS == 0)) {
+            $DMES[] = "携帯メールアドレスが正しくありません";
+            break;
+          } else {
+            $NS=substr($STR,$POS+1);
+            if (checkdnsrr($NS,"ANY") == false) {
+              $DMES[] = "携帯メールアドレスに含まれているドメインが正しくありません";
+              break;
+            }
+          }
+        }
+      }
+    }
+  }
+  // 名前
+  if($name==""){
+    $DMES[] = "名前が入力されていません";
+  } elseif(strlen($name)>60) {
+    $DMES[] = "名前が長すぎます。全角30文字(半角60文字)までで入力してください";
+  }
+  // カナヨミ
+  if($name_kana==""){
+    $DMES[] = "カナヨミが入力されていません";
+  } elseif(strlen($name_kana)>60) {
+    $DMES[] = "カナヨミが長すぎます。全角30文字(半角60文字)までで入力してください";
+  }
+  // 略称
+  if($name_ryaku==""){
+    $name_ryaku = $name;
+  }
+  if(strlen($name_ryaku)>16) {
+    $DMES[] = "名前の略称が長すぎます。全角8文字(半角16文字)までで入力してください";
+    $DMES[] = "注:略称の未入力時には、自動的に名前が使用されます。";
+  }
+  // 誕生日
+  if ($birthday_Y <> "" or $birthday_M <> "" or $birthday_D <> ""){
+    if (!checkdate($birthday_M,$birthday_D,$birthday_Y)){
+      $MES[] = "生年月日 が正しくありません";
+    }
+  }
+  if ($birthday_Y <> ""){
+    if ($birthday_M == "" or $birthday_D == ""){
+      $MES[] = "生年月日 を全て入力して下さい";
+    }
+  } elseif ($birthday_M <> ""){
+    if ($birthday_Y == "" or $birthday_D == ""){
+      $MES[] = "生年月日 を全て入力して下さい";
+    }
+  } elseif ($birthday_D <> ""){
+    if ($birthday_Y == "" or $birthday_M == ""){
+      $MES[] = "生年月日 を全て入力して下さい";
+    }
+  } 
+  if($birthday_Y <> "" and $birthday_M <> "" and $birthday_D <> ""){
+    $birthday = $birthday_Y."-".$birthday_M."-".$birthday_D;
+  } else {
+    $birthday = "";
+  }
+  // 携帯番号
+  if ($handy=="") {
+#    $DMES[] = "携帯番号が入力されていません";
+  } else {
+    if (!is_tel($handy)){
+      $DMES[] = "携帯番号が正しくありません";
+    } elseif (strlen($handy)>20){
+      $DMES[] = "携帯番号が長すぎます(半角20文字まで)";
+    }
+  }
+  // ダイヤルイン
+  if($dialin==""){
+#    $DMES[] = "ダイヤルインが入力されていません";
+  } else {
+    if (!is_tel($dialin)){
+      $DMES[] = "ダイヤルインが正しくありません";
+    } elseif (strlen($dialin)>20){
+      $DMES[] = "ダイヤルインが長すぎます(半角20文字まで)";
+    }
+  }
+  // 変更時処理
+  if (sizeof($DMES)==0) {
+    if ($id != $old_id and $old_id != "" and $seqno!=0) {
+      // 確認処理
+      $sql = "SELECT id FROM users WHERE id='$old_id' AND seqno=$seqno";
+      $res = pg_query($conn,$sql);
+      if ($res) {
+        $cnt = pg_numrows($res);
+        if ($cnt>0) {
+          $row = pg_fetch_array($res, 0);  
+        } else {
+          $DMES[] = "ユーザー確認に失敗しました";
+        }
+      } else {
+        $DMES[] = "ユーザー確認に失敗しました";
+      }
+    }
+  }
+  if (sizeof($DMES)==0) {
+    $maildir    = $basedir."/mail/".$id;
+    $mailolddir = $basedir."/mail/".$old_id;
+    $mailconf   = $maildir."/.fetchmailrc";
+    $mailids    = $maildir."/.fetchids";
+    if ($seqno != "") {
+      // 更新
+      $sql  = "UPDATE users SET";
+      if (!empty($id))            { $sql .= " id ='".$id."',"; }
+      if (!empty($email))         { $sql .= " email ='".$email."',"; }
+      if (!empty($email_sub))     { $sql .= " email_sub ='".$email_sub."',"; }
+      if (!empty($name))          { $sql .= " name ='".$name."',"; }
+      if (!empty($name_kana))     { $sql .= " name_kana ='".$name_kana."',"; }
+      if (!empty($name_ryaku))    { $sql .= " name_ryaku ='".$name_ryaku."',"; }
+      if (!empty($birthday))      { $sql .= " birthday ='".$birthday."',"; } else {$sql .= " birthday = null,";}
+      $sql .= " sex ='".$sex."',";
+      $sql .= " depa ='".$depa."',";
+      $sql .= " post ='".$post."',";
+      $sql .= " dialin ='".$dialin."',";
+      $sql .= " handy ='".$handy."',";
+      if (!empty($startmonday))   { $sql .= " startmonday ='".$startmonday."',"; }
+      $sql .= " from_h ='".$from_h."',";
+      $sql .= " from_m ='".$from_m."',";
+      $sql .= " to_h ='".$to_h."',";
+      $sql .= " to_m ='".$to_m."',";
+      if (!empty($master_id))     { $sql .= " master_id ='".$master_id."',"; }
+      $sql .= " secretary_id ='".$secretary_id."',";
+      $sql .= " righthandman_ids ='".$righthandman_id_to."',";
+      if (!empty($viewsign))      { $sql .= " viewsign ='".$viewsign."',"; }
+      if (!empty($eventsign))     { $sql .= " eventsign ='".$eventsign."',"; }
+      if (!empty($admin_sign))    { $sql .= " admin_sign ='".$admin_sign."',"; }
+      if (!empty($download_sign)) { $sql .= " download_sign ='".$download_sign."',"; }
+      if (!empty($workflow_sign)) { $sql .= " workflow_sign ='".$workflow_sign."',"; }
+      if (!empty($address_flag))  { $sql .= " address_flag ='".$address_flag."',"; }
+#      $sql .= " pop3server ='".$pop3server."',";
+#      $sql .= " pop3type ='".$pop3type."',";
+#      $sql .= " pop3id ='".$pop3id."',";
+#      $sql .= " pop3passwd ='".$pop3passwd."',";
+      $sql .= " updatestamp ='now'";
+      $sql .= " WHERE seqno=".$seqno." AND id='".$old_id."'";
+
+      // SQL実行
+      $res = pg_query($conn, $sql);
+      $cnt = pg_affected_rows($res);
+      if ($cnt==0) {
+        $DMES[] = "ユーザー情報の更新に失敗しました";
+      }
+
+      // users_entryへの追加
+      if ($old_id != "") {
+        $sql_e = "DELETE FROM users_entry WHERE user_id='".$old_id."'";
+        $res = pg_query($conn,$sql_e);
+        if ($res==false) {
+          $MES[] = "ユーザーエントリー情報の消去に失敗しました";
+        }
+      }
+      if (sizeof($groups)>0) {
+        while (list($key,$val)=each($groups)) {
+          $sql_e  = "INSERT INTO users_entry (";
+          $sql_e .= "user_id,group_id,createstamp,updatestamp";
+          $sql_e .= ") VALUES (";
+          $sql_e .= "'".$id."','".$val."','now','now'";
+          $sql_e .= ")";
+          $res = pg_query($conn,$sql_e);
+          if ($res==false) {
+            $MES[] = "ユーザーエントリー情報の追加に失敗しました<br>".$sql_e;
+          }
+        }
+      }
+      if ($id != $old_id && $old_id != "") {
+        // IDの変更に伴うデータ移動処理
+        if (file_exists($maildir)) {
+          rename($mailolddir,$maildir);
+        }
+        pg_query($conn, "UPDATE address SET create_user_id='$id' WHERE create_user_id='$old_id'");
+        pg_query($conn, "UPDATE address_log SET user_id='$id' WHERE user_id='$old_id'");
+        pg_query($conn, "UPDATE boards SET admin_id='$id' WHERE admin_id='$old_id'");
+        pg_query($conn, "UPDATE boards_post SET user_id='$id' WHERE user_id='$old_id'");
+        pg_query($conn, "UPDATE boards_res SET user_id='$id' WHERE user_id='$old_id'");
+        pg_query($conn, "UPDATE circulas SET user_id='$id' WHERE user_id='$old_id'");
+        $sql = "SELECT * FROM circulas WHERE user_id_to ~* '(^|,)$old_id(,|$)'";
+        $res = pg_query($conn,$sql);
+        $cnt = pg_num_rows($res);
+        if ($cnt>0) {
+          for ($i=0;$i<$cnt;$i++) {
+            $row = pg_fetch_array($res,$i);
+            $old_ids = $row["user_id_to"];
+            $new_ids = preg_replace("/(^|,)($old_id)(,|$)/","$1".$id."$3",$old_ids);
+            pg_query("UPDATE circulas SET user_id_to='$new_ids' WHERE seqno=".$row["seqno"]);
+          }
+        }
+        pg_query($conn, "UPDATE circulas_res SET user_id='$id' WHERE user_id='$old_id'");
+        pg_query($conn, "UPDATE circulas_ret SET user_id='$id' WHERE user_id='$old_id'");
+        pg_query($conn, "UPDATE events SET user_id='$id' WHERE user_id='$old_id'");
+        $sql = "SELECT * FROM events WHERE sharelist ~* '(^|,)$old_id(,|$)'";
+        $res = pg_query($conn,$sql);
+        $cnt = pg_num_rows($res);
+        if ($cnt>0) {
+          for ($i=0;$i<$cnt;$i++) {
+            $row = pg_fetch_array($res,$i);
+            $old_ids = $row["sharelist"];
+            $new_ids = preg_replace("/(^|,)($old_id)(,|$)/","$1".$id."$3",$old_ids);
+            pg_query("UPDATE events SET sharelist='$new_ids' WHERE seqno=".$row["seqno"]);
+          }
+        }
+        $sql = "SELECT * FROM flows WHERE user_ids ~* '(^|,)$old_id(,|$)'";
+        $res = pg_query($conn,$sql);
+        $cnt = pg_num_rows($res);
+        if ($cnt>0) {
+          for ($i=0;$i<$cnt;$i++) {
+            $row = pg_fetch_array($res,$i);
+            $old_ids = $row["user_ids"];
+            $new_ids = preg_replace("/(^|,)($old_id)(,|$)/","$1".$id."$3",$old_ids);
+            pg_query("UPDATE flows SET user_ids='$new_ids' WHERE seqno=".$row["seqno"]);
+          }
+        }
+        pg_query($conn, "UPDATE files SET user_id='$id' WHERE user_id='$old_id'");
+        $sql = "SELECT * FROM flows WHERE user_ids ~* '(^|,)$old_id(,|$)'";
+        $res = pg_query($conn,$sql);
+        $cnt = pg_num_rows($res);
+        if ($cnt>0) {
+          for ($i=0;$i<$cnt;$i++) {
+            $row = pg_fetch_array($res,$i);
+            $old_ids = $row["user_ids"];
+            $new_ids = preg_replace("/(^|,)($old_id)(,|$)/","$1".$id."$3",$old_ids);
+            pg_query("UPDATE flows SET user_ids='$new_ids' WHERE seqno=".$row["seqno"]);
+          }
+        }
+        pg_query($conn, "UPDATE folders SET user_id='$id' WHERE user_id='$old_id'");
+        pg_query($conn, "UPDATE links SET user_id='$id' WHERE user_id='$old_id'");
+        pg_query($conn, "UPDATE mail SET user_id='$id' WHERE user_id='$old_id'");
+        pg_query($conn, "UPDATE mail_res SET user_id='$id' WHERE user_id='$old_id'");
+        pg_query($conn, "UPDATE rooms SET manage_id='$id' WHERE manage_id='$old_id'");
+        pg_query($conn, "UPDATE rooms_reserve SET user_id='$id' WHERE user_id='$old_id'");
+        pg_query($conn, "UPDATE schedules SET user_id='$id' WHERE user_id='$old_id'");
+        pg_query($conn, "UPDATE schedules SET create_user_id='$id' WHERE create_user_id='$old_id'");
+        $sql = "SELECT * FROM schedules WHERE sharelist ~* '(^|,)$old_id(,|$)'";
+        $res = pg_query($conn,$sql);
+        $cnt = pg_num_rows($res);
+        if ($cnt>0) {
+          for ($i=0;$i<$cnt;$i++) {
+            $row = pg_fetch_array($res,$i);
+            $old_ids = $row["sharelist"];
+            $new_ids = preg_replace("/(^|,)($old_id)(,|$)/","$1".$id."$3",$old_ids);
+            pg_query("UPDATE schedules SET sharelist='$new_ids' WHERE seqno=".$row["seqno"]);
+          }
+        }
+        pg_query($conn, "UPDATE todos SET user_id='$id' WHERE user_id='$old_id'");
+        pg_query($conn, "UPDATE tracking SET id='$id' WHERE id='$old_id'");
+        pg_query($conn, "UPDATE users SET master_id ='$id' WHERE master_id ='$old_id'");
+        pg_query($conn, "UPDATE users SET secretary_id ='$id' WHERE secretary_id ='$old_id'");
+        $sql = "SELECT * FROM users WHERE mygroup ~* '(^|,)$old_id(,|$)'";
+        $res = pg_query($conn,$sql);
+        $cnt = pg_num_rows($res);
+        if ($cnt>0) {
+          for ($i=0;$i<$cnt;$i++) {
+            $row = pg_fetch_array($res,$i);
+            $old_ids = $row["mygroup"];
+            $new_ids = preg_replace("/(^|,)($old_id)(,|$)/","$1".$id."$3",$old_ids);
+            pg_query("UPDATE users SET mygroup='$new_ids' WHERE seqno=".$row["seqno"]);
+          }
+        }
+        pg_query($conn, "UPDATE users_entry SET user_id='$id' WHERE user_id='$old_id'");
+        pg_query($conn, "UPDATE users_duty SET user_id='$id' WHERE user_id='$old_id'");
+        pg_query($conn, "UPDATE users_location SET user_id='$id' WHERE user_id='$old_id'");
+        pg_query($conn, "UPDATE workflow SET user_id='$id' WHERE user_id='$old_id'");
+        $sql = "SELECT * FROM workflow WHERE flow_ids ~* '(^|,)$old_id(,|$)'";
+        $res = pg_query($conn,$sql);
+        $cnt = pg_num_rows($res);
+        if ($cnt>0) {
+          for ($i=0;$i<$cnt;$i++) {
+            $row = pg_fetch_array($res,$i);
+            $old_ids = $row["flow_id"];
+            $new_ids = preg_replace("/(^|,)($old_id)(,|$)/","$1".$id."$3",$old_ids);
+            pg_query("UPDATE workflow SET flow_ids='$new_ids' WHERE seqno=".$row["seqno"]);
+          }
+        }
+        pg_query($conn, "UPDATE workflow_res SET user_id='$id' WHERE user_id='$old_id'");
+        pg_query($conn, "UPDATE workflow_ret SET user_id='$id' WHERE user_id='$old_id'");
+      }
+    } else {
+      // 追加
+      // seqno採番
+      $sql_seq = "SELECT seqno FROM users ORDER BY seqno desc;";
+      $res_seq = pg_query($conn, $sql_seq);
+      if (pg_num_rows($res_seq)==0) {
+        $seqno = 1;
+      } else {
+        $row_seq = pg_fetch_array($res_seq, 0);  
+        $seqno = $row_seq["seqno"]+1;
+      }
+      $sql  = "INSERT INTO users (";
+      $sql .= "seqno,id,passwd,";
+      $sql .= "email,";
+      if (!empty($email_sub))    { $sql .= "email_sub,"; }
+      $sql .= "name,name_kana,name_ryaku,";
+      if (!empty($birthday))     { $sql .= "birthday,"; }
+      $sql .= "sex,";
+      if (!empty($depa))         { $sql .= "depa,"; }
+      if (!empty($post))         { $sql .= "post,"; }
+      if (!empty($dialin))       { $sql .= "dialin,"; }
+      if (!empty($handy))        { $sql .= "handy,"; }
+      $sql .= "startmonday,";
+      $sql .= "from_h,from_m,to_h,to_m,";
+      if (!empty($master_id))    { $sql .= "master_id,"; }
+      $sql .= "secretary_id,";
+      $sql .= "righthandman_ids,";
+      if (!empty($viewsign))      { $sql .= "viewsign,"; }
+      if (!empty($eventsign))     { $sql .= "eventsign,"; }
+      if (!empty($admin_sign))    { $sql .= "admin_sign,"; }
+      if (!empty($download_sign)) { $sql .= "download_sign,"; }
+      if (!empty($workflow_sign)) { $sql .= "workflow_sign,"; }
+      if (!empty($address_flag))  { $sql .= "address_flag,"; }
+#      $sql .= "pop3server,pop3type,pop3id,pop3passwd,";
+      $sql .= "createstamp,updatestamp,passwd_updatestamp";
+      $sql .= ") VALUES (";
+      $sql .= $seqno.",";                        // 必須項目
+      $sql .= "'".db_textsafe($id)."',";         // 必須項目
+      $password_crypt = crypt(db_textsafe($passwd),substr(db_textsafe($passwd),1,2));
+      $sql .= "'".$password_crypt."',";          // 必須項目
+      $sql .= "'".db_textsafe($email)."',";      // 必須項目
+      if (!empty($email_sub))    { $sql .= "'".db_textsafe($email_sub)."',"; }
+      $sql .= "'".db_textsafe($name)."',";       // 必須項目
+      $sql .= "'".db_textsafe($name_kana)."',";  // 必須項目
+      $sql .= "'".db_textsafe($name_ryaku)."',"; // 必須項目
+      if (!empty($birthday))     { $sql .= "'".$birthday."',"; }
+      $sql .= "'".$sex."',";
+      if (!empty($depa))         { $sql .= "'".db_textsafe($depa)."',"; }
+      if (!empty($post))         { $sql .= "'".db_textsafe($post)."',"; }
+      if (!empty($dialin))       { $sql .= "'".$dialin."',"; }
+      if (!empty($handy))        { $sql .= "'".$handy."',"; }
+      $sql .= "'".$startmonday."',";
+      $sql .= "'".$from_h."',";
+      $sql .= "'".$from_m."',";
+      $sql .= "'".$to_h."',";
+      $sql .= "'".$to_m."',";
+      if (!empty($master_id))    { $sql .= "'".$master_id."',"; }
+      $sql .= "'".$secretary_id."',";
+      $sql .= "'".$righthandman_id_to."',";
+      if (!empty($viewsign))      { $sql .= "'".$viewsign."',"; }
+      if (!empty($eventsign))     { $sql .= "'".$eventsign."',"; }
+      if (!empty($admin_sign))    { $sql .= "'".$admin_sign."',"; }
+      if (!empty($download_sign)) { $sql .= "'".$download_sign."',"; }
+      if (!empty($workflow_sign)) { $sql .= "'".$workflow_sign."',"; }
+      if (!empty($address_flag)) { $sql .= "'".$address_flag."',"; }
+#      $sql .= "'".$pop3server."','".$pop3type."','".$pop3id."','".$pop3passwd."',";
+      $sql .= "'now','now','now'";
+      $sql .= ")";
+
+      $res = pg_query($conn, $sql);
+      if ($res==false || pg_affected_rows($res)==0) {
+        $DMES[] = "ユーザー情報の追加に失敗しました";
+      }
+      // users_entryへの追加
+      if ($old_id != "") {
+        $sql_e = "DELETE FROM users_entry WHERE user_id='".$old_id."'";
+        $res = pg_query($conn,$sql_e);
+        if ($res==false) {
+          $DMES[] = "ユーザーエントリー情報の消去に失敗しました";
+        }
+      }
+      if (sizeof($groups)>0) {
+        while (list($key,$val)=each($groups)){
+          $sql_e  = "INSERT INTO users_entry (";
+          $sql_e .= "user_id,group_id,createstamp,updatestamp";
+          $sql_e .= ") VALUES (";
+          $sql_e .= "'".$id."','".$val."','now','now'";
+          $sql_e .= ")";
+          $res = pg_query($conn,$sql_e);
+          if ($res==false) {
+            $DMES[] = "ユーザーエントリー情報の追加に失敗しました";
+          }
+        }
+      }
+      $insert_sign = "true";
+    }
+    // 正常終了ならメール用ディレクトリを作成
+    if (false) {
+    #if (sizeof($DMES)==0 && $pop3type!="" && $pop3server!="" && $pop3id!="" && $pop3passwd!="") {
+      if (file_exists($basedir."/mail")) {
+        if (!file_exists($maildir)) {
+          mkdir($maildir);
+        }
+        clearstatcache();
+        if (file_exists($maildir)) {
+          chmod($maildir,0755);
+          if (!file_exists($mailids)) {
+            touch($mailids);
+            chmod($mailids,0600);
+          }
+          touch($mailconf);
+          clearstatcache();
+          if (file_exists($mailconf)) {
+            chmod($mailconf,0600);
+            $fh = fopen($mailconf,"w");
+            if ($fh != false) {
+              fwrite($fh, "poll ".$pop3server."\n");
+              fwrite($fh, "protocol ".$pop3type."\n");
+              fwrite($fh, "user ".$pop3id."\n");
+              fwrite($fh, "password ".$pop3passwd."\n");
+              fwrite($fh, "no mimedecode"."\n");
+              fwrite($fh, "keep"."\n");
+              fwrite($fh, "no flush"."\n");
+              fwrite($fh, "no fetchall"."\n");
+              fwrite($fh, "limit 1000000"."\n");
+              fwrite($fh, "fetchlimit 25"."\n");
+              fwrite($fh, "mda \"".$basedir."/bin/storemail.pl ".$maildir." ".$id."\"\n");
+              fclose($fh);
+            }
+          }
+        }
+      }
+    }
+  }
+  if (sizeof($DMES)>0) {
+    // エラー時
+		include "../../header.inc.php"; flush();
+		include "../menu.inc.php";
+
+    $pagetext .= "<CENTER><BR>";
+    $pagetext .= "<FORM ACTION=\"./edit.phtml\" METHOD=POST>\n";
+    if (!$seqno=="" && $insert_sign!="true") {
+      $pagetext .= "<INPUT TYPE=HIDDEN NAME=\"seqno\" VALUE=\"$seqno\">\n";
+      $pagetext .= "<INPUT TYPE=HIDDEN NAME=\"old_id\" VALUE=\"$old_id\">\n";
+    }
+    $pagetext .= "<INPUT TYPE=HIDDEN NAME=\"p\" VALUE=\"$p\">\n";
+    $pagetext .= "<INPUT TYPE=HIDDEN NAME=\"group\" VALUE=\"".$group."\">\n";
+    $pagetext .= "<INPUT TYPE=HIDDEN NAME=\"back\" VALUE=\"t\">\n";
+    $pagetext .= "<INPUT TYPE=HIDDEN NAME=\"id\" VALUE=\"$id\">\n";
+    $pagetext .= "<INPUT TYPE=HIDDEN NAME=\"email\" VALUE=\"$email\">\n";
+    $pagetext .= "<INPUT TYPE=HIDDEN NAME=\"email_sub\" VALUE=\"$email_sub\">\n";
+    $pagetext .= "<INPUT TYPE=HIDDEN NAME=\"name\" VALUE=\"$name\">\n";
+    $pagetext .= "<INPUT TYPE=HIDDEN NAME=\"name_kana\" VALUE=\"$name_kana\">\n";
+    $pagetext .= "<INPUT TYPE=HIDDEN NAME=\"name_ryaku\" VALUE=\"$name_ryaku\">\n";
+    $pagetext .= "<INPUT TYPE=HIDDEN NAME=\"birthday\" VALUE=\"$birthday\">\n";
+    $pagetext .= "<INPUT TYPE=HIDDEN NAME=\"sex\" VALUE=\"$sex\">\n";
+    $pagetext .= "<INPUT TYPE=HIDDEN NAME=\"depa\" VALUE=\"$depa\">\n";
+    $pagetext .= "<INPUT TYPE=HIDDEN NAME=\"post\" VALUE=\"$post\">\n";
+    $pagetext .= "<INPUT TYPE=HIDDEN NAME=\"dialin\" VALUE=\"$dialin\">\n";
+    $pagetext .= "<INPUT TYPE=HIDDEN NAME=\"handy\" VALUE=\"$handy\">\n";
+    $pagetext .= "<INPUT TYPE=HIDDEN NAME=\"startmonday\" VALUE=\"$startmonday\">\n";
+    $pagetext .= "<INPUT TYPE=HIDDEN NAME=\"from_h\" VALUE=\"$from_h\">\n";
+    $pagetext .= "<INPUT TYPE=HIDDEN NAME=\"from_m\" VALUE=\"$from_m\">\n";
+    $pagetext .= "<INPUT TYPE=HIDDEN NAME=\"to_h\" VALUE=\"$to_h\">\n";
+    $pagetext .= "<INPUT TYPE=HIDDEN NAME=\"to_m\" VALUE=\"$to_m\">\n";
+    $pagetext .= "<INPUT TYPE=HIDDEN NAME=\"viewsign\" VALUE=\"$viewsign\">\n";
+    $pagetext .= "<INPUT TYPE=HIDDEN NAME=\"eventsign\" VALUE=\"$eventsign\">\n";
+    $pagetext .= "<INPUT TYPE=HIDDEN NAME=\"secretary_id\" VALUE=\"$secretary_id\">\n";
+    $pagetext .= "<INPUT TYPE=HIDDEN NAME=\"admin_sign\" VALUE=\"$admin_sign\">\n";
+    $pagetext .= "<INPUT TYPE=HIDDEN NAME=\"download_sign\" VALUE=\"$download_sign\">\n";
+    $pagetext .= "<INPUT TYPE=HIDDEN NAME=\"workflow_sign\" VALUE=\"$workflow_sign\">\n";
+    $pagetext .= "<INPUT TYPE=HIDDEN NAME=\"address_flag\" VALUE=\"$address_flag\">\n";
+    $pagetext .= "<TABLE><TR><TD>\n";
+    $pagetext .= "<FONT COLOR=#FF0000>\n";
+    while (list($key,$val)=each($DMES)) {
+      $pagetext .= $val."<BR>\n";
+    }
+    $pagetext .= "</FONT>\n";
+    $pagetext .= "</TD></TR></TABLE><BR>\n";
+    $pagetext .= "<INPUT TYPE=SUBMIT VALUE=\"戻る\">\n";
+    $pagetext .= "</CENTER>\n";
+    $pagetext .= "</FORM>\n";
+
+		include "../../detail.inc.php";
+		include "../../footer.inc.php";
+  } else {
+    // 正常時
+		$returl = "./?group=".$group."&p=".$p;
+		Header("Location: ".$returl);
+  }
+}
+?>

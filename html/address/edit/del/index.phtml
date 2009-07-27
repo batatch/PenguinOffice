@@ -1,0 +1,51 @@
+<?php
+include "../../../config.inc.php"; include "../../../lib.inc.php";
+
+$linktext  = "<A HREF=\"../../../\" CLASS=\"BAR\">トップページ</A> &gt; ";
+$linktext .= "<A HREF=\"../../\" CLASS=\"BAR\">住所録</A> &gt; ";
+$linktext .= "<A HREF=\"../?s=$s\" CLASS=\"BAR\">住所の表示</A> &gt; ";
+$linktext .= "<FONT COLOR=#FFFF00>削除</FONT>";
+
+include "../../../login_check.inc.php";
+
+// エラー判定
+if ($login && sizeof($MES)==0 && $address_flag<=1) {
+
+	// データ存在確認
+	$sql = "SELECT * FROM address WHERE seqno=".$s;
+	$res = pg_query($conn,$sql);
+	if (pg_num_rows($res)==0) {
+		$DMES[] = "既に削除されています";
+	} else {
+		// 削除処理
+		$sql = "DELETE FROM address WHERE seqno=".$s;
+		$res = pg_query($conn,$sql);
+		if ($res != false) {
+			$cnt = pg_affected_rows($res);
+		} else {
+			$cnt = 0;
+		}
+		if ($cnt==0) $DMES[] = "削除に失敗しました";
+	}
+	
+	if (sizeof($DMES)==0) {
+		// 正常処理
+		$returl = "../../?p=$p";
+		Header("Location: ".$returl);
+	} else {
+		// エラー時
+		include "../../../header.inc.php";
+		
+		print "<BR><CENTER>\n";
+		print "<FONT COLOR=#FF0000>\n";
+		while (list($key,$val)=each($DMES)) {
+			print $val."<BR>\n";
+		}
+		print "</FONT>\n";
+		print "<FORM><INPUT TYPE=BUTTON VALUE=\"戻る\" onClick=\"history.back()\"></FORM>\n";
+		print "</CENTER>\n";
+		
+		include "../../../footer.inc.php";
+	}
+}
+?>

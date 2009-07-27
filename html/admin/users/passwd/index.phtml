@@ -1,0 +1,67 @@
+<?php
+  // ファイルの読込
+  include "../../../config.inc.php";
+  include "../../../lib.inc.php";
+
+  // リンク用テキストの設定
+  $linktext  = "<A HREF=\"../../../\" CLASS=\"BAR\">トップページ</A> &gt; ";
+  $linktext .= "<A HREF=\"../../\" CLASS=\"BAR\">管理者メニュー</A> &gt; ";
+  $linktext .= "<A HREF=\"../?p=$p\" CLASS=\"BAR\">ユーザー設定</A> &gt; ";
+  $linktext .= "<FONT COLOR=#FFFF00>パスワード変更</FONT> ";
+
+  // 変数処理
+  if (!empty($_REQUEST["p"]))     $p     = $_REQUEST["p"];
+  if (!empty($_REQUEST["id"]))    $id    = $_REQUEST["id"];
+  if (!empty($_REQUEST["seqno"])) $seqno = $_REQUEST["seqno"];
+
+  // ファイルの読込
+  include "../../../header.inc.php";
+  include "../../menu.inc.php";
+
+  if ($login && $admin_sign=="t" && sizeof($MES)==0){
+    $sql = "SELECT * FROM users WHERE seqno=$seqno AND id='$id'";
+    $res = pg_query($conn, $sql);
+    $cnt = pg_num_rows($res);
+
+    if ($cnt>0) {
+      $row        = pg_fetch_array($res, 0);
+      $seqno      = $row["seqno"];
+      $id         = $row["id"];
+      $name       = $row["name"];
+      $old_chkpw  = $row["passwd"];
+    } else {
+      $DMES[] = "指定されたユーザー情報は登録されていません";
+    }
+
+    $pagetext .= "<BR><CENTER>";
+    $pagetext .= "<TABLE BGCOLOR=#999999 BORDER=0 CELLPADDING=3 CELLSPACING=1>\n";
+    $pagetext .= "<FORM ACTION=\"./update.phtml\" METHOD=POST>\n";
+    $pagetext .= "<INPUT TYPE=HIDDEN NAME=\"p\"         VALUE=\"$p\">\n";
+    $pagetext .= "<INPUT TYPE=HIDDEN NAME=\"id\"        VALUE=\"$id\">\n";
+    $pagetext .= "<INPUT TYPE=HIDDEN NAME=\"seqno\"     VALUE=\"$seqno\">\n";
+    $pagetext .= "<INPUT TYPE=HIDDEN NAME=\"old_chkpw\" VALUE=\"$old_chkpw\">\n";
+
+    $pagetext .= "<TR STYLE=\"LINE-HEIGHT:16pt\">\n";
+    $pagetext .= "<TH ALIGN=RIGHT NOWRAP BGCOLOR=$td_back_left>&nbsp;名前&nbsp;</TD>\n";
+    $pagetext .= "<TD NOWRAP BGCOLOR=$td_back>$name</TD>\n";
+
+    $pagetext .= "<TR STYLE=\"LINE-HEIGHT:32pt\">\n";
+    $pagetext .= "<TH ALIGN=RIGHT NOWRAP BGCOLOR=$td_back_left>&nbsp;新しいパスワード&nbsp;</TD>\n";
+    $pagetext .= "<TD BGCOLOR=$td_back>";
+    $pagetext .= "<INPUT TYPE=PASSWORD NAME=\"new_passwd\" SIZE=22 MAXLENGTH=20>";
+    $pagetext .= "<FONT COLOR=#666666>&nbsp;半角英数6〜12文字</FONT><BR>\n";
+    $pagetext .= "<INPUT TYPE=PASSWORD NAME=\"new_chkpw\" SIZE=22 MAXLENGTH=20>";
+    $pagetext .= "<FONT COLOR=#666666>&nbsp;確認用</FONT><BR>\n";
+    $pagetext .= "</TD>";
+    $pagetext .= "</TR>\n";
+
+    $pagetext .= "</TABLE>\n";
+    $pagetext .= "<BR>\n";
+    $pagetext .= "<INPUT TYPE=SUBMIT VALUE=\"更新\">\n";
+    $pagetext .= "</FORM>\n";
+  }
+
+  // ファイルの読込
+  include ("../../../detail.inc.php");
+  include ("../../../footer.inc.php");
+?>

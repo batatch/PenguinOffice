@@ -1,0 +1,952 @@
+<?php
+  include "../../config.inc.php";
+  include "../../lib.inc.php";
+
+  $linktext  = "<A HREF=\"../../\" CLASS=\"BAR\">トップページ</A> &gt; ";
+  $linktext .= "<A HREF=\"../\" CLASS=\"BAR\">管理者メニュー</A> &gt; ";
+  $linktext .= "<A HREF=\"./?p=$p\" CLASS=\"BAR\">ユーザー設定</A> &gt; ";
+  if (empty($seqno)) {
+    $linktext .= "<FONT COLOR=#FFFF00>ユーザーの登録</FONT> ";
+  } else {
+    $linktext .= "<FONT COLOR=#FFFF00>ユーザーの編集</FONT> ";
+  }
+  include "../../header.inc.php";
+  flush();
+  include "../menu.inc.php";
+
+  if ($login && $admin_sign=="t") {
+    print "<!--";
+
+    // エラーチェック
+    if (empty($seqno)) {
+      if (get_first("admin","account","",10)<get_count("users","")+1) {
+        $DMES[] = "これ以上ユーザーを登録することはできません。登録可能なユーザー数(契約数)を確認してください";
+      }
+    }
+
+    // 変数セット
+    if (!empty($_POST["back"]) && $_POST["back"] == "t") {
+      // 更新ページからの戻り(エラー)時
+      if (!empty($_POST["p"]))             $p             = $_POST["p"];
+      if (!empty($_POST["seqno"]))         $seqno         = $_POST["seqno"];
+      if (!empty($_POST["id"]))            $id            = $_POST["id"];
+      if (!empty($_POST["old_id"]))        $oid_id        = $_POST["id"];
+      if (!empty($_POST["email"]))         $email         = $_POST["email"];
+      if (!empty($_POST["email_sub"]))     $email_sub     = $_POST["email_sub"];
+      if (!empty($_POST["name"]))          $name          = $_POST["name"];
+      if (!empty($_POST["name_kana"]))     $name_kana     = $_POST["name_kana"];
+      if (!empty($_POST["name_ryaku"]))    $name_ryaku    = $_POST["name_ryaku"];
+      if (!empty($_POST["birthday"]))      $birthday      = $_POST["birthday"];
+      if (!empty($_POST["sex"]))           $sex           = $_POST["sex"];
+      if (!empty($_POST["depa"]))          $depa          = $_POST["depa"];
+      if (!empty($_POST["post"]))          $post          = $_POST["post"];
+      if (!empty($_POST["dialin"]))        $dialin        = $_POST["dialin"];
+      if (!empty($_POST["handy"]))         $handy         = $_POST["handy"];
+      if (!empty($_POST["startmonday"]))   $startmonday   = $_POST["startmonday"];
+      if (!empty($_POST["from_h"]))        $from_h        = $_POST["from_h"];
+      if (!empty($_POST["from_m"]))        $from_m        = $_POST["from_m"];
+      if (!empty($_POST["to_h"]))          $to_h          = $_POST["to_h"];
+      if (!empty($_POST["to_m"]))          $to_m          = $_POST["to_m"];
+      if (!empty($_POST["master_id"]))     $master_id     = $_POST["master_id"];
+      if (!empty($_POST["viewsign"]))      $viewsign      = $_POST["viewsign"];
+      if (!empty($_POST["eventsign"]))     $eventsign     = $_POST["eventsign"];
+      if (!empty($_POST["mygroup"]))       $mygroup       = $_POST["mygroup"];
+      if (!empty($_POST["secretary_id"]))  $secretary_id  = $_POST["secretary_id"];
+      if (!empty($_POST["admin_sign"]))    $admin_sign    = $_POST["admin_sign"];
+
+      if (!empty($_POST["download_sign"])) $download_sign = $_POST["download_sign"];
+      if (!empty($_POST["workflow_sign"])) $workflow_sign = $_POST["workflow_sign"];
+      if (!empty($_POST["address_flag"]))  $address_flag  = $_POST["address_flag"];
+
+      #if (!empty($_POST["pop3type"]))      $pop3type       = $_POST["pop3type"];
+      #if (!empty($_POST["pop3server"]))    $pop3type       = $_POST["pop3server"];
+      #if (!empty($_POST["pop3id"]))        $pop3type       = $_POST["pop3id"];
+      #if (!empty($_POST["pop3passwd"]))    $pop3type       = $_POST["pop3passwd"];
+
+      if (!empty($seqno)) {
+        $utn = get_first("users","utn","seqno=$seqno","");
+      }
+      // 文字列整形
+      $id         = textsafe($id);
+      $passwd     = textsafe($passwd);
+      $passwd2    = textsafe($passwd2);
+      $email      = textsafe($email);
+      $email_sub  = textsafe($email_sub);
+      $name       = textsafe($name);
+      $name_kana  = textsafe($name_kana);
+      $name_ryaku = textsafe($name_ryaku);
+      $depa       = textsafe($depa);
+      $post       = textsafe($post);
+      $dialin     = textsafe($dialin);
+      $handy      = textsafe($handy);
+    } else {
+      // 変数処理
+      if (!empty($_REQUEST["p"]))     $p     = $_REQUEST["p"];
+      if (!empty($_REQUEST["seqno"])) $seqno = $_REQUEST["seqno"];
+      if (!empty($_REQUEST["id"]))    $id    = $_REQUEST["id"];
+
+      // SELECT条件の指定
+      if ((!empty($seqno) && is_numeric($seqno)) && !empty($id))  {
+        $sql = "SELECT * FROM users WHERE seqno=$seqno AND id='$id'";
+        $res = pg_query($conn, $sql);
+        $cnt = pg_num_rows($res);
+      } else {
+        $cnt = 0;
+      }
+      if ($cnt>0) {
+        $row = pg_fetch_array($res, 0);
+        $seqno            = $row["seqno"];
+        $id               = $row["id"];
+        $old_id           = $row["id"];
+        $passwd           = $row["passwd"];
+        $email            = $row["email"];
+        $email_sub        = $row["email_sub"];
+        $name             = $row["name"];
+        $name_kana        = $row["name_kana"];
+        $name_ryaku       = $row["name_ryaku"];
+        $birthday         = $row["birthday"];
+        $sex              = $row["sex"];
+        $depa             = $row["depa"];
+        $post             = $row["post"];
+        $dialin           = $row["dialin"];
+        $handy            = $row["handy"];
+        $createstamp      = $row["createstamp"];
+        $updatestamp      = $row["updatestamp"];
+        $startmonday      = $row["startmonday"];
+        $from_h           = $row["from_h"];
+        $from_m           = $row["from_m"];
+        $to_h             = $row["to_h"];
+        $to_m             = $row["to_m"];
+        $master_id        = $row["master_id"];
+        $viewsign         = $row["viewsign"];
+        $eventsign        = $row["eventsign"];
+        $mygroup          = $row["mygroup"];
+        $secretary_id     = $row["secretary_id"];
+        $righthandman_ids = $row["righthandman_ids"];
+        $admin_sign       = $row["admin_sign"];
+        $download_sign    = $row["download_sign"];
+        $workflow_sign    = $row["workflow_sign"];
+        $address_flag     = $row["address_flag"];
+        $utn              = $row["utn"];
+
+        #$pop3type         = $row["pop3type"];
+        #$pop3server       = $row["pop3server"];
+        #$pop3id           = $row["pop3id"];
+        #$pop3passwd       = $row["pop3passwd"];
+
+      } else {
+        $seqno            = "";
+        $id               = "";
+        $old_id           = "";
+        $passwd           = "";
+        $email            = "";
+        $email_sub        = "";
+        $name             = "";
+        $name_kana        = "";
+        $name_ryaku       = "";
+        $birthday         = "";
+        $sex              = "";
+        $depa             = "";
+        $post             = "";
+        $dialin           = "";
+        $handy            = "";
+        $startmonday      = "";
+        $from_h           = "-1";
+        $from_m           = "-1";
+        $to_h             = "-1";
+        $to_m             = "-1";
+        $master_id        = "";
+        $viewsign         = "t";
+        $eventsign        = "f";
+        $mygroup          = "";
+        $secretary_id     = "";
+        $righthandman_ids = "";
+        $admin_sign       = "f";
+        $download_sign    = "f";
+        $workflow_sign    = "f";
+        $address_flag     = "3";
+
+        #$pop3type         = "";
+        #$pop3server       = "";
+        #$pop3id           = "";
+        #$pop3passwd       = "";
+      }
+    }
+
+    if (sizeof($DMES)==0) {
+      // 通常表示
+      $pagetext = "";
+      $pagetext .= "<SCRIPT LANGUAGE=\"JavaScript\">\n";
+      $pagetext .= "<!--\n";
+      $pagetext .= "function delConfirm(seqno,id,p) {\n";
+      $pagetext .= "  if (confirm(\"この情報を削除しますか？\\n注:一度削除した情報は元に戻すことはできません\")) {\n";
+      $pagetext .= "    window.open('./delete.phtml?group=".$group."&seqno='+seqno+'&id='+id+'&p='+p+'','_self');\n";
+      $pagetext .= "  }\n";
+      $pagetext .= "}\n";
+      $pagetext .= "function selectfrom_h(t) {\n";
+      $pagetext .= "  if (t.from_h[0].selected) {\n";
+      $pagetext .= "    t.from_m[0].selected = true;\n";
+      $pagetext .= "  } else {\n";
+      $pagetext .= "    if (t.from_m[0].selected == true) t.from_m[1].selected = true;\n";
+      $pagetext .= "  }\n";
+      $pagetext .= "}\n";
+      $pagetext .= "function selectto_h(t) {\n";
+      $pagetext .= "  if (t.to_h[0].selected) {\n";
+      $pagetext .= "    t.to_m[0].selected = true;\n";
+      $pagetext .= "  } else {\n";
+      $pagetext .= "    if (t.to_m[0].selected == true) t.to_m[1].selected = true;\n";
+      $pagetext .= "  }\n";
+      $pagetext .= "}\n";
+      $pagetext .= "// -->\n";
+      $pagetext .= "</SCRIPT>\n";
+
+      // ユーザー選択用JavaScript
+      $pagetext .= "<SCRIPT LANGUAGE=\"JavaScript\">\n";
+      $pagetext .= "<!--\n";
+      $pagetext .= "//my = \"$login_id\";\n";
+      $pagetext .= "dat_groups = new Array();\n";
+
+      $sql_group = "SELECT id,name FROM groups ORDER BY seqno";
+      $res_group = pg_query($conn,$sql_group);
+      $cnt_group = pg_num_rows($res_group);
+
+      $pagetext .= "cnt_groups = ".$cnt_group."\n";
+
+      if ($cnt_group>0) {
+        for ($i=0;$i<$cnt_group;$i++) {
+          $row_group = pg_fetch_array($res_group,$i);
+#          $sql_entry = "SELECT user_id FROM users_entry WHERE group_id='".$row_group["id"]."' AND user_id<>'".$login_id."'";
+          $sql_entry = "SELECT user_id FROM users_entry WHERE group_id='".$row_group["id"]."' AND user_id<>'".$id."'";
+          $res_entry = pg_query($conn,$sql_entry);
+          $cnt_entry = pg_num_rows($res_entry);
+
+          if ($res_entry>0) {
+            $users_entry = "";
+            for ($j=0;$j<$cnt_entry;$j++) {
+              $row_entry = pg_fetch_array($res_entry,$j);
+              if ($users_entry != "") $users_entry .= ",";
+              $users_entry .= $row_entry["user_id"];
+            }
+          }
+          if ($users_entry!="") {
+            $pagetext .= "dat_groups[\"".$row_group["id"]."\"] = \"".$users_entry."\";\n";
+          }
+        }
+      }
+
+      $pagetext .= "dat_users = new Array();\n";
+
+      $all_users = "";
+
+      $sql_user = "SELECT id,name FROM users ORDER BY seqno";
+      $res_user = pg_query($conn,$sql_user);
+      $cnt_user = pg_num_rows($res_user);
+      $pagetext .= "cnt_users = ".$cnt_user."\n";
+      if ($cnt_user>0) {
+        for ($i=0;$i<$cnt_user;$i++) {
+          $row_user = pg_fetch_array($res_user,$i);
+          $pagetext .= "dat_users[\"".$row_user["id"]."\"] = \"".$row_user["name"]."\";\n";
+          if ($i!=0) $all_users .= ",";
+          $all_users .= $row_user["id"];
+        }
+      }
+
+      $pagetext .= "dat_groups[\"all\"] = \"".$all_users."\";\n";
+
+      $pagetext .= "function selectGroup(t) {\n";
+      $pagetext .= "  group_id = t.selgroups[t.selgroups.selectedIndex].value;\n";
+      $pagetext .= "  righthandman_ids = new Array();\n";
+      $pagetext .= "\n";
+      $pagetext .= "  t.users.length = 0;\n";
+      $pagetext .= "\n";
+      $pagetext .= "  if (group_id == '') {\n";
+      $pagetext .= "    righthandman_ids = dat_groups['all'].split(',');\n";
+      $pagetext .= "  } else {\n";
+      $pagetext .= "    if (dat_groups[group_id] != null) {\n";
+      $pagetext .= "      righthandman_ids = dat_groups[group_id].split(',');\n";
+      $pagetext .= "    }\n";
+      $pagetext .= "  }\n";
+      $pagetext .= "  if (righthandman_ids.length>0) {\n";
+      $pagetext .= "    c = 0;\n";
+      $pagetext .= "    for (i=0;i<righthandman_ids.length;i++) {\n";
+      $pagetext .= "//      if (righthandman_ids[i] != my) {\n";
+      $pagetext .= "        t.users.length = t.users.length + 1;\n";
+      $pagetext .= "        t.users.options[c].value = righthandman_ids[i];\n";
+      $pagetext .= "        t.users.options[c].text  = dat_users[righthandman_ids[i]];\n";
+      $pagetext .= "        c++;\n";
+      $pagetext .= "//      }\n";
+      $pagetext .= "    }\n";
+      $pagetext .= "  }\n";
+      $pagetext .= "}\n";
+      $pagetext .= "\n";
+      $pagetext .= "function clearAllUser(t) {\n";
+      $pagetext .= "  for (i=0;i<t.elements.length;i++) {\n";
+      $pagetext .= "    if (t.elements[i].name == \"righthandman_ids_to[]\") {\n";
+      $pagetext .= "      var p = i;\n";
+      $pagetext .= "      break;\n";
+      $pagetext .= "    }\n";
+      $pagetext .= "  }\n";
+      $pagetext .= "  var o = t.elements[p];\n";
+      $pagetext .= "  o.length = 0;\n";
+      $pagetext .= "  t.righthandman_id_to.value = '';\n";
+      $pagetext .= "}\n";
+      $pagetext .= "\n";
+      $pagetext .= "function selectAllUser(t) {\n";
+      $pagetext .= "  if (t.users.length>0) {\n";
+      $pagetext .= "    for (i=0;i<t.users.length;i++) {\n";
+      $pagetext .= "      t.users.options[i].selected = true;\n";
+      $pagetext .= "    }\n";
+      $pagetext .= "  }\n";
+      $pagetext .= "  t.allcheck.checked = false;\n";
+      $pagetext .= "}\n";
+      $pagetext .= "\n";
+      $pagetext .= "function addUser(t) {\n";
+      $pagetext .= "  for (i=0;i<t.elements.length;i++) {\n";
+      $pagetext .= "    if (t.elements[i].name == \"righthandman_ids_to[]\") {\n";
+      $pagetext .= "      var p = i;\n";
+      $pagetext .= "      break;\n";
+      $pagetext .= "    }\n";
+      $pagetext .= "  }\n";
+      $pagetext .= "  var o = t.elements[p];\n";
+      $pagetext .= "\n";
+      $pagetext .= "  s = t.righthandman_id_to.value;\n";
+      $pagetext .= "  if (t.users.length>0) {\n";
+      $pagetext .= "    for (i=0;i<t.users.length;i++) {\n";
+      $pagetext .= "      if (t.users.options[i].selected) {\n";
+      $pagetext .= "        t.users.options[i].selected = false;\n";
+      $pagetext .= "        var id = t.users.options[i].value;\n";
+      $pagetext .= "        var c = false;\n";
+      $pagetext .= "        for(j=0;j<o.length;j++) {\n";
+      $pagetext .= "          if (o.options[j].value == id) {\n";
+      $pagetext .= "            c = true;\n";
+      $pagetext .= "            break;\n";
+      $pagetext .= "          }\n";
+      $pagetext .= "        }\n";
+      $pagetext .= "        if (!c) {\n";
+      $pagetext .= "          if (o.length>0) s = s + ',';\n";
+      $pagetext .= "          o.length = o.length + 1;\n";
+      $pagetext .= "          o.options[o.length-1].value = id;\n";
+      $pagetext .= "          o.options[o.length-1].text = dat_users[id];\n";
+      $pagetext .= "          s = s + id;\n";
+      $pagetext .= "        }\n";
+      $pagetext .= "      }\n";
+      $pagetext .= "    }\n";
+      $pagetext .= "  }\n";
+      $pagetext .= "  t.righthandman_id_to.value = s;\n";
+      $pagetext .= "}\n";
+      $pagetext .= "\n";
+      $pagetext .= "function removeUser(t) {\n";
+      $pagetext .= "  for (i=0;i<t.elements.length;i++) {\n";
+      $pagetext .= "    if (t.elements[i].name == \"righthandman_ids_to[]\") {\n";
+      $pagetext .= "      var p = i;\n";
+      $pagetext .= "      break;\n";
+      $pagetext .= "    }\n";
+      $pagetext .= "  }\n";
+      $pagetext .= "  var o = t.elements[p];\n";
+      $pagetext .= "  var val = new Array();\n";
+      $pagetext .= "  var txt = new Array();\n";
+      $pagetext .= "  var c = 0;\n";
+      $pagetext .= "\n";
+      $pagetext .= "  if (o.length>0) {\n";
+      $pagetext .= "    for (i=0;i<o.length;i++) {\n";
+      $pagetext .= "      if (!o.options[i].selected) {\n";
+      $pagetext .= "        val[c] = o.options[i].value;\n";
+      $pagetext .= "        txt[c] = o.options[i].text;\n";
+      $pagetext .= "        c++;\n";
+      $pagetext .= "      }\n";
+      $pagetext .= "    }\n";
+      $pagetext .= "\n";
+      $pagetext .= "    o.length = 0;\n";
+      $pagetext .= "    s = '';\n";
+      $pagetext .= "    if (c>0) {\n";
+      $pagetext .= "      o.length = c;\n";
+      $pagetext .= "      for (i=0;i<c;i++) {\n";
+      $pagetext .= "        if (i>0) s = s + ',';\n";
+      $pagetext .= "        o.options[i].value = val[i];\n";
+      $pagetext .= "        o.options[i].text  = txt[i];\n";
+      $pagetext .= "        s = s + val[i];\n";
+      $pagetext .= "      }\n";
+      $pagetext .= "    }\n";
+      $pagetext .= "    t.righthandman_id_to.value = s;\n";
+      $pagetext .= "  }\n";
+      $pagetext .= "}\n";
+      $pagetext .= "//-->\n";
+      $pagetext .= "</SCRIPT>\n";
+
+      $pagetext .= "<BR><CENTER>\n";
+
+      $pagetext .= "<TABLE BGCOLOR=#999999 BORDER=0 CELLPADDING=3 CELLSPACING=1>\n";
+      $pagetext .= "<FORM ACTION=\"./update.phtml\" METHOD=POST>\n";
+      $pagetext .= "<INPUT TYPE=HIDDEN NAME=\"p\" VALUE=\"$p\">\n";
+      $pagetext .= "<INPUT TYPE=HIDDEN NAME=\"group\" VALUE=\"".$group."\">\n";
+      if (!empty($seqno)) {
+        $pagetext .= "<INPUT TYPE=HIDDEN NAME=\"seqno\" VALUE=\"$seqno\">\n";
+      }
+
+      // ID
+      $pagetext .= "<TR STYLE=\"LINE-HEIGHT:16pt\">\n";
+      $pagetext .= "<TH ALIGN=RIGHT NOWRAP COLSPAN=2 BGCOLOR=$td_back_left>ＩＤ</TH>\n";
+      $pagetext .= "<TD NOWRAP BGCOLOR=#FFFFEE>\n";
+      $pagetext .= "<INPUT TYPE=HIDDEN NAME=\"old_id\" VALUE=\"$old_id\">\n";
+      $pagetext .= "<INPUT TYPE=TEXT NAME=\"id\" SIZE=16 MAXLENGTH=20 VALUE=\"$id\" STYLE=\"ime-mode:disabled\"><BR>\n";
+      $pagetext .= "<FONT STYLE=\"FONT-SIZE:7pt;COLOR:#555555;LINE-HEIGHT:10pt\">半角英数字4〜20文字</FONT>\n";
+      $pagetext .= "</TD>\n";
+      $pagetext .= "</TR>\n";
+
+      // パスワード
+      $pagetext .= "<TR STYLE=\"LINE-HEIGHT:16pt\">\n";
+      $pagetext .= "<TH ALIGN=RIGHT NOWRAP COLSPAN=2 BGCOLOR=$td_back_left>パスワード</TH>\n";
+      $pagetext .= "<TD NOWRAP BGCOLOR=#FFFFEE>\n";
+      if (empty($seqno)) {
+        $pagetext .= "<INPUT TYPE=PASSWORD NAME=\"passwd\" SIZE=12 MAXLENGTH=20 VALUE=\"$passwd\" STYLE=\"ime-mode:disabled\"><BR>\n";
+        $pagetext .= "<INPUT TYPE=PASSWORD NAME=\"passwd2\" SIZE=12 MAXLENGTH=20 VALUE=\"$passwd\" STYLE=\"ime-mode:disabled\">\n";
+        $pagetext .= "&nbsp;<FONT STYLE=\"FONT-SIZE:7pt;COLOR:#555555;LINE-HEIGHT:10pt\">← 確認用・再入力</FONT><BR>\n";
+        $pagetext .= "<FONT STYLE=\"FONT-SIZE:7pt;COLOR:#555555;LINE-HEIGHT:10pt\">半角英数6〜12文字</FONT>\n";
+      } else {
+        $pagetext .= "&nbsp;<A HREF=\"./passwd/?seqno=$seqno&id=$id&p=$p\">パスワード変更</A>\n";
+      }
+      $pagetext .= "</TD>\n";
+      $pagetext .= "</TR>\n";
+
+      // 参加グループ設定
+      $pagetext .= "<TR STYLE=\"LINE-HEIGHT:16pt\">\n";
+      if (file_exists($basepath.$toppath."/i")) {
+				$rowspan=12;
+			} else {
+				$rowspan=11;
+			}
+      $pagetext .= "<TH ALIGN=CENTER WIDTH=20 ROWSPAN=$rowspan BGCOLOR=#9999CC>個<BR>人<BR>情<BR>報</TH>\n";
+      $pagetext .= "<TH ALIGN=RIGHT NOWRAP BGCOLOR=$td_back_left>参加グループ</TH>";
+      $pagetext .= "<TD NOWRAP BGCOLOR=#FFFFEE>";
+      $sql_g = "SELECT id,name FROM groups ORDER BY seqno";
+      $res_g = pg_query($conn,$sql_g);
+      $cnt_g = pg_num_rows($res_g);
+      if ($cnt_g>0) {
+        for ($g=0; $g<$cnt_g; $g++) {
+          $group = pg_fetch_array($res_g,$g);
+          $groups[] = array($group["id"],$group["name"]);
+        }
+        $pagetext .= "<TABLE BORDER=0 CELLSPACING=0>\n";
+        for ($y=0;$y<ceil($cnt_g/3);$y++) {
+          $pagetext .= "<TR>\n";
+          for ($x=$y*3;$x<$y*3+3;$x++) {
+            if (isset($groups[$x])) {
+              $pagetext .= "<TD NOWRAP>\n";
+              $pagetext .= "<INPUT TYPE=CHECKBOX NAME=\"groups[]\" VALUE=\"".$groups[$x][0]."\"";
+              // 参加確認
+              $sql_e = "SELECT * FROM users_entry WHERE user_id='".$row["id"]."' and group_id='".$groups[$x][0]."'";
+              $res_e = pg_query($conn,$sql_e);
+              $cnt_e = pg_num_rows($res_e);
+              if ($cnt_e>0) {
+                $pagetext .=" CHECKED";
+              }
+              $pagetext .= ">".$groups[$x][1]."\n";
+              $pagetext .= "</TD>\n";
+            }
+          }
+          $pagetext .= "</TR>\n";
+        }
+        $pagetext .= "</TABLE>\n";
+      }
+      $pagetext .= "</TD>\n";
+      $pagetext .= "</TR>\n";
+
+      // 部署
+      $pagetext .= "<TR STYLE=\"LINE-HEIGHT:16pt\">\n";
+      $pagetext .= "<TH ALIGN=RIGHT NOWRAP BGCOLOR=$td_back_left>部署</TH>\n";
+      $pagetext .= "<TD NOWRAP BGCOLOR=#FFFFEE><INPUT TYPE=TEXT NAME=\"depa\" SIZE=36 MAXLENGTH=100 VALUE=\"$depa\" STYLE=\"BACKGROUND-COLOR:#FFFFEE\"></TD>\n";
+      $pagetext .= "</TR>\n";
+
+      // 役職
+      $pagetext .= "<TR STYLE=\"LINE-HEIGHT:16pt\">\n";
+      $pagetext .= "<TH ALIGN=RIGHT NOWRAP BGCOLOR=$td_back_left>役職</TH>\n";
+      $pagetext .= "<TD NOWRAP BGCOLOR=#FFFFEE><INPUT TYPE=TEXT NAME=\"post\" SIZE=36 MAXLENGTH=100 VALUE=\"$post\" STYLE=\"BACKGROUND-COLOR:#FFFFEE\"></TD>\n";
+      $pagetext .= "</TR>\n";
+
+      // 名前（カナヨミ・漢字・略称）
+      $pagetext .= "<TR STYLE=\"LINE-HEIGHT:16pt\">\n";
+      $pagetext .= "<TH ALIGN=RIGHT NOWRAP BGCOLOR=$td_back_left>名前</TH>\n";
+      $pagetext .= "<TD NOWRAP BGCOLOR=#FFFFEE>\n";
+      $pagetext .= "<INPUT TYPE=TEXT NAME=\"name_kana\" SIZE=26 VALUE=\"$name_kana\">\n";
+      $pagetext .= " <FONT STYLE=\"FONT-SIZE:7pt;COLOR:#555555;LINE-HEIGHT:10pt\">カナヨミ</FONT><BR>\n";
+      $pagetext .= "<INPUT TYPE=TEXT NAME=\"name\" SIZE=26 VALUE=\"$name\">\n";
+      $pagetext .= " <FONT STYLE=\"FONT-SIZE:7pt;COLOR:#555555;LINE-HEIGHT:10pt\">漢字</FONT><BR>\n";
+      $pagetext .= "<INPUT TYPE=TEXT NAME=\"name_ryaku\" SIZE=26 VALUE=\"$name_ryaku\" STYLE=\"BACKGROUND-COLOR:#FFFFEE\">\n";
+      $pagetext .= " <FONT STYLE=\"FONT-SIZE:7pt;COLOR:#555555;LINE-HEIGHT:10pt\">略称</FONT>\n";
+      $pagetext .= "</TD>\n";
+      $pagetext .= "</TR>\n";
+
+      // 誕生日設定
+      $pagetext .= "<TR STYLE=\"LINE-HEIGHT:16pt\">\n";
+      $pagetext .= "<TH ALIGN=RIGHT NOWRAP BGCOLOR=$td_back_left>誕生日</TH>";
+      $pagetext .= "<TD NOWRAP BGCOLOR=#FFFFEE>";
+      if ($birthday <> ""){
+        $row[$c] = $birthday;
+      }
+      $birthday_Y = substr($row[$c],0,4);
+      $birthday_M = substr($row[$c],5,2);
+      $birthday_D = substr($row[$c],8,2);
+      $pagetext .= "<INPUT TYPE=HIDDEN NAME=\"birthday\" VALUE=\"".$row[$c]."\">\n"; // DUMMY
+      $pagetext .= "<SELECT NAME=\"birthday_Y\">\n";
+      if ($birthday_Y=="") {
+        $pagetext .= "<OPTION VALUE=\"\" SELECTED>----</OPTION>\n";
+      } else {
+        $pagetext .= "<OPTION VALUE=\"\">----</OPTION>\n";
+      }
+      for ($i=1900;$i<=2045;$i++) {  //※年の範囲はとりあえずなんで、変えて下さい。
+        if ($birthday_Y==$i) {
+          $pagetext .= "<OPTION VALUE=\"$i\" SELECTED>$i</OPTION>\n";
+        } else {
+          $pagetext .= "<OPTION VALUE=\"$i\">$i</OPTION>\n";
+        }
+      }
+      $pagetext .= "</SELECT>\n";
+      $pagetext .= "年";
+
+      $pagetext .= "<SELECT NAME=\"birthday_M\">\n";
+      if ($birthday_M=="") {
+        $pagetext .= "<OPTION VALUE=\"\" SELECTED>--</OPTION>\n";
+      } else {
+        $pagetext .= "<OPTION VALUE=\"\">--</OPTION>\n";
+      }
+      for ($i=1;$i<=12;$i++) {
+        if ($birthday_M==$i) {
+          $pagetext .= "<OPTION VALUE=\"$i\" SELECTED>$i</OPTION>\n";
+        } else {
+          $pagetext .= "<OPTION VALUE=\"$i\">$i</OPTION>\n";
+        }
+      }
+      $pagetext .= "</SELECT>\n";
+      $pagetext .= "月";
+
+      $pagetext .= "<SELECT NAME=\"birthday_D\">\n";
+      if ($birthday_D=="") {
+        $pagetext .= "<OPTION VALUE=\"\" SELECTED>--</OPTION>\n";
+      } else {
+        $pagetext .= "<OPTION VALUE=\"\">--</OPTION>\n";
+      }
+      for ($i=1;$i<=31;$i++) {
+        if ($birthday_D==$i) {
+          $pagetext .= "<OPTION VALUE=\"$i\" SELECTED>$i</OPTION>\n";
+        } else {
+          $pagetext .= "<OPTION VALUE=\"$i\">$i</OPTION>\n";
+        }
+      }
+      $pagetext .= "</SELECT>\n";
+      $pagetext .= "日";
+      $pagetext .= "</TD>\n";
+      $pagetext .= "</TR>\n";
+
+      // 性別設定
+      $pagetext .= "<TR STYLE=\"LINE-HEIGHT:16pt\">\n";
+      $pagetext .= "<TH ALIGN=RIGHT NOWRAP BGCOLOR=$td_back_left>性別</TH>\n";
+      $pagetext .= "<TD NOWRAP BGCOLOR=#FFFFEE>\n";
+      if ($sex == "man") {
+        $pagetext .= "<INPUT TYPE=RADIO NAME=\"sex\" VALUE=\"man\" CHECKED><FONT COLOR=#3333FF>男性</FONT>\n";
+        $pagetext .= "<INPUT TYPE=RADIO NAME=\"sex\" VALUE=\"woman\"><FONT COLOR=#FF3333>女性</FONT>\n";
+        $pagetext .= "<INPUT TYPE=RADIO NAME=\"sex\" VALUE=\"\">選択しない\n";
+      } elseif($sex == "woman") {
+        $pagetext .= "<INPUT TYPE=RADIO NAME=\"sex\" VALUE=\"man\"><FONT COLOR=#3333FF>男性</FONT>\n";
+        $pagetext .= "<INPUT TYPE=RADIO NAME=\"sex\" VALUE=\"woman\" CHECKED><FONT COLOR=#FF3333>女性</FONT>\n";
+        $pagetext .= "<INPUT TYPE=RADIO NAME=\"sex\" VALUE=\"\">選択しない\n";
+      } else {
+        $pagetext .= "<INPUT TYPE=RADIO NAME=\"sex\" VALUE=\"man\"><FONT COLOR=#3333FF>男性</FONT>\n";
+        $pagetext .= "<INPUT TYPE=RADIO NAME=\"sex\" VALUE=\"woman\"><FONT COLOR=#FF3333>女性</FONT>\n";
+        $pagetext .= "<INPUT TYPE=RADIO NAME=\"sex\" VALUE=\"\" CHECKED>選択しない\n";
+      }
+      $pagetext .= "</TD>\n";
+      $pagetext .= "</TR>\n";
+
+      // 携帯番号
+      $pagetext .= "<TR STYLE=\"LINE-HEIGHT:16pt\">\n";
+      $pagetext .= "<TH ALIGN=RIGHT NOWRAP BGCOLOR=$td_back_left>携帯番号</TH>";
+      $pagetext .= "<TD NOWRAP BGCOLOR=#FFFFEE><INPUT TYPE=TEXT NAME=\"handy\" SIZE=18 MAXLENGTH=24 VALUE=\"$handy\" STYLE=\"background-color:#FFFFEE;ime-mode:disabled\"></TD>\n";
+      $pagetext .= "</TR>\n";
+
+      // ダイヤルイン
+      $pagetext .= "<TR STYLE=\"LINE-HEIGHT:16pt\">\n";
+      $pagetext .= "<TH ALIGN=RIGHT NOWRAP BGCOLOR=$td_back_left>ダイヤルイン</TH>\n";
+      $pagetext .= "<TD NOWRAP BGCOLOR=#FFFFEE><INPUT TYPE=TEXT NAME=\"dialin\" SIZE=18 MAXLENGTH=24 VALUE=\"$dialin\" STYLE=\"background-color:#FFFFEE;ime-mode:disabled\"></TD>\n";
+      $pagetext .= "</TR>\n";
+
+      // メールアドレス
+      $pagetext .= "<TR STYLE=\"LINE-HEIGHT:16pt\">\n";
+      $pagetext .= "<TH ALIGN=RIGHT NOWRAP BGCOLOR=$td_back_left>メールアドレス</TH>\n";
+      $pagetext .= "<TD NOWRAP BGCOLOR=#FFFFEE><INPUT TYPE=TEXT NAME=\"email\" SIZE=40 VALUE=\"$email\" STYLE=\"ime-mode:disabled\"><BR>\n";
+      $pagetext .= "</TD>\n";
+      $pagetext .= "</TR>\n";
+
+      // 携帯メールアドレス
+      if (file_exists($basepath.$toppath."/i")) {
+        $pagetext .= "<TR STYLE=\"LINE-HEIGHT:16pt\">\n";
+        $pagetext .= "<TH ALIGN=RIGHT NOWRAP BGCOLOR=$td_back_left>携帯メールアドレス</TH>\n";
+        $pagetext .= "<TD NOWRAP BGCOLOR=#FFFFEE>\n";
+        $pagetext .= "<INPUT TYPE=TEXT NAME=\"email_sub\" SIZE=40 VALUE=\"$email_sub\" STYLE=\"BACKGROUND-COLOR:#FFFFEE;ime-mode:disabled\">\n";
+        if (!empty($seqno) && $utn != "") {
+          $pagetext .= " ⇒ <A HREF=\"./clear_utn?id=$id&seqno=$seqno\">携帯情報の消去</A>\n";
+        }
+        $pagetext .= "<BR>";
+        $pagetext .= "<FONT STYLE=\"FONT-SIZE:7pt;COLOR:#555555;LINE-HEIGHT:9pt\">";
+        $pagetext .= "&nbsp;携帯ﾒｰﾙｱﾄﾞﾚｽが登録されると各入力の際にﾒｰﾙを自動的に送信するようになります。<BR>";
+        $pagetext .= "</FONT>\n";
+        $pagetext .= "</TD>\n";
+        $pagetext .= "</TR>\n";
+      }
+
+      // サポーター機能設定
+      $pagetext .= "<TR STYLE=\"LINE-HEIGHT:16pt\">\n";
+      $pagetext .= "<TH ALIGN=RIGHT NOWRAP BGCOLOR=$td_back_left>サポーター登録</TH>";
+      $pagetext .= "<TD NOWRAP BGCOLOR=#FFFFEE>";
+      $pagetext .= "<SELECT NAME=\"secretary_id\">\n";
+      $pagetext .= "<OPTION VALUE=\"\">指定なし</OPTION>\n;";
+      $pagetext .= "<OPTION VALUE=\"\">----------------</OPTION>\n;";
+      $sql_user = "SELECT seqno,id,depa,post,name FROM users ORDER BY seqno,name_kana";
+      $res_user = pg_query($conn,$sql_user);
+      $cnt_user = pg_num_rows($res_user);
+      if ($cnt_user>0) {
+        for ($i=0;$i<$cnt_user;$i++) {
+          $row_user = pg_fetch_array($res_user,$i);
+          if ($id != $row_user["id"]) { //自身を除外
+            $pagetext .= "<OPTION VALUE=\"".$row_user["id"]."\"";
+            if ($secretary_id==$row_user["id"]) {
+              $pagetext .= " SELECTED";
+            }
+            $pagetext .= ">".$row_user["name"];
+            if ($row_user["depa"]!="" or $row_user["post"]) {
+              $pagetext .= "（".$row_user["depa"]."&nbsp;".$row_user["post"]."）";
+            }
+            $pagetext .= "</OPTION>\n";
+          }
+        }
+      }
+      $pagetext .= "</SELECT>";
+      $pagetext .= "<BR><FONT STYLE=\"FONT-SIZE:7pt;COLOR:#555555;LINE-HEIGHT:10pt\">";
+      $pagetext .= "&nbsp;指定した相手が秘書のように予定などを自由に登録・更新することができるようになります";
+      $pagetext .= "</TD></TR>\n";
+
+      // 右腕機能設定
+      $pagetext .= "<TR STYLE=\"LINE-HEIGHT:16pt\">\n";
+      $pagetext .= "<TH ALIGN=RIGHT NOWRAP BGCOLOR=$td_back_left>右腕メンバー登録</TH>";
+      $pagetext .= "<TD NOWRAP BGCOLOR=#FFFFEE>";
+
+      $pagetext .= "<TABLE BORDER=0 CELLPADDING=0 CELLSPACING=0>";
+
+      $pagetext .= "<TR><TD COLSPAN=4>&nbsp;</TD><TD>";
+      $pagetext .= "<SELECT NAME=\"selgroups\" ONCHANGE=\"selectGroup(this.form)\" STYLE=\"width:120px\">\n";
+      $pagetext .= "<OPTION VALUE=\"\" SELECTED>(全て)\n";
+
+      $sql_group = "SELECT id,name FROM groups ORDER BY seqno";
+      $res_group = pg_query($conn,$sql_group);
+      $cnt_group = pg_num_rows($res_group);
+      if ($cnt_group>0) {
+        for ($i=0;$i<$cnt_group;$i++) {
+          $row_group = pg_fetch_array($res_group,$i);
+          $res_entry = pg_query($conn,"SELECT user_id FROM users_entry WHERE group_id='".$row_group["id"]."' AND user_id<>'$login_id'");
+          if (pg_num_rows($res_entry)>0) {
+            $pagetext .= "<OPTION VALUE=\"".$row_group["id"]."\">".$row_group["name"];
+            $pagetext .= "\n";
+          }
+        }
+      }
+      $pagetext .= "</SELECT></TD></TR>\n";
+
+      $pagetext .= "<TR><TD>";
+      $pagetext .= "<SELECT NAME=\"righthandman_ids_to[]\" SIZE=8 STYLE=\"width:140px\">\n";
+      $righthandman_ids_to = split(",",$righthandman_ids);
+
+      if (sizeof($righthandman_ids_to)>0) {
+        for ($i=0;$i<sizeof($righthandman_ids_to);$i++) {
+          if ($righthandman_ids_to[$i]!="") {
+            $pagetext .= "<OPTION VALUE=\"".$righthandman_ids_to[$i]."\">";
+            $pagetext .= get_first("users","name","id='".$righthandman_ids_to[$i]."'","");
+            $pagetext .= "\n";
+          }
+        }
+      }
+      $pagetext .= "</SELECT><BR>";
+      $pagetext .= "<INPUT TYPE=BUTTON NAME=\"allclear\" VALUE=\"全て消去\" ONCLICK=\"clearAllUser(this.form)\">";
+      $pagetext .= "</TD>";
+      $pagetext .= "<TD>&nbsp</TD>";
+      $pagetext .= "<TD ALIGN=CENTER VALIGN=MIDDLE>";
+      $pagetext .= "<INPUT TYPE=BUTTON VALUE=\"&lt; 追加\" ONCLICK=\"addUser(this.form)\"><BR><BR>";
+      $pagetext .= "<INPUT TYPE=BUTTON VALUE=\"削除 &gt;\" ONCLICK=\"removeUser(this.form)\"><BR><BR><BR>";
+      $pagetext .= "</TD>";
+      $pagetext .= "<TD>&nbsp</TD>";
+      $pagetext .= "<TD VALIGN=TOP><SELECT NAME=\"users\" MULTIPLE SIZE=8 STYLE=\"width:140px\">\n";
+
+      $sql_user = "SELECT id,depa,post,name FROM users ORDER BY seqno";
+      $res_user = pg_query($conn,$sql_user);
+      $cnt_user = pg_num_rows($res_user);
+
+      if ($cnt_user>0) {
+        for ($i=0;$i<$cnt_user;$i++) {
+          $row_user = pg_fetch_array($res_user,$i);
+          if ($login_id != $row_user["id"]) { //自身を除外
+            $pagetext .= "<OPTION VALUE=\"".$row_user["id"]."\" ";
+            if ($sendtype=="P" && preg_match("/(^|,)".$row_user["id"]."(,|$)/",$senddata)){
+              $pagetext .= "selected";
+            }
+            $pagetext .= ">".$row_user["name"];
+            $pagetext .= "</OPTION>\n";
+          }
+        }
+      }
+      $pagetext .= "</SELECT><BR>";
+      $pagetext .= "<INPUT TYPE=BUTTON NAME=\"allcheck\" VALUE=\"全て選択\" ONCLICK=\"selectAllUser(this.form)\">";
+      $pagetext .= "<INPUT TYPE=HIDDEN NAME=\"righthandman_id_to\" VALUE=\"$righthandman_ids\">";
+      $pagetext .= "</TD></TR></TABLE>\n";
+
+      $pagetext .= "<FONT STYLE=\"FONT-SIZE:7pt;COLOR:#555555;LINE-HEIGHT:10pt\">";
+      $pagetext .= "&nbsp;指定した相手が非公開の予定を閲覧できるようになります";
+      $pagetext .= "</TD></TR>\n";
+
+      // 新規追加時刻設定
+      $pagetext .= "<TR STYLE=\"LINE-HEIGHT:16pt\">\n";
+      $pagetext .= "<TH ALIGN=CENTER WIDTH=20 ROWSPAN=3 BGCOLOR=#9999CC>表<BR>示</TH>\n";
+      $pagetext .= "<TH ALIGN=RIGHT NOWRAP BGCOLOR=$td_back_left>新規追加時刻設定</TH>\n";
+      $pagetext .= "<TD NOWRAP BGCOLOR=#FFFFEE>開始時刻\n";
+      $pagetext .= "<SELECT NAME=\"from_h\" ONCHANGE=\"selectfrom_h(this.form)\">\n";
+      $pagetext .= "<OPTION VALUE=\"-1\"";
+      if ($from_h==-1){ $pagetext .= " SELECTED"; }
+      $pagetext .= ">--</OPTION>\n";
+      for ($i=0;$i<=23;$i++){
+        $pagetext .= "<OPTION VALUE=\"$i\"";
+        if ($i == $from_h){ $pagetext .= " SELECTED"; }
+        $pagetext .= ">";
+        if (strlen($i)==1) $pagetext .= "0";
+        $pagetext .= $i."</OPTION>\n";
+      }
+      $pagetext .= "</SELECT>：\n";
+
+      $pagetext .= "<SELECT NAME=\"from_m\">\n";
+      $pagetext .= "<OPTION VALUE=\"-1\"";
+      if ($from_m == -1){ $pagetext .= " SELECTED"; }
+      $pagetext .= ">--</OPTION>\n";
+
+      for ($i=0;$i<60;$i=$i+15){
+        $pagetext .= "<OPTION VALUE=\"$i\"";
+        if ($i == $from_m){ $pagetext .= " SELECTED"; }
+        $pagetext .= ">";
+        if (strlen($i)==1) $pagetext .= "0";
+        $pagetext .= $i."</OPTION>\n";
+      }
+      $pagetext .= "</SELECT>&nbsp;〜&nbsp;終了時刻\n";
+      $pagetext .= "<SELECT NAME=\"to_h\" ONCHANGE=\"selectto_h(this.form)\">\n";
+      $pagetext .= "<OPTION VALUE=\"-1\"";
+      if ($to_h == -1){ $pagetext .= " SELECTED"; }
+      $pagetext .= ">--</OPTION>\n";
+
+      for ($i=0;$i<=23;$i++){
+        $pagetext .= "<OPTION VALUE=\"$i\"";
+        if ($i == $to_h){ $pagetext .= " SELECTED"; }
+        $pagetext .= ">";
+        if (strlen($i)==1) $pagetext .= "0";
+        $pagetext .= $i."</OPTION>\n";
+      }
+      $pagetext .= "</SELECT>：\n";
+      $pagetext .= "<SELECT NAME=\"to_m\">\n";
+      $pagetext .= "<OPTION VALUE=\"-1\"";
+      if ($to_m == -1){ $pagetext .= " SELECTED"; }
+      $pagetext .= ">--</OPTION>\n";
+
+      for ($i=0;$i<60;$i=$i+15){
+        $pagetext .= "<OPTION VALUE=\"$i\"";
+        if ($i == $to_m){ $pagetext .= " SELECTED"; }
+        $pagetext .= ">";
+        if (strlen($i)==1) $pagetext .= "0";
+        $pagetext .= $i."</OPTION>\n";
+      }
+      $pagetext .= "</SELECT><BR>\n";
+      $pagetext .= "<FONT STYLE=\"FONT-SIZE:7pt;COLOR:#555555;LINE-HEIGHT:10pt\">";
+      $pagetext .= "&nbsp;新規追加機能の時刻を設定しておく事が出来ます。&nbsp";
+      $pagetext .= "</FONT>\n";
+      $pagetext .= "</TD>\n";
+      $pagetext .= "</TR>\n";
+
+      // デフォルト表示
+      $pagetext .= "<TR STYLE=\"LINE-HEIGHT:16pt\">\n";
+      $pagetext .= "<TH ALIGN=RIGHT NOWRAP BGCOLOR=$td_back_left>デフォルト表示</TH>\n";
+      $pagetext .= "<TD NOWRAP BGCOLOR=#FFFFEE>\n";
+      if ($viewsign=="t" or $viewsign=="") {
+        $pagetext .= "<INPUT TYPE=RADIO NAME=\"viewsign\" VALUE=\"t\" CHECKED><FONT COLOR=#3333FF>表示</FONT>\n";
+        $pagetext .= "<INPUT TYPE=RADIO NAME=\"viewsign\" VALUE=\"f\"><FONT COLOR=#FF3333>非表示</FONT>\n";
+      } else {
+        $pagetext .= "<INPUT TYPE=RADIO NAME=\"viewsign\" VALUE=\"t\"><FONT COLOR=#3333FF>表示</FONT>\n";
+        $pagetext .= "<INPUT TYPE=RADIO NAME=\"viewsign\" VALUE=\"f\" CHECKED><FONT COLOR=#FF3333>非表示</FONT>\n";
+      }
+      $pagetext .= "</TD>\n";
+      $pagetext .= "</TR>\n";
+
+      // 予定表の開始曜日
+      $pagetext .= "<TR STYLE=\"LINE-HEIGHT:16pt\">\n";
+      $pagetext .= "<TH ALIGN=RIGHT NOWRAP BGCOLOR=$td_back_left>予定表の開始曜日</TH>\n";
+      $pagetext .= "<TD NOWRAP BGCOLOR=#FFFFEE>\n";
+      if ($startmonday=="t" or $startmonday=="") {
+        $pagetext .= "<INPUT TYPE=RADIO NAME=\"startmonday\" VALUE=\"t\" CHECKED>月曜日\n";
+        $pagetext .= "<INPUT TYPE=RADIO NAME=\"startmonday\" VALUE=\"f\"><FONT COLOR=#FF0000>日曜日</FONT>\n";
+      } else {
+        $pagetext .= "<INPUT TYPE=RADIO NAME=\"startmonday\" VALUE=\"t\">月曜日\n";
+        $pagetext .= "<INPUT TYPE=RADIO NAME=\"startmonday\" VALUE=\"f\" CHECKED><FONT COLOR=#FF0000>日曜日</FONT>\n";
+      }
+      $pagetext .= "</TD>\n";
+      $pagetext .= "</TR>\n";
+
+      // メールサーバー
+      $pagetext .= "<!--";
+      $pagetext .= "<TR STYLE=\"LINE-HEIGHT:16pt\">\n";
+      $pagetext .= "<TH ALIGN=CENTER WIDTH=20 BGCOLOR=#9999CC ROWSPAN=4>メ<BR>｜<BR>ル</TH>\n";
+      $pagetext .= "<TH ALIGN=RIGHT NOWRAP BGCOLOR=$td_back_left>サーバー</TH>\n";
+      $pagetext .= "<TD NOWRAP BGCOLOR=#FFFFEE><INPUT TYPE=TEXT NAME=\"pop3server\" SIZE=50 MAXLENGTH=100 VALUE=\"$pop3server\" STYLE=\"BACKGROUND-COLOR:#FFFFEE\"></TD>\n";
+      $pagetext .= "</TR>\n";
+
+      // メールプロトコル
+      $pagetext .= "<TR STYLE=\"LINE-HEIGHT:16pt\">\n";
+      $pagetext .= "<TH ALIGN=RIGHT NOWRAP BGCOLOR=$td_back_left>プロトコル</TH>\n";
+      $pagetext .= "<TD NOWRAP BGCOLOR=#FFFFEE>";
+      $pagetext .= "<SELECT NAME=\"pop3type\">";
+      $pagetext .= "<OPTION VALUE=\"POP3\"";
+      if (empty($pop3type) || $pop3type=="POP3");
+      $pagetext .= ">POP3";
+      $pagetext .= "<OPTION VALUE=\"APOP\"";
+      if ($pop3type=="APOP");
+      $pagetext .= ">APOP";
+      $pagetext .= "</SELECT>";
+      $pagetext .= "</TD>\n";
+      $pagetext .= "</TR>\n";
+
+      // メールID
+      $pagetext .= "<TR STYLE=\"LINE-HEIGHT:16pt\">\n";
+      $pagetext .= "<TH ALIGN=RIGHT NOWRAP BGCOLOR=$td_back_left>ユーザーID</TH>\n";
+      $pagetext .= "<TD NOWRAP BGCOLOR=#FFFFEE><INPUT TYPE=TEXT NAME=\"pop3id\" SIZE=36 MAXLENGTH=100 VALUE=\"$pop3id\" STYLE=\"BACKGROUND-COLOR:#FFFFEE\"></TD>\n";
+      $pagetext .= "</TR>\n";
+
+      // メールパスワード
+      $pagetext .= "<TR STYLE=\"LINE-HEIGHT:16pt\">\n";
+      $pagetext .= "<TH ALIGN=RIGHT NOWRAP BGCOLOR=$td_back_left>パスワード</TH>\n";
+      $pagetext .= "<TD NOWRAP BGCOLOR=#FFFFEE><INPUT TYPE=PASSWORD NAME=\"pop3passwd\" SIZE=36 MAXLENGTH=100 VALUE=\"$pop3passwd\" STYLE=\"BACKGROUND-COLOR:#FFFFEE\"></TD>\n";
+      $pagetext .= "</TR>\n";
+      $pagetext .= "-->";
+
+      // イベント登録権限
+      $pagetext .= "<TR>\n";
+
+			$rowspan = 2;
+			if (file_exists($basepath.$toppath."/folder")) $rowspan+=1;
+			if (file_exists($basepath.$toppath."/workflow")) $rowspan+=1;
+			if (file_exists($basepath.$toppath."/address")) $rowspan+=1;
+
+      $pagetext .= "<TH ALIGN=CENTER WIDTH=20 ROWSPAN=$rowspan BGCOLOR=#9999CC>権<BR>限</TH>\n";
+      $pagetext .= "<TH ALIGN=RIGHT NOWRAP BGCOLOR=$td_back_left>イベント登録権限</TH>\n";
+      $pagetext .= "<TD NOWRAP BGCOLOR=#FFFFEE>\n";
+      if ($eventsign=="t") {
+        $pagetext .= "<INPUT TYPE=RADIO NAME=\"eventsign\" VALUE=\"t\" CHECKED><FONT COLOR=#3333FF>可</FONT>\n";
+        $pagetext .= "<INPUT TYPE=RADIO NAME=\"eventsign\" VALUE=\"f\"><FONT COLOR=#FF3333>不可</FONT>\n";
+      } else {
+        $pagetext .= "<INPUT TYPE=RADIO NAME=\"eventsign\" VALUE=\"t\"><FONT COLOR=#3333FF>可</FONT>\n";
+        $pagetext .= "<INPUT TYPE=RADIO NAME=\"eventsign\" VALUE=\"f\" CHECKED><FONT COLOR=#FF3333>不可</FONT>\n";
+      }
+      $pagetext .= "<BR><FONT STYLE=\"FONT-SIZE:7pt;COLOR:#555555;line-height:10pt\">&nbsp;イベント予定をユーザーが登録できるかどうかを制御できます。</FONT>\n";
+      $pagetext .= "</TD></TR>\n";
+
+      // ダウンロード権限
+      if (file_exists($basepath.$toppath."/folder")) {
+	      $pagetext .= "<TR>\n";
+	      $pagetext .= "<TH ALIGN=RIGHT NOWRAP BGCOLOR=$td_back_left>ダウンロード権限</TH>\n";
+	      $pagetext .= "<TD NOWRAP BGCOLOR=#FFFFEE>\n";
+	      if ($download_sign=="t") {
+	        $pagetext .= "<INPUT TYPE=RADIO NAME=\"download_sign\" VALUE=\"t\" CHECKED><FONT COLOR=#3333FF>可</FONT>\n";
+	        $pagetext .= "<INPUT TYPE=RADIO NAME=\"download_sign\" VALUE=\"f\"><FONT COLOR=#FF3333>不可</FONT>\n";
+	      } else {
+	        $pagetext .= "<INPUT TYPE=RADIO NAME=\"download_sign\" VALUE=\"t\"><FONT COLOR=#3333FF>可</FONT>\n";
+	        $pagetext .= "<INPUT TYPE=RADIO NAME=\"download_sign\" VALUE=\"f\" CHECKED><FONT COLOR=#FF3333>不可</FONT>\n";
+	      }
+	      $pagetext .= "<BR><FONT STYLE=\"FONT-SIZE:7pt;COLOR:#555555;line-height:10pt\">&nbsp;「<A HREF=\"$toppath/folder\">Webフォルダ</A>」上でのユーザーがダウンロードできるかどうかを制御できます。</FONT>\n";
+	      $pagetext .= "</TD></TR>\n";
+			}
+
+      // ワークフロー制御権限
+      if (file_exists($basepath.$toppath."/workflow")) {
+	      $pagetext .= "<TR>\n";
+	      $pagetext .= "<TH ALIGN=RIGHT NOWRAP BGCOLOR=$td_back_left>ワークフロー権限</TH>\n";
+	      $pagetext .= "<TD NOWRAP BGCOLOR=#FFFFEE>\n";
+	      if ($workflow_sign=="t") {
+	        $pagetext .= "<INPUT TYPE=RADIO NAME=\"workflow_sign\" VALUE=\"t\" CHECKED><FONT COLOR=#3333FF>可</FONT>\n";
+	        $pagetext .= "<INPUT TYPE=RADIO NAME=\"workflow_sign\" VALUE=\"f\"><FONT COLOR=#FF3333>不可</FONT>\n";
+	      } else {
+	        $pagetext .= "<INPUT TYPE=RADIO NAME=\"workflow_sign\" VALUE=\"t\"><FONT COLOR=#3333FF>可</FONT>\n";
+	        $pagetext .= "<INPUT TYPE=RADIO NAME=\"workflow_sign\" VALUE=\"f\" CHECKED><FONT COLOR=#FF3333>不可</FONT>\n";
+	      }
+	      $pagetext .= "<BR><FONT STYLE=\"FONT-SIZE:7pt;COLOR:#555555;line-height:10pt\">&nbsp;「<A HREF=\"$toppath/workflow\">ワークフロー</A>」で利用する経路(フロー)をユーザーが登録/編集できるかどうかを制御できます。</FONT>\n";
+	      $pagetext .= "</TD></TR>\n";
+			}
+
+      // 住所録制御権限
+      if (file_exists($basepath.$toppath."/address")) {
+	      $pagetext .= "<TR>\n";
+	      $pagetext .= "<TH ALIGN=RIGHT NOWRAP BGCOLOR=$td_back_left>住所録権限</TH>\n";
+	      $pagetext .= "<TD NOWRAP BGCOLOR=#FFFFEE>\n";
+
+        $pagetext .= "<INPUT TYPE=RADIO NAME=\"address_flag\" VALUE=\"1\"";
+	      if ($address_flag=="1") { $pagetext .= "CHECKED"; }
+        $pagetext .= "><FONT COLOR=#3333FF>1.編集・閲覧可能</FONT>\n";
+        $pagetext .= "<INPUT TYPE=RADIO NAME=\"address_flag\" VALUE=\"2\"";
+	      if ($address_flag=="2") { $pagetext .= "CHECKED"; }
+        $pagetext .= "><FONT COLOR=#7733FF>2.閲覧のみ可能</FONT>\n";
+        $pagetext .= "<INPUT TYPE=RADIO NAME=\"address_flag\" VALUE=\"3\"";
+	      if (empty($address_flag) || $address_flag=="3") { $pagetext .= "CHECKED"; }
+        $pagetext .= "><FONT COLOR=#BB33FF>3.一覧のみ</FONT>\n";
+        $pagetext .= "<INPUT TYPE=RADIO NAME=\"address_flag\" VALUE=\"4\"";
+	      if ($address_flag=="4") { $pagetext .= "CHECKED"; }
+        $pagetext .= "><FONT COLOR=#FF33FF>4.利用不可</FONT>\n";
+
+	      $pagetext .= "<BR><FONT STYLE=\"FONT-SIZE:7pt;COLOR:#555555;line-height:10pt\">&nbsp;「<A HREF=\"$toppath/address\">住所録</A>」の利用レベルを設定制御できます。</FONT>\n";
+	      $pagetext .= "</TD></TR>\n";
+			}
+
+      // 管理者権限
+      $pagetext .= "<TR>\n";
+      $pagetext .= "<TH ALIGN=RIGHT NOWRAP BGCOLOR=$td_back_left>管理者権限</TH>\n";
+      $pagetext .= "<TD NOWRAP BGCOLOR=#FFFFEE>\n";
+      if ($admin_sign=="t") {
+        $pagetext .= "<INPUT TYPE=RADIO NAME=\"admin_sign\" VALUE=\"t\" CHECKED><FONT COLOR=#3333FF>あり</FONT>\n";
+        $pagetext .= "<INPUT TYPE=RADIO NAME=\"admin_sign\" VALUE=\"f\"><FONT COLOR=#FF3333>なし</FONT>\n";
+      } else {
+        $pagetext .= "<INPUT TYPE=RADIO NAME=\"admin_sign\" VALUE=\"t\"><FONT COLOR=#3333FF>あり</FONT>\n";
+        $pagetext .= "<INPUT TYPE=RADIO NAME=\"admin_sign\" VALUE=\"f\" CHECKED><FONT COLOR=#FF3333>なし</FONT>\n";
+      }
+      $pagetext .= "</TD></TR>\n";
+
+      $pagetext .= "</TABLE><BR>\n";
+
+      if (!empty($seqno)) {
+        $pagetext .= "<INPUT TYPE=SUBMIT VALUE=\"更新する\" STYLE=\"width:80px\">&nbsp;\n";
+        $pagetext .= "<INPUT TYPE=BUTTON VALUE=\"削除\" onclick=\"delConfirm('$seqno','$id','$p')\">\n";
+      } else {
+        $pagetext .= "<INPUT TYPE=SUBMIT VALUE=\"登録する\" STYLE=\"width:80px\">\n";
+      }
+      $pagetext .= "</FORM>\n";
+      $pagetext .= "</CENTER>\n";
+    } else {
+      // エラー時
+      $pagetext .= "<CENTER><BR>";
+      $pagetext .= "<FORM>\n";
+      $pagetext .= "<TABLE><TR><TD>\n";
+      $pagetext .= "<FONT COLOR=#FF0000>\n";
+      while (list($key,$val)=each($DMES)) {
+        $pagetext .= $val."<BR>\n";
+      }
+      $pagetext .= "</FONT>\n";
+      $pagetext .= "</TD></TR></TABLE><BR>\n";
+      $pagetext .= "<INPUT TYPE=BUTTON VALUE=\"戻る\" ONCLICK=\"history.back()\">\n";
+      $pagetext .= "</CENTER>\n";
+      $pagetext .= "</FORM>\n";
+    }
+    print "-->";
+  }
+
+  // 明細表示
+  include "../../detail.inc.php";
+
+  // フッタ表示
+  include "../../footer.inc.php";
+?>

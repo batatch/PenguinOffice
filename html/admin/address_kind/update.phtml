@@ -1,0 +1,132 @@
+<?php
+  include "../../config.inc.php";
+  include "../../lib.inc.php";
+
+  // リンク用テキストの設定
+  $linktext  = "<A HREF=\"../../\" ALT=\"トップページ\" CLASS=\"BAR\">トップページ</A> &gt; ";
+  $linktext .= "<A HREF=\"../\" ALT=\"管理者メニュー\" CLASS=\"BAR\">管理者メニュー</A> &gt; ";
+  $linktext .= "<FONT COLOR=#FFFF00>スケジュール項目設定</FONT> ";
+
+  // ヘッダ表示
+  include "../../header.inc.php";
+
+  // 機能別メニュー内容の取得
+  include "../menu.inc.php";
+
+  $pagetext = "";
+
+  if ($login && $admin_sign=="t") {
+    echo "<!--";
+
+    // 変数処理
+    if (!empty($_POST["p"]))     $p     = $_POST["p"];
+    if (!empty($_POST["seqno"])) $seqno = $_POST["seqno"];
+    if (!empty($_POST["key"]))   $key   = $_POST["key"];
+    if (!empty($_POST["value"])) $value = $_POST["value"];
+
+    // 事前整形
+    $value = textsafe($value);
+
+    // エラーチェック
+    if($value==""){
+      $DMES[] = "項目名が入力されていません";
+    }
+
+    // 重複チェック
+    if (sizeof($DMES)==0) {
+      $sql = "SELECT * FROM address_kind where value='".$value."'";
+      if (!empty($seqno)) {
+        $sql.= " AND seqno!=$seqno AND key!=$key";
+      }
+      $res = pg_query($conn,$sql);
+      $cnt = pg_num_rows($res);
+      if ($cnt>0) {
+        $DMES[] = "既に登録されています";
+      }
+    }
+
+    // 変更時処理
+    if (sizeof($DMES)==0 && !empty($seqno)) {
+      if (get_first("address_kind","key","seqno=$seqno AND key=$key",0)==0) {
+        $DMES[] = "項目の確認に失敗しました";
+      }
+    }
+  
+    if (sizeof($DMES)==0) {
+      if (!empty($seqno)) {
+        // 更新
+        $sql  = "UPDATE address_kind SET ";
+        $sql .= "seqno =".$seqno.",";
+        $sql .= "key ='".$key."',";
+        $sql .= "value ='".db_textsafe($value)."' ";
+        $sql .= " WHERE seqno=".$seqno." AND key='".$key."'";
+
+        // SQL実行
+        $res = pg_exec($conn, $sql);
+        if ($res==false) {
+          $DMES[] = "項目の更新に失敗しました";
+        }
+      } else {
+        // 追加
+        $sql  = "INSERT INTO address_kind (seqno, key, value) VALUES (";
+        $sql .= (get_last("address_kind","seqno","",0)+1).",";
+        $sql .= (get_last("address_kind","key",  "",0)+1).",";
+        $sql .= "'".db_textsafe($value)."'";
+        $sql .= ")";
+
+        // SQL実行
+        $res = pg_query($conn, $sql);
+        if ($res == false) {
+          $DMES[] = "項目の追加に失敗しました";
+        }
+      }
+    }
+
+    // エラー処理
+    if (sizeof($DMES)>0) {
+      $pagetext .= "<BR><CENTER>";
+      $pagetext .= "<TABLE>";
+      $pagetext .= "<FORM ACTION=\"./edit.phtml\" METHOD=POST>\n";
+      $pagetext .= "<INPUT TYPE=HIDDEN NAME=\"back\" VALUE=\"t\">\n";
+      $pagetext .= "<INPUT TYPE=HIDDEN NAME=\"p\" VALUE=\"$p\">\n";
+      $pagetext .= "<INPUT TYPE=HIDDEN NAME=\"seqno\" VALUE=\"$seqno\">\n";
+      $pagetext .= "<INPUT TYPE=HIDDEN NAME=\"key\" VALUE=\"$key\">\n";
+      $pagetext .= "<INPUT TYPE=HIDDEN NAME=\"value\" VALUE=\"$value\">\n";
+
+      $pagetext .= "<TR><TD>";
+      $pagetext .= "<FONT COLOR=#FF0000>";
+      for ($i=0;$i<sizeof($DMES);$i++){
+        $pagetext .= $DMES[$i]."<BR>";
+      }
+      $pagetext .= "</TD></TR>";
+      $pagetext .= "</TABLE>";
+      $pagetext .= "<BR>";
+      $pagetext .= "<INPUT TYPE=SUBMIT VALUE=\"戻る\" STYLE=\"width:80px\">\n";
+      $pagetext .= "</FORM>";
+      $pagetext .= "</CENTER>\n";
+
+    } else {
+      // 正常終了時
+      $pagetext .= "
+<BR>
+<CENTER>
+更新完了<BR>
+<BR>
+<A HREF=\"#\" ONCLICK=\"location.replace('./?p=$p');location.href='./?p=$p';\">≪一覧へ戻る≫</A>
+</CENTER>
+<BR>
+  <SCRIPT LANGUAGE=\"JavaScript\">
+<!--
+setTimeout(\"location.replace('./?p=$p');location.href='./?p=$p';\", 3000);
+//-->
+</SCRIPT>
+";
+    }
+    echo "-->";
+  }
+
+  include "../../detail.inc.php";
+
+  // フッタ表示
+  include "../../footer.inc.php";
+?>

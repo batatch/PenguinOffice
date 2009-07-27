@@ -1,0 +1,204 @@
+<?php
+  include "../../config.inc.php";
+  include "../../lib.inc.php";
+  $rows = 9;
+  $p = $_REQUEST["p"];
+  if ($p=="") $p = 1;
+  //現在行(1〜rowcount)
+  if($rowpos<1) { $rowpos = 1; }
+
+  // リンク用テキストの設定
+  $linktext  = "<A HREF=\"../../\" ALT=\"トップページ\" CLASS=\"BAR\">トップページ</A> &gt; ";
+  $linktext .= "<A HREF=\"../\" ALT=\"管理者メニュー\" CLASS=\"BAR\">管理者メニュー</A> &gt; ";
+  $linktext .= "<FONT COLOR=#FFFF00>利用者ログ</FONT> ";
+
+  // ヘッダ表示
+  $notable = true;
+  include ("../../header.inc.php");
+
+  include ("../menu.inc.php");
+
+  if ($login && $admin_sign=="t") {
+    // 旧データの削除
+    $sql = "DELETE FROM tracking WHERE calltime+'".(24*$logday).":00'<now()";
+    pg_query($conn,$sql);
+
+    $sql = "SELECT calltime FROM tracking ORDER BY calltime";
+    $res = pg_query($conn,$sql);
+    $cnt = pg_num_rows($res);
+    if ($cnt>0) {
+      $row = pg_fetch_array($res,0);
+      $firstcalltime = $row["calltime"];
+    }
+
+    $pagetext .= "
+<script language=\"JavaScript\">
+<!--
+if (document.images) {
+  btn_prev_on = new Image();
+  btn_prev_on.src  = \"/images/btn_prev_on.gif\";
+  btn_prev_off = new Image();
+  btn_prev_off.src = \"/images/btn_prev.gif\";
+  btn_next_on = new Image();
+  btn_next_on.src  = \"/images/btn_next_on.gif\";
+  btn_next_off = new Image();
+  btn_next_off.src = \"/images/btn_next.gif\";
+}
+//-->
+</script>
+<CENTER>
+<TABLE CELLPADDING=0 CELLSPACING=1 WIDTH=85% BGCOLOR=#555555><TR><TD WIDTH=100%>
+<TABLE CELLPADDING=10 CELLSPACING=0 WIDTH=100% BGCOLOR=#FFFFFF><TR><TD WIDTH=100%>
+";
+
+    if (sizeof($MES)==0) {
+      if ($admin_sign != 't') {
+        $MES[] = "本機能は管理者のみ利用することができます。";
+      }
+    }
+
+    // エラー処理
+    if (sizeof($MES)>0){
+      $pagetext .= "<CENTER><font color=#FF0000><B>";
+      while (list($key,$val)=each($MES)) {
+        $pagetext .= $val."<BR>";
+      }
+      $pagetext .= "</TD></TR></TABLE>\n";
+      $pagetext .= "</TD></TR></TABLE>\n";
+    } else {
+      // 正常処理
+
+      // ログイン回数の集計
+      $max_login = 0;
+      $max_session = 0;
+
+      $sql = "SELECT COUNT(id) AS counts, Min(id) AS id FROM tracking WHERE (id<>'' AND not id is null) AND (uri='/?nl=t' OR uri='/index.phtml?nl=t' OR uri='/') GROUP BY id ORDER BY counts DESC";
+      $res = pg_query($conn,$sql);
+      $cnt = pg_num_rows($res);
+      if ($cnt>0) {
+        for ($i=0;$i<$cnt;$i++) {
+          $row = pg_fetch_array($res,$i);
+
+          $arr_login[$row["id"]] = $row["counts"];
+          if ($max_login<$row["counts"]) $max_login = $row["counts"];
+          // セッション数の集計
+          $sql_session = "SELECT COUNT(*) AS counts FROM tracking WHERE id='".$row["id"]."' AND (uri='/?nl=t' OR uri='/index.phtml?nl=t') GROUP BY serial";
+          $res_session = pg_query($conn,$sql_session);
+          $cnt_session = pg_num_rows($res_session);
+          $arr_session[$row["id"]] = $cnt_session;
+          if ($cnt_session>0) {
+            $row_session = pg_fetch_array($res_session,0);
+
+            $arr_session[$row["id"]] = $row_session["counts"];
+            if ($max_session<$row["counts"]) $max_session = $row_session["counts"];
+          }
+        }
+      }
+
+      if ($max_login>$max_session) { $max = $max_login; } else { $max = $max_session; }
+
+      if ($cnt<1) {
+        // 該当無し
+        $pagetext .= "<CENTER>ログはありません</CENTER>";
+      } else {
+        // 該当あり
+        $s_row = ($p-1) * $rows;
+        $e_row = $p * $rows - 1;
+        if ($e_row>$cnt-1) {$e_row = $cnt-1;}
+        if ($cnt-1>$e_row) {$nextpage = true;}
+        $allpages = floor(($cnt-1)/$rows)+1;
+
+        $pagetext .= "<DIV ALIGN=RIGHT>".date("Y/m/d H:i",datetime2timestamp($firstcalltime))."〜</DIV>\n";
+        $pagetext .= "<CENTER>";
+        $pagetext .= number_format($cnt)."人中 ".number_format($s_row+1)."〜".number_format($e_row+1)." 人目の表示中<BR>";
+        $pagetext .= "</CENTER>";
+
+        $pagetext .= "<BR>\n";
+
+        // ソート
+        arsort($arr_login);
+
+        $pagetext .= "<TABLE BORDER=0 CELLSPACING=0 CELLPADDING=2><TR HEIGHT=360><FORM>";
+        $i = 0;
+        $k = 0;
+        while (list($id,$count)=each($arr_login)) {
+          if ($i>=$s_row and $i<=$e_row) {
+            $count2 = $arr_session[$id];
+            $pagetext .= "<TD WIDTH=10% VALIGN=BOTTOM ALIGN=CENTER NOWRAP>\n";
+
+            $pagetext .= "<TABLE BORDER=0 CELLPADDING=0 CELLSPACING=0><TR><TD VALIGN=BOTTOM ALIGN=CENTER WIDTH=15>";
+            $pagetext .= "<FONT STYLE=\"font-size:8pt\">".$count."<BR><IMG SRC=\"../../image/logbar1.gif\" WIDTH=13 HEIGHT=".floor(($count/$max)*320)." ALT=\"".$count."ログイン\">";
+            $pagetext .= "</TD></TR></TABLE>\n";
+
+            $pagetext .= "<FONT STYLE=\"font-size:8pt\">".get_first("users","name_ryaku","id='$id'","???")."</FONT>";
+
+            $pagetext .= "</TD>\n";
+            $k++;
+          }
+          $i++;
+        }
+
+        for ($i=$k;$i<=10;$i++) {
+          $pagetext .= "<TD WIDTH=10% VALIGN=BOTTOM ALIGN=CENTER>&nbsp;</TD>\n";
+        }
+
+        $pagetext .= "</TR></TABLE>";
+        $pagetext .= "<FONT STYLE=\"line-height:16px\"><CENTER>";
+
+        if ($allpages>1) {
+          $r = 0;
+          $s_p = $p - 4;
+          $e_p = $p + 4;
+          if ($s_p<1) {
+            $r = 1-$s_p;
+            $s_p = $s_p + $r;
+            $e_p = $e_p + $r;
+          } elseif ($e_p>$allpages) {
+            $r = $e_p - $allpages;
+            $s_p = $s_p - $r;
+            $e_p = $e_p - $r;
+          }
+          if ($s_p < 1) $s_p = 1;
+          if ($e_p > $allpages) $e_p = $allpages;
+
+          if ($s_p != 1) {
+            $pagetext .= "<A HREF=\"./?p=".($s_p-1)."\">&lt;</A>&nbsp;";
+          }
+
+          for ($i=$s_p;$i<=$e_p;$i++){
+            if ($p!=$i) {
+              $pagetext .= "[<A HREF=\"./?p=".$i."\">".$i."</A>]";
+            } else {
+              $pagetext .= "[".$i."]";
+            }
+            $pagetext .= "&nbsp;";
+          }
+
+          if ($e_p != $allpages) {
+            $pagetext .= "<A HREF=\"./?p=".($e_p+1)."\">&gt;</A>";
+          }
+
+          $pagetext .= "<BR>";
+
+          if ($p>1) {
+            $pagetext .= "<INPUT TYPE=BUTTON ONCLICK=\"location.href='./?p=".($p-1)."'\" VALUE=\"前ページ\">";
+          }
+          $pagetext .= "&nbsp;";
+
+          if ($nextpage) {
+            $pagetext .= "<INPUT TYPE=BUTTON ONCLICK=\"location.href='./?p=".($p+1)."'\" VALUE=\"次ページ\">";
+          }
+          $pagetext .= "&nbsp;";
+        }
+      }
+
+      $pagetext .= "</CENTER>";
+      $pagetext .= "</TD></TR></TABLE>";
+      $pagetext .= "</TD></TR></TABLE>";
+    }
+  }
+
+  include ("../../detail.inc.php");
+
+  include ("../../footer.inc.php");
+?>

@@ -1,0 +1,119 @@
+<?
+  include "../../config.inc.php";
+  include "../../lib.inc.php";
+  include "../../language.inc.php";
+
+  $kwd = textsafe($kwd);
+
+  $linktext  = "<A HREF=\"../../\" CLASS=\"BAR\">トップページ</A> &gt; ";
+  $linktext .= "<A HREF=\"../\" CLASS=\"BAR\">リンク集</A> &gt; ";
+  $linktext .= "<FONT COLOR=#FFFF00>検索結果</FONT>";
+
+  include "../../header.inc.php";
+
+  include "../menu.inc.php";
+
+  // エラーチェック
+  if ($login) {
+    if ($v=="") {
+      $v = "thread";
+    }
+    if ($d=="") {
+      $d = "off";
+    }
+    $id = $f; // 分かりやすくする為、変数名(フォーラムID)の複写
+    $kwd = urldecode($kwd);
+
+    $pagetext .= "<BR>\n";
+
+    $pagetext .= "<TABLE BORDER=0 CELLPADDING=0 CELLSPACING=0 WIDTH=100%><TR><TD>\n";
+    $pagetext .= "<TABLE BORDER=0 CELLSPACING=0 CELLPADDING=3 WIDTH=".($tablewidth-189).">\n";
+    $pagetext .= "<TR BGCOLOR=#999999>\n";
+    $pagetext .= "<TH VALIGN=MIDDLE NOWRAP ALIGN=CENTER WIDTH=40><FONT COLOR=#FFFFFF>Icon</th>\n";
+    $pagetext .= "<TH VALIGN=MIDDLE NOWRAP ALIGN=LEFT WIDTH=".($tablewidth-189-40-60)."><FONT COLOR=#FFFFFF>&nbsp;ファイル名</TH>\n";
+    $pagetext .= "<TH VALIGN=MIDDLE NOWRAP ALIGN=CENTER WIDTH=60><font color=#FFFFFF>更新日</TH>\n";
+    $pagetext .= "</TR>\n";
+
+    // 文字調整
+    $kwds = $kwd;
+
+#  $kwds = mb_convert_kana($kwds, "aKV");
+
+    // 区切り処理
+    $kwds = str_replace(",", " ", $kwds);
+    $kwds = str_replace("、", " ", $kwds);
+    $kwds = trim($kwds);
+
+    // 通常処理
+    $kwds = mbereg_replace("'","’",$kwds);
+
+    if ($kwds != "") {
+      $searchkeys = split(" ",$kwds);
+      // 検索
+      $sql = "SELECT * FROM links WHERE type='link' ";
+      while (list($seq,$searchkey)=each($searchkeys)) {
+        $sql .= " and (url ~* '".$searchkey."' or title ~* '".$searchkey."' or pagetext ~* '".$searchkey."')";
+      }
+      $sql .= " ORDER BY modifystamp DESC,updatestamp DESC";
+      $res = pg_query($conn,$sql);
+      $cnt = pg_num_rows($res);
+    } else {
+      $cnt = 0;
+    }
+    if ($cnt<1) {
+      // 該当無し
+      $pagetext .= "<TR BGCOLOR=#FFFFFF>\n";
+      $pagetext .= "<TD BGCOLOR=#FFFFFF ALIGN=CENTER COLSPAN=3><BR>該当するリンクはありません<BR><BR></TD>\n";
+      $pagetext .= "</TR>\n";
+    } else {
+      // 該当あり
+      for ($i=0;$i<$cnt;$i++) {
+        $row = pg_fetch_array($res,$i);
+        $file_arr[] = array($row["icon"],$row["title"],$row["orig_title"],$row["url"],$row["comment"],$row["pagetext"],$row["createstamp"],$row["modifystamp"],$row["linksign"]);
+      }
+      $folderbase = $folderpath;
+      $colorflag = false;
+      while (list($key,$arr)=each($file_arr)) {
+        $icon        = $arr[0];
+        $title       = $arr[1];
+        $orig_title  = $arr[2];
+        $url         = $arr[3];
+        $comment     = $arr[4];
+#        $pagetext    = $arr[5];
+        $createstamp = $arr[6];
+        $modifystamp = $arr[7];
+        $linksign    = $arr[8];
+        $linkstr = $url;
+
+        if ($colorflag != true) {
+          $bgcolor = $bg_dark;
+          $colorflag = true;
+        } else {
+          $bgcolor = $bg_light;
+          $colorflag = false;
+        }
+        $pagetext .= "<TR BGCOLOR=$bgcolor>\n";
+        $pagetext .= "<TD VALIGN=MIDDLE ALIGN=CENTER width=40>";
+        $pagetext .= "<A HREF=\"$linkstr\" TARGET=\"_blank\"><IMG SRC=\"../../image/link.gif\" WIDTH=32 HEIGHT=32 BORDER=0></A>";
+        $pagetext .= "</TD>\n";
+        $pagetext .= "<TD ALIGN=LEFT>\n";
+        $pagetext .= "&nbsp;<A HREF=\"$linkstr\" target=\"_blank\">$title</A>";
+        $pagetext .= "<TD VALIGN=MIDDLE ALIGN=CENTER NOWRAP><font style=\"font-size=8pt\">";
+        if ($row["modifystamp"]!="") {
+          $pagetext .= date("y/m/d",datetime2timestamp($modifystamp));
+          $pagetext .= "<BR>";
+          $pagetext .= date("H:i:s",datetime2timestamp($modifystamp));
+        } else {
+          $pagetext .= "-";
+        }
+        $pagetext .= "</TD>\n";
+        $pagetext .= "</TR>\n";
+      }
+    }
+    $pagetext .= "</TABLE>\n";
+    $pagetext .= "</TD></TR></TABLE>\n";
+  }
+
+  include "../../detail.inc.php";
+  include "../../footer.inc.php";
+?>

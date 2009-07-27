@@ -1,0 +1,61 @@
+<?php
+  include("../../config.inc.php"); include("../../lib.inc.php");
+  include("../../login_check.inc.php");
+
+  $linktext  = "<A HREF=\"../../\" CLASS=\"BAR\">トップページ</A> &gt; ";
+  $linktext .= "<A HREF=\"../\" CLASS=\"BAR\">メンバー一覧</A> &gt; ";
+  $linktext .= "<A HREF=\"./\" CLASS=\"BAR\">プロフィール変更</A> &gt; ";
+  $linktext .= "<FONT COLOR=#FFFF00>マイグループ</FONT>";
+
+  if ($login && sizeof($MES)==0) {
+    // ユーザー確認
+    $sql = "select * from users where id='".$login_id."'";
+    $res = pg_query($conn,$sql);
+    if (pg_num_rows($res)==0) {
+      $DMES[] = "ユーザー情報の確認失敗しました";
+    }
+
+    // 共有先チェック
+    if ($mygroup_id_to==""){
+#      $DMES[] = "1名以上選択してください";
+    }
+
+    // 更新
+    if (sizeof($DMES)==0) {
+      $sql  = "UPDATE users SET ";
+      $sql .= "mygroup='".$mygroup_id_to."',";
+      if ($topsign=="t") {
+        $sql .= "mygrouptopsign='t',";
+      } else {
+        $sql .= "mygrouptopsign='f',";
+      }
+      $sql .= "updatestamp='now' ";
+      $sql .= "where id='".$login_id."'";
+
+      $res = pg_query($conn, $sql);
+      if ($res==false || pg_affected_rows($res)==0) {
+        $DMES[] = "マイグループの更新に失敗しました";
+      }
+    }
+  }
+
+  // 表示or戻り
+  if (sizeof($DMES)>0) {
+    // エラーメッセージ出力
+    include("../../header.inc.php");
+    include("../menu.inc.php");
+    $pagetext .= "<TABLE BORDER=0 WIDTH=100%><FORM><TR><TD ALIGN=CENTER><FONT COLOR=#FF0000>";
+    $pagetext .= "<BR>";
+    while (list($key,$val)=each($DMES)) {
+      $pagetext .= $val."<BR>\n";
+    }
+    $pagetext .= "<BR>";
+    $pagetext .= "<INPUT TYPE=BUTTON VALUE=\"戻る\" ONCLICK=\"history.back()\">";
+    $pagetext .= "</TD></TR></FORM></TABLE>\n";
+    include("../../detail.inc.php");
+    include("../../footer.inc.php");
+  } else {
+    // 正常時
+    header("Location: ./mygroup.phtml");
+  }
+?>

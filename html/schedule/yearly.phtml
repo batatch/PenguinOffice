@@ -1,0 +1,333 @@
+<?php
+	include "../config.inc.php";
+	include "../lib.inc.php";
+	include "../language.inc.php";
+
+	$headertext .= "Set-Cookie: sch_move=yearly; path=/;\n";
+	if (!empty($_GET["y"])) $headertext .= "Set-Cookie: sch_y=".$_GET["y"]."; path=/;\n";
+	if (!empty($_GET["m"])) $headertext .= "Set-Cookie: sch_m=".$_GET["m"]."; path=/;\n";
+	if (!empty($_GET["d"])) $headertext .= "Set-Cookie: sch_d=".$_GET["d"]."; path=/;\n";
+	if (empty($_GET["y"])) $y = $_COOKIE["sch_y"];
+	if (empty($_GET["m"])) $m = $_COOKIE["sch_m"];
+	if (empty($_GET["d"])) $d = $_COOKIE["sch_d"];
+
+	$linktext  = "<A HREF=\"../\" CLASS=\"BAR\">トップページ</A> &gt; ";
+	$linktext .= "<FONT COLOR=#FFFF00>予定表:年表示</FONT>";
+
+	$cy = $y; //退避
+	include "../header.inc.php";
+	$y = $cy; //復元
+
+	if ($login && sizeof($MES)==0) {
+		## 年変数処理
+		$y = textsafe($_GET["y"]);
+		if (empty($y) || $y==0 || !is_numeric($y) || trim($y)=="" || $y<1970 || $y>2038) {
+			$tempdate = getdate();
+			$y = $tempdate["year"];
+		}
+		// 表示開始日の調整
+		$tempstamp = mktime(0, 0, 0, $m, 1, $y);
+		$tempdate = getdate($tempstamp);
+		$w = $tempdate["wday"];
+		# 表示を月曜日初めか日曜日初めか、判断
+		$sql_start_mon = "SELECT * FROM users where id='".$login_id."'";
+		$res_start_mon = pg_query($conn,$sql_start_mon);
+		if ($res_start_mon == "false"){
+			$start_mon = "f";
+		} else {
+			$start_mon = pg_fetch_array($res_start_mon,0);
+			$start_mon = $start_mon["startmonday"];
+			if ($start_mon == ""){  // 情報が無い場合は、日曜日先頭
+				$start_mon = "f";
+			}
+		}
+		if ($start_mon == "f"){
+			$stamp_s = $tempstamp - 86400 * $w;
+		} else {
+			$stamp_s = $tempstamp - 86400 * ($w-1);
+		}
+		$date_s = getdate($stamp_s);
+		$year_s = $date_s["year"];
+		$mon_s = $date_s["mon"];
+		$day_s = $date_s["mday"];
+
+		$stamp_e = $stamp_s + 86400 * 6;
+		$date_e = getdate($stamp_e);
+		$year_e = $date_e["year"];
+		$mon_e = $date_e["mon"];
+		$day_e = $date_e["mday"];
+
+		if ($other == "") $other = $login_id;
+
+		print "<SCRIPT LANGUAGE=\"JavaScript\">\n";
+		print "<!--\n";
+		print "function reload(o){\n";
+		print "  var v = o.options[o.selectedIndex].value;\n";
+		print "  o.selectedIndex = 0;\n";
+		print "  if (v!=\"\" && v!=\"null\") {\n";
+		print "    location.href='./monthly.phtml?y=".$y."&m=".$m."&d=".$d."';\n";
+		print "  }\n";
+		print "}\n";
+		print "function selectyear(f){\n";
+		print "  var v = f.options[f.selectedIndex].value;\n";
+		print "  f.selectedIndex = 0;\n";
+		print "  if (v!=\"\" && v!=\"null\") {\n";
+		print "    location.href='./yearly.phtml?y='+v;\n";
+		print "  }\n";
+		print "}\n";
+		print "//-->\n";
+		print "</SCRIPT>\n";
+
+		## 開始日 終了日の算出
+		$today = getdate();
+		if ($y=="") {
+			$y = $today["year"];
+		}
+		$first = getdate(mktime(0, 0, 1, $m, 1, $y));
+		$next_y = $y+1;
+		$prev_y = $y-1;
+
+		print "<TABLE BORDER=0 CELLSPACING=0 CELLPADDING=0 WIDTH=100%><TR>\n";
+		print "<FORM>\n";
+		print "<TH ALIGN=RIGHT>\n";
+		print "<A HREF=\"./add/?y=$y&m=$m&d=1&ey=$y&em=$m&ed=1\"><IMG SRC=\"../image/entrysadd.gif\" WIDTH=10 HEIGHT=9 BORDER=0 ALT=\"予定の追加\">新しい予定</A>&nbsp;\n";
+		print "<A HREF=\"../event/add/?y=$y&m=$m&d=1&ey=$y&em=$m&ed=1\"><IMG SRC=\"../image/entrysadd2.gif\" WIDTH=10 HEIGHT=9 BORDER=0 ALT=\"イベントの追加\">新しいイベント</A>&nbsp;\n";
+		print "</TH>\n";
+		print "</FORM>\n";
+		print "</TR></TABLE>\n";
+
+		## 年月表示
+		print "<TABLE BORDER=0 CELLSPACING=0 CELLPADDING=2 WIDTH=100%><TR>";
+		print "<TD ALIGN=RIGHT VALIGN=MIDDLE WIDTH=45% NOWRAP>";
+		print "<A HREF=\"./yearly.phtml?y=$prev_y\"><IMG SRC=\"../image/right1.gif\" BORDER=0 ALT=\"前の年\"></A></TD>\n";
+
+		## メニュー（年単位）
+		print "<FORM>\n";
+		print "<TD NOWRAP WIDTH=80>\n";
+		print "<SELECT NAME=\"year\" onChange=\"selectyear(this)\">\n";
+		for ($i=$y-2;$i<=$y+2;$i++){
+			print "<OPTION VALUE=\"$i\"";
+			if ($i == $y){
+				print " SELECTED>【";
+			} else {
+				print ">　";
+			}
+			print $i."年";
+			if ($i == $y){ print "】"; }
+			print "</OPTION>\n";
+		}
+		print "</SELECT></TD></FORM>\n";
+
+		print "<TD VALIGN=MIDDLE NOWRAP><A HREF=\"./yearly.phtml?y=".$next_y."\"><IMG SRC=\"../image/left1.gif\" BORDER=0 ALT=\"次の年\"></A></TD>\n";
+
+		print "<TD ALIGN=RIGHT NOWRAP>";
+		print "<A HREF=\"./daily.phtml?y=".$today["year"]."&m=".$today["mon"]."&d=".$today["mday"]."\"><IMG SRC=\"./image/today.gif\" BORDER=0 ALT=\"今日\"></A>";
+		print "<A HREF=\"./?y=".$today["year"]."&m=".$today["mon"]."&d=".$today["mday"]."\"><IMG SRC=\"./image/toweek.gif\" BORDER=0 ALT=\"今週\"></A>";
+		print "<A HREF=\"./monthly.phtml?y=".$today["year"]."&m=".$today["mon"]."&d=".$today["mday"]."\"><IMG SRC=\"./image/tomonth.gif\" BORDER=0 ALT=\"今月\"></A>";
+		print "<A HREF=\"./yearly.phtml?y=".$today["year"]."&m=".$today["mon"]."&d=".$today["mday"]."\"><IMG SRC=\"./image/toyear.gif\" BORDER=0 ALT=\"今年\"></A>";
+		print "</TD>\n";
+		print "</TR></TABLE>\n";
+
+		print "<TABLE BORDER=0 CELLSPACING=5 CELLPADDING=0 WIDTH=100%>\n";
+		for ($m=1;$m<=12;$m++) {
+			if ($m==1 or $m==5 or $m==9) {
+				print "<TR>";
+			}
+			print "<TD ALIGN=CENTER VALIGN=TOP BGCOLOR=#FFFFFF>";
+
+			## 月表示
+			print "<TABLE BORDER=0 WIDTH=100% CELLPADDING=0 CELLSPACING=0 BGCOLOR=$bodyBackColor><TR><TD ALIGN=CENTER>";
+			print "<TT><A HREF=\"./monthly.phtml?y=".$y."&m=".$m."\">".$m."月</A></TT>";
+			print "</TD></TR></TABLE>\n";
+
+			## 曜日表示
+			print "<TABLE BORDER=0 WIDTH=100% CELLPADDING=0 CELLSPACING=0 BGCOLOR=#FFFFFF>";
+			print "<TR BGCOLOR=$bg_dark STYLE=\"line-height:140%;vertical-align:middle\">\n";
+			print "<TD WIDTH=12%>&nbsp;</TD>\n";
+			if ($start_mon=="f"){  ## 月曜が先頭の場合
+				for ($col=0;$col<7;$col++) {
+					print "<TD ALIGN=CENTER NOWRAP WIDTH=11%>";
+					print "<FONT COLOR=\"".$wcolor_title[$col]."\">".$wname[$col]."</FONT>";
+					print "</TD>\n";
+				}
+			} else {
+				for ($col=1;$col<8;$col++) {
+					if ($col==7){ $col = 0; }
+					print "<TD ALIGN=CENTER NOWRAP WIDTH=11%>";
+					print "<FONT COLOR=\"".$wcolor_title[$col]."\">".$wname[$col]."</FONT>";
+					print "</TD>\n";
+					if ($col==0){ break; }
+				}
+			}
+			print "<TD WIDTH=11%>&nbsp;</TD>\n";
+			print "</TR>\n";
+
+			## カレンダー表示
+			$first = getdate(mktime(0, 0, 1, $m, 1, $y));
+			$next_y = $y;
+			$next_m = $m + 1;
+			if ($next_m>12) {
+				$next_y = $y + 1;
+				$next_m = 1;
+			}
+			$last = getdate(mktime(0, 0, 1, $next_m, 1, $next_y)-86400);
+			$draw = false;
+			$d = 0;
+			$drawin = false;
+			$row=0;
+			while (true) {
+				print "<TR STYLE=\"line-height:140%\">\n";
+				print "<TD>&nbsp;</TD>\n";
+					if ($start_mon == "f"){
+						$col=0;
+					} else {
+						$col=1; // 月曜日
+					}
+					while (true) {
+						$daytype = "";
+						## 前月まで
+						if (!$draw) {
+							if ($start_mon == "f"){
+								if ($first["wday"]==$col || $first["wday"] == 0) {
+									$drawin = true;
+									$draw = true;
+								}
+							} else {
+								if (($first["wday"]==$col || $first["wday"]==$col-7) || $first["wday"] == 1) {
+									$drawin = true;
+									$draw = true;
+								}
+							}
+#							if ($first["wday"]==$col || $first["wday"] == 0) {
+#								$drawin = true;
+#								$draw = true;
+#							}
+#							if ($start_mon=="t" && $first["wday"]==0 && $col==7){
+#								$drawin = true;
+#								$draw = true;
+#							}
+
+						}
+#						if ($first["wday"] == 0 && $draw_start <> "t" && $start_mon=="t"){
+#							$draw_start = "t";
+#							$d++; 
+#						}
+						## 当月まで
+						if ($draw) {
+							if ($d < $last["mday"]) {
+								$d++;
+								$checkdate = date("Y-m-d",mktime(0,0,0,$m,$d,$y));
+								## 祭日チェック
+								$sql_holiday = "select * from holiday where holiday='".$checkdate."'";
+								$res_holiday = pg_query($conn, $sql_holiday);
+								if (pg_num_rows($res_holiday)<1) {
+									$daytype = "normal";
+								} else {
+									$daytype = "holiday";
+									$row_holiday = pg_fetch_array($res_holiday,0);
+									$holiday = $row_holiday["name"];
+								}
+								pg_free_result($res_holiday);
+							}
+						}
+
+						## 表示データ作成
+						switch ($daytype) {
+							case "":
+								$backcolor = $wcolor_back[$col];
+								$forecolor = $wcolor[$col];
+								if (!$drawin) {
+									$daytext = "&nbsp;";
+								} else {
+									## 当月以降
+									$daytext = "&nbsp;";
+								}
+								break;
+							case "normal":
+								$backcolor = $wcolor_back[$col];
+								$forecolor = $wcolor[$col];
+								if ($restday[$col]!="t") {
+									$daytext = "";
+									if ($col=="7") { $daytext .= "<FONT STYLE=\"background-color:#FF9999\">"; }
+									if ($d<10) { $daytext .= "&nbsp;"; }
+									if ($col=="7") {
+										$daytext .=	$d."</FONT> ";
+									} else {
+										$daytext .= $d." ";
+									}
+								} else {
+									$daytext = "<FONT STYLE=\"background-color:#FF9999\">";
+									if ($d<10) { $daytext .= "&nbsp;"; }
+									$daytext .= $d."</FONT> ";
+								}
+								break;
+							case "holiday":
+								$backcolor = $wcolor_back[7];
+								$forecolor = $wcolor[7];
+								$daytext = "<FONT STYLE=\"background-color:#FF9999\">";
+								if ($d<10) { $daytext .= "&nbsp;"; }
+								$daytext .= $d."</FONT> ";
+								break;
+						}
+
+						if ($daytype != "") {
+							if ($y==$today["year"] and $m==$today["mon"] and $d==$today["mday"]) {
+								// 今日
+#								$daytext = eregi_replace("#","color:#FFFFFF;font-weight:bold",$daytext);
+								$backcolor = "#AAAAFF";
+							} else {
+								// 今日以外
+#								$daytext = eregi_replace("#","color:".$forecolor.";font-weight:bold",$daytext);
+							}
+						} else {
+							// 今日以外(別の月)
+#							$daytext = eregi_replace("#","color:#999999;font-weight:normal",$daytext);
+						}
+
+						if (($start_mon == "f" && $col==0) || ($start_mon == "t" && $col==1)) {
+							$d2 = $d;
+							if ($d2<1) { $d2 = 1; }
+						}
+
+						## 日付
+						print "<TD WIDTH=11% ALIGN=CENTER><DIV><TT><A HREF=\"./?y=$y&m=$m&d=$d2\">$daytext</A></TT></DIV></TD>\n";
+
+						## データチェック
+						$col++;
+						if ($start_mon == "f"){
+							if ($col>6) {
+								break;
+							}
+						} else {
+							if ($col>7) {
+								$col = 0;
+								$col_end = "t";
+							} else {
+								$col_end = "f";
+							}
+							if ($col_end == "t"){ break; }
+						}
+					}
+					print "<TD>&nbsp;</TD>\n";
+					print "</TR>\n";
+
+					$row++;
+					if ($d >= $last["mday"]) {
+						break;
+					}
+				}
+				print "</TABLE>";
+				print "</TD>";
+			if ($m==4 or $m==8 or $m==12) {
+				print "</TR>";
+			}
+		}
+		print "</TABLE>\n";
+		print "</TD></TR></TABLE><BR>\n";
+	}
+	// 後処理
+	pg_free_result($res);
+
+	// フッタ表示
+	include ("../footer.inc.php");
+?>

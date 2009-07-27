@@ -1,0 +1,208 @@
+<?
+  include "../../config.inc.php"; include "../../lib.inc.php";
+  $linktext  = "<A HREF=\"../../\" CLASS=\"BAR\">トップページ</A> &gt; ";
+  $linktext .= "<A HREF=\"../\" CLASS=\"BAR\">管理者メニュー</A> &gt; ";
+  $linktext .= "<FONT COLOR=#FFFF00>管理者設定:表示設定</FONT> ";
+  include "../../header.inc.php"; include "../menu.inc.php";
+
+  if (!$login) {
+    $MES[] = "先にログインしてください";
+  } elseif ($admin_sign!="t") {
+    $MES[] = "本機能は管理者のみご利用可能です";
+  } elseif ($login && $admin_sign=="t") {
+    if ($err!="t") {
+      $row = get_row("admin","*","");
+      $service_name = $row["service_name"];
+      $url          = $row["url"];
+#      $logoutsecond = $row["logoutsecond"];
+      $interval     = $row["interval"];
+      $sunday       = $row["sunday"];
+      $monday       = $row["monday"];
+      $tuesday      = $row["tuesday"];
+      $wednesday    = $row["wednesday"];
+      $thursday     = $row["thursday"];
+      $friday       = $row["friday"];
+      $saturday     = $row["saturday"];
+    } else {
+      $service_name = textsafe($_POST["service_name"]);
+      $url          = textsafe($_POST["url"]);
+#      $logoutsecond = textsafe($_POST["logoutsecond"]);
+      $interval     = textsafe($_POST["interval"]);
+      $sunday       = $_POST["sunday"];
+      $monday       = $_POST["monday"];
+      $tuesday      = $_POST["tuesday"];
+      $wednesday    = $_POST["wednesday"];
+      $thursday     = $_POST["thursday"];
+      $friday       = $_POST["friday"];
+      $saturday     = $_POST["saturday"];
+    }
+
+#    if (empty($logoutsecond) || $logoutsecond<300) $logoutsecond=300;
+#    if ($logoutsecond>216000) $logoutsecond = 216000;
+    if (empty($service_name)) $service_name = "ペンギンオフィス";
+    if (empty($interval)) $interval = 10;
+
+    $pagetext .= "
+<SCRIPT LANGUAGE=\"JavaScript\">
+<!--
+function updateconf() {
+  return confirm('基本表示を更新します\nよろしいですか？');
+}
+//-->
+</SCRIPT>
+
+<BR><DIV ALIGN=CENTER>
+
+<TABLE BORDER=0 CELLPADDING=0 CELLSPACING=0 WIDTH=500>
+<TR>
+<TD ALIGN=CENTER WIDTH=110 HEIGHT=25 background=\"../../image/tab.gif\"><A HREF=\"./\">管理者情報</A></TD>
+<TD ALIGN=CENTER WIDTH=10 HEIGHT=25>&nbsp;</TD>
+<TD ALIGN=CENTER WIDTH=110 HEIGHT=25 background=\"../../image/tabselect.gif\">表示設定</TD>
+<TD ALIGN=CENTER WIDTH=10 HEIGHT=25>&nbsp;</TD>
+<TD ALIGN=CENTER WIDTH=110 HEIGHT=25 background=\"../../image/tab.gif\"><A HREF=\"./system.phtml\">システム設定</A></TD>
+<TD WIDTH=140>&nbsp;</TD>
+</TR>
+</TABLE>
+
+<TABLE BORDER=0 CELLPADDING=10 CELLSPACING=0 WIDTH=500 BGCOLOR=#666666>
+<FORM ACTION=\"./display_update.phtml\" METHOD=POST onSubmit=\"return updateconf()\">
+<TR><TD ALIGN=CENTER BGCOLOR=#9999FF STYLE=\"border-left-width:2;border-left-color:#CCCCFF;border-left-style:solid;border-right-width:2;border-right-color:#666699;border-right-style:solid;border-bottom-width:2;border-bottom-color:#666699;border-bottom-style:solid\"><BR>
+設定を変更して更新ボタンを押してください。<BR><BR>
+<TABLE BORDER=0 CELLPADDING=3 CELLSPACING=1 BGCOLOR=#666666>
+";
+    $pagetext .= "<TR><TD NOWRAP ALIGN=RIGHT BGCOLOR=#DDDDFF>サービス名(タイトル)</FONT></TH>\n";
+    $pagetext .= "<TD NOWRAP ALIGN=left BGCOLOR=#FFFFFF>";
+    $pagetext .= "<INPUT TYPE=TEXT SIZE=48 NAME=\"service_name\" VALUE=\"$service_name\" STYLE=\"width:285px\">";
+    $pagetext .= "</TD></TR>\n";
+
+    $pagetext .= "<TR><TD NOWRAP ALIGN=RIGHT BGCOLOR=#DDDDFF>ホームページリンク</FONT></TH>\n";
+    $pagetext .= "<TD NOWRAP ALIGN=left BGCOLOR=#FFFFFF>";
+    $pagetext .= "<FONT COLOR=#555555 STYLE=\"font-size:8pt\">&nbsp;例：http://www.penguin.ne.jp/</FONT><BR>";
+    $pagetext .= "<INPUT MAXLENGTH=80 NAME=url SIZE=40 value=\"$url\" STYLE=\"background-color:#EEEEFF\"><BR>";
+    $pagetext .= "<FONT COLOR=#555555 STYLE=\"font-size:8pt\">&nbsp;※設定しておくとサービス名横のリンク画像から指定<BR>&nbsp;&nbsp;&nbsp;されたホームページへジャンプすることができます</FONT><BR>";
+    $pagetext .= "</TD></TR>\n";
+
+#    $pagetext .= "<TR><TD NOWRAP ALIGN=RIGHT BGCOLOR=#DDDDFF>タイムアウト時間</FONT></TH>\n";
+#    $pagetext .= "<TD NOWRAP ALIGN=left BGCOLOR=#FFFFFF>";
+#    $pagetext .= "<INPUT TYPE=RADIO NAME=\"logoutsecond\" VALUE=\"300\"";
+#    if ($logoutsecond<=300) $pagetext .= " CHECKED";
+#    $pagetext .= ">5分";
+#    $pagetext .= "<INPUT TYPE=RADIO NAME=\"logoutsecond\" VALUE=\"900\"";
+#    if ($logoutsecond>300 && $logoutsecond<=900) $pagetext .= " CHECKED";
+#    $pagetext .= ">15分";
+#    $pagetext .= "<INPUT TYPE=RADIO NAME=\"logoutsecond\" VALUE=\"1800\"";
+#    if ($logoutsecond>900 && $logoutsecond<=1800) $pagetext .= " CHECKED";
+#    $pagetext .= ">30分";
+#    $pagetext .= "<INPUT TYPE=RADIO NAME=\"logoutsecond\" VALUE=\"3600\"";
+#    if ($logoutsecond>1800 && $logoutsecond<=3600) $pagetext .= " CHECKED";
+#    $pagetext .= ">60分(1時間)";
+#    $pagetext .= "<BR>";
+#    $pagetext .= "<INPUT TYPE=RADIO NAME=\"logoutsecond\" VALUE=\"7200\"";
+#    if ($logoutsecond>3600 && $logoutsecond<=7200) $pagetext .= " CHECKED";
+#    $pagetext .= ">2時間";
+#    $pagetext .= "<INPUT TYPE=RADIO NAME=\"logoutsecond\" VALUE=\"10800\"";
+#    if ($logoutsecond>7200 && $logoutsecond<=10800) $pagetext .= " CHECKED";
+#    $pagetext .= ">3時間";
+#    $pagetext .= "<INPUT TYPE=RADIO NAME=\"logoutsecond\" VALUE=\"18000\"";
+#    if ($logoutsecond>10800 && $logoutsecond<=18000) $pagetext .= " CHECKED";
+#    $pagetext .= ">5時間";
+#    $pagetext .= "<INPUT TYPE=RADIO NAME=\"logoutsecond\" VALUE=\"28800\"";
+#    if ($logoutsecond>18000 && $logoutsecond<=28800) $pagetext .= " CHECKED";
+#    $pagetext .= ">8時間";
+#    $pagetext .= "<INPUT TYPE=RADIO NAME=\"logoutsecond\" VALUE=\"57600\"";
+#    if ($logoutsecond>28800 && $logoutsecond<=57600) $pagetext .= " CHECKED";
+#    $pagetext .= ">16時間";
+#    $pagetext .= "<BR>";
+#    $pagetext .= "<INPUT TYPE=RADIO NAME=\"logoutsecond\" VALUE=\"86400\"";
+#    if ($logoutsecond>57600 && $logoutsecond<=86400) $pagetext .= " CHECKED";
+#    $pagetext .= ">24時間(1日)";
+#    $pagetext .= "<INPUT TYPE=RADIO NAME=\"logoutsecond\" VALUE=\"259200\"";
+#    if ($logoutsecond>259200 && $logoutsecond<=259200) $pagetext .= " CHECKED";
+#    $pagetext .= ">3日間";
+#    $pagetext .= "<INPUT TYPE=RADIO NAME=\"logoutsecond\" VALUE=\"604800\"";
+#    if ($logoutsecond>259200 && $logoutsecond<=604800) $pagetext .= " CHECKED";
+#    $pagetext .= ">7日間";
+#    $pagetext .= "<BR>";
+#    $pagetext .= "<INPUT TYPE=RADIO NAME=\"logoutsecond\" VALUE=\"2592000\"";
+#    if ($logoutsecond>604800) $pagetext .= " CHECKED";
+#    $pagetext .= ">30日間(約1ヶ月)";
+#    $pagetext .= "</TD></TR>\n";
+
+    $pagetext .= "<TR><TD NOWRAP ALIGN=RIGHT BGCOLOR=#DDDDFF>時刻の表示間隔</FONT></TH>\n";
+    $pagetext .= "<TD NOWRAP ALIGN=left BGCOLOR=#FFFFFF>";
+    $pagetext .= "<INPUT TYPE=RADIO NAME=\"interval\" VALUE=\"1\"";
+    if ($interval<=1) $pagetext .= " CHECKED";
+    $pagetext .= ">1分";
+    $pagetext .= "<INPUT TYPE=RADIO NAME=\"interval\" VALUE=\"5\"";
+    if ($interval>1 && $interval<=5) $pagetext .= " CHECKED";
+    $pagetext .= ">5分";
+    $pagetext .= "<INPUT TYPE=RADIO NAME=\"interval\" VALUE=\"10\"";
+    if ($interval>5 && $interval<=10) $pagetext .= " CHECKED";
+    $pagetext .= ">10分";
+    $pagetext .= "<INPUT TYPE=RADIO NAME=\"interval\" VALUE=\"15\"";
+    if ($interval>10 && $interval<=15) $pagetext .= " CHECKED";
+    $pagetext .= ">15分";
+    $pagetext .= "<INPUT TYPE=RADIO NAME=\"interval\" VALUE=\"30\"";
+    if ($interval>15) $pagetext .= " CHECKED";
+    $pagetext .= ">30分";
+    $pagetext .= "</TD></TR>\n";
+
+    $pagetext .= "<TR><TD NOWRAP ALIGN=RIGHT BGCOLOR=#DDDDFF>休日設定</FONT></TH>\n";
+    $pagetext .= "<TD NOWRAP ALIGN=left BGCOLOR=#FFFFFF>";
+    $pagetext .= "<INPUT TYPE=CHECKBOX NAME=\"sunday\" VALUE=\"t\"";
+    if ($sunday=="t") $pagetext .= " CHECKED";
+    $pagetext .= "><FONT COLOR=#FF0000>日</FONT>";
+    $pagetext .= "<INPUT TYPE=CHECKBOX NAME=\"monday\" VALUE=\"t\"";
+    if ($monday=="t") $pagetext .= " CHECKED";
+    $pagetext .= ">月";
+    $pagetext .= "<INPUT TYPE=CHECKBOX NAME=\"tuesday\" VALUE=\"t\"";
+    if ($tuesday=="t") $pagetext .= " CHECKED";
+    $pagetext .= ">火";
+    $pagetext .= "<INPUT TYPE=CHECKBOX NAME=\"wednesday\" VALUE=\"t\"";
+    if ($wednesday=="t") $pagetext .= " CHECKED";
+    $pagetext .= ">水";
+    $pagetext .= "<INPUT TYPE=CHECKBOX NAME=\"thursday\" VALUE=\"t\"";
+    if ($thursday=="t") $pagetext .= " CHECKED";
+    $pagetext .= ">木";
+    $pagetext .= "<INPUT TYPE=CHECKBOX NAME=\"friday\" VALUE=\"t\"";
+    if ($friday=="t") $pagetext .= " CHECKED";
+    $pagetext .= ">金";
+    $pagetext .= "<INPUT TYPE=CHECKBOX NAME=\"saturday\" VALUE=\"t\"";
+    if ($saturday=="t") $pagetext .= " CHECKED";
+    $pagetext .= "><FONT COLOR=#0000FF>土</FONT>";
+
+    $pagetext .= "</TD></TR>\n";
+
+    $pagetext .= "
+</TABLE>
+<BR>
+<INPUT TYPE=SUBMIT VALUE=\"更新の実行\"><BR>
+<BR>
+</TD></TR></TABLE>
+<BR>
+
+
+</FORM>
+</DIV>
+
+</TD>
+</TR>
+</TABLE>
+
+<BR>
+";
+  } else {
+    $MES[] = "操作が正しくありません";
+  }
+
+  if (sizeof($MES)>0) {
+    $pagetext .= "<CENTER><BR><FONT COLOR=#FF0000>\n";
+    while(list($key,$val)=each($MES)) {
+      $pagetext .= $val."<BR>\n";
+    }
+    $pagetext .= "</FONT></CENTER>\n";
+  }
+
+  include ("../../detail.inc.php");
+  include ("../../footer.inc.php");
+?>

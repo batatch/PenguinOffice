@@ -1,0 +1,103 @@
+<?
+  include "../../config.inc.php"; include "../../lib.inc.php";
+  $linktext  = "<A HREF=\"../../\" CLASS=\"BAR\">トップページ</A> &gt; ";
+  $linktext .= "<A HREF=\"../\" CLASS=\"BAR\">管理者メニュー</A> &gt; ";
+  $linktext .= "<FONT COLOR=#FFFF00>管理者設定:システム設定</FONT> ";
+  include "../../header.inc.php"; include "../menu.inc.php";
+
+  if (!$login) {
+    $DMES[] = "先にログインしてください";
+  } elseif ($admin_sign!="t") {
+    $DMES[] = "本機能は管理者のみご利用可能です";
+  } elseif ($login && $admin_sign=="t") {
+    // 事前整形
+    $account = textsafe($_POST["account"]);
+    $ftpsize = textsafe($_POST["ftpsize"]);
+
+    // エラーチェック
+    if ($account=="") {
+      $DMES[] = "最大利用者数が入力されていません";
+    } elseif(!is_numeric($account)) {
+      $DMES[] = "最大利用者数は半角数字で入力してください";
+    } elseif($account<1 || $account>1000) {
+      $DMES[] = "最大利用者数は1名以上1000名以内で入力してください";
+    }
+		if (file_exists($basepath.$toppath."/folder")) {
+			if ($ftpsize=="") {
+				$DMES[] = "FTPサイズが入力されていません";
+			} elseif(!is_numeric($ftpsize)) {
+				$DMES[] = "FTPサイズは半角数字で入力してください";
+			} elseif($ftpsize<0 || $ftpsize>160000) {
+				$DMES[] = "FTPサイズは0M以上160000MB(160GB)以内で入力してください";
+			}
+		}
+		
+    if (sizeof($DMES)==0) {
+      if (get_count("admin","")==0) {
+        // 追加
+        $sql  = "INSERT INTO admin (";
+        $sql .= "account,";
+				if (file_exists($basepath.$toppath."/folder")) {
+    	    $sql .= "ftpsize,";
+				}
+        $sql .= "createstamp,updatestamp";
+        $sql .= ") VALUES (";
+        $sql .= $account.",";
+				if (file_exists($basepath.$toppath."/folder")) {
+					$sql .= $ftpsize.",";
+				}
+        $sql .= "'now','now')";
+      } else {
+				// 更新
+				$sql  = "UPDATE admin SET ";
+				$sql .= "account=".$account.",";
+				if (file_exists($basepath.$toppath."/folder")) {
+					$sql .= "ftpsize=".$ftpsize.",";
+				}
+				$sql .= "updatestamp  = 'now'";
+      }
+      // SQL実行
+      $res = pg_query($conn, $sql);
+      if ($res==false) {
+        $DMES[] = "表示情報の設定に失敗しました";
+      } elseif (pg_affected_rows($res)==0) {
+        $DMES[] = "表示情報の設定に失敗しました";
+      }
+    }
+  }
+
+  if (sizeof($DMES)>0) {
+    $pagetext .= "<CENTER><BR><FONT COLOR=#FF0000>\n";
+    while(list($key,$val)=each($DMES)) {
+      $pagetext .= $val."<BR>\n";
+    }
+    $pagetext .= "</FONT><BR>\n";
+    $pagetext .= "
+<FORM ACTION=\"./\" METHOD=POST>
+<INPUT TYPE=HIDDEN NAME=\"err\" VALUE=\"t\">
+<INPUT TYPE=HIDDEN NAME=\"ftpsize\" VALUE=\"".$ftpsize."\">
+<INPUT TYPE=HIDDEN NAME=\"account\" VALUE=\"".$account."\">
+<INPUT TYPE=SUBMIT VALUE=\"戻る\">
+</FORM>";
+
+    $pagetext .= "</CENTER>";
+  } else {
+    // 正常時
+    $returl = "./system.phtml";
+    $pagetext .= "
+<BR>
+<CENTER>
+設定完了<BR>
+<BR>
+<A HREF=\"#\" ONCLICK=\"location.replace('$returl');location.href='$returl';\">≪設定へ戻る≫</A>
+</CENTER>
+<BR>
+<SCRIPT LANGUAGE=\"JavaScript\">
+<!--//
+  setTimeout(\"location.replace('$returl');location.href='$returl/';\", 3000);
+//-->
+</SCRIPT>\n";
+  }
+  include ("../../detail.inc.php");
+  include ("../../footer.inc.php");
+?>

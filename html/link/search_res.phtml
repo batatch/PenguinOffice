@@ -1,0 +1,149 @@
+<?php
+  include "../config.inc.php";
+  include "../lib.inc.php";
+  include "../language.inc.php";
+
+  $linktext  = "<A HREF=\"../\" CLASS=\"BAR\">トップページ</A> &gt; ";
+  $linktext .= "<A HREF=\"./\" CLASS=\"BAR\">リンク集</A> &gt; ";
+  $linktext .= "<FONT COLOR=#FFFF00>リンク検索</FONT>";
+  include "../header.inc.php";
+  flush();
+
+  // 変数の前処理
+  $kwd = db_textsafe(textsafe($kwd));
+
+  // エラーチェック
+  if (!$login) {
+    $MES[] = "先に、ログインしてください ⇒ <A HREF=\"".$toppath."/\">ログインページへ</A>";
+  }
+  if (sizeof($MES)>0) {
+    // エラー時
+    print "<CENTER>";
+    print "<FONT COLOR=#FF0000>\n";
+    while (list($key,$val)=each($MES)) {
+      print $val."</BR>\n";
+    }
+    print "</FONT>\n";
+    print "</CENTER>";
+    include "../footer.inc.php";
+    exit;
+  } else {
+    if ($v=="") {
+      $v = "thread";
+    }
+    if ($d=="") {
+      $d = "off";
+    }
+    $id = $f; // 分かりやすくする為、変数名(フォーラムID)の複写
+    $kwd = urldecode($kwd);
+
+    print "<TABLE WIDTH=100% HEIGHT=445><TR><TD VALIGN=TOP ALIGN=CENTER>\n";
+    print "<FORM ACTION=\"./search_res.phtml\" METHOD=POST>\n";
+    print "<TABLE BORDER=0 WIDTH=320>\n";
+    print "<INPUT TYPE=HIDDEN NAME=\"f\" VALUE=\"$f\">\n";
+    print "<INPUT TYPE=HIDDEN NAME=\"v\" VALUE=\"$v\">\n";
+    print "<INPUT TYPE=HIDDEN NAME=\"d\" VALUE=\"off\">\n";
+    print "<TR><TD VALIGN=TOP>検索したいキーワードを入力して「検索」ボタンを押してください</TD></TR>\n";
+    print "<TR><TD VALIGN=TOP ALIGN=CENTER>\n";
+    print "<INPUT TYPE=TEXT NAME=\"kwd\" VALUE=\"$kwd\" SIZE=40 STYLE=\"width:300px\">\n";
+    print "</TD></TR></TABLE>\n";
+    print "<FONT COLOR=#555555 STYLE=\"font-size:8pt\">（複数指定はスペースで区切ってください）</FONT><BR>\n";
+    print "<INPUT TYPE=SUBMIT NAME=\"submit\" VALUE=\"再検索\" style=\"width:100px\">\n";
+    print "</FORM>\n";
+    print "<BR>\n";
+
+    print "<DIV ALIGN=CENTER><B>検索結果</B>\n";
+
+    print "<TABLE BORDER=0 CELLPADDING=4 CELLSPACING=1 BGCOLOR=#999999>\n";
+    print "<TR>\n";
+    print "<TH BGCOLOR=#CCCCCC WIDTH=40 ALIGN=CENTER>ICON</TH>\n";
+    print "<TH BGCOLOR=#CCCCCC ALIGN=CENTER>リンク先</TH>\n";
+    print "<TH BGCOLOR=#CCCCCC WIDTH=80 ALIGN=CENTER>最終更新日</TH>\n";
+    print "</TR>\n";
+
+    // 検索用キーワードへ調整
+    $kwds = $kwd;
+
+    // 文字調整
+#  $kwds = mb_convert_kana($kwds, "aKV");
+
+    // 区切り処理
+    $kwds = str_replace(",", " ", $kwds);
+    $kwds = str_replace("、", " ", $kwds);
+    $kwds = trim($kwds);
+
+    // 通常処理
+    $kwds = mbereg_replace("'","’",$kwds);
+
+    if ($kwds != "") {
+      $searchkeys = split(" ",$kwds);
+      // 検索
+      $sql = "SELECT * FROM links WHERE type='link' ";
+      while (list($seq,$searchkey)=each($searchkeys)) {
+        $sql .= " and (url ~* '".$searchkey."' or title ~* '".$searchkey."' or pagetext ~* '".$searchkey."')";
+      }
+      $sql .= " ORDER BY modifystamp DESC,updatestamp DESC";
+      $res = pg_query($conn,$sql);
+      $cnt = pg_num_rows($res);
+    } else {
+      $cnt = 0;
+    }
+    if ($cnt<1) {
+      // 該当無し
+      print "<TR BGCOLOR=#FFFFFF>\n";
+      print "<TD BGCOLOR=#FFFFFF ALIGN=CENTER COLSPAN=4><BR>該当するリンクはありません<BR><BR></TD>\n";
+      print "</TR>\n";
+    } else {
+      // 該当あり
+      for ($i=0;$i<$cnt;$i++) {
+        $row = pg_fetch_array($res,$i);
+        $file_arr[] = array($row["icon"],$row["title"],$row["orig_title"],$row["url"],$row["comment"],$row["pagetext"],$row["createstamp"],$row["modifystamp"],$row["linksign"]);
+      }
+      $folderbase = $folderpath;
+      $colorflag = false;
+      while (list($key,$arr)=each($file_arr)) {
+        $icon        = $arr[0];
+        $title       = $arr[1];
+        $orig_title  = $arr[2];
+        $url         = $arr[3];
+        $comment     = $arr[4];
+        $pagetext    = $arr[5];
+        $createstamp = $arr[6];
+        $modifystamp = $arr[7];
+        $linksign    = $arr[8];
+        $linkstr = $url;
+
+        if ($colorflag != true) {
+          $bgcolor = $bg_dark;
+          $colorflag = true;
+        } else {
+          $bgcolor = $bg_light;
+          $colorflag = false;
+        }
+        print "<TR BGCOLOR=$bgcolor>\n";
+        print "<TD ALIGN=CENTER>";
+        print "<A HREF=\"$linkstr\" TARGET=\"_blank\"><IMG SRC=\"../image/link.gif\" WIDTH=15 HEIGHT=16 BORDER=0></A>";
+        print "</TD>\n";
+        print "<TD ALIGN=LEFT>\n";
+        print "&nbsp;<A HREF=\"$linkstr\" target=\"_blank\">$title</A><BR>";
+        print "&nbsp;<FONT STYLE=\"font-size=8pt\" COLOR=#555555>$orig_title&nbsp;</TD>\n";
+        print "<TD ALIGN=CENTER>";
+        print "<FONT STYLE=\"font-size:8pt\">";
+        if ($modifystamp=="") {
+          print "&nbsp;-&nbsp;";
+        } else {
+          print date("y-m-d",datetime2timestamp($modifystamp));
+          print "<BR>";
+          print date("h:i:s",datetime2timestamp($modifystamp));
+        }
+        print "</TD>\n";
+        print "</TR>\n";
+      }
+    }
+    print "</TABLE>\n";
+    print "<BR>\n";
+    print "</TD></TR></TABLE>\n";
+  }
+
+  include "../footer.inc.php";
+?>

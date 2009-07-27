@@ -1,0 +1,121 @@
+<?php
+  include ("../../config.inc.php"); include ("../../lib.inc.php");
+
+  $linktext  = "<A HREF=\"../../\" CLASS=\"BAR\">トップページ</A> &gt; ";
+  $linktext .= "<A HREF=\"../\" CLASS=\"BAR\">ワークフロー</A> &gt; ";
+  $linktext .= "<A HREF=\"./?no=$no\" CLASS=\"BAR\">案件の表示</A> &gt; ";
+  $linktext .= "<FONT COLOR=#FFFF00>案件の承認/非承認</FONT> ";
+
+  include ("../../login_check.inc.php");
+
+  if ($login && sizeof($MES)==0) {
+	  $refno  = $_POST["no"];
+	  $result = $_POST["res"];
+
+	  $note   = textsafe($_POST["note"]);
+
+	  if ($_POST["ok"]!="") $result = "t";
+	  if ($_POST["ng"]!="") $result = "f";
+
+    // エラーチェック
+    if (trim($note)=="") {
+#      $DMES[] = "コメントが入力されていません";
+    } elseif(strlen($note)>160) {
+      $DMES[] = "コメントが長すぎます。全角80文字までで入力してください";
+      $note = mb_strcut($note,0,160);
+    }
+
+    // 案件データの確認
+    $sql = "SELECT * FROM workflow WHERE seqno=$refno";
+    $res = pg_query($conn,$sql);
+    if (pg_num_rows($res)==0) {
+      $DMES[] = "案件が正しくないか既に削除されています";
+    } else {
+      $row = pg_fetch_array($res,0);
+      $flow_ids = $row["flow_ids"];
+      $flow_ids_arr = split(",",$flow_ids);
+      $flow_ids_cnt = sizeof($flow_ids_arr);
+
+      if ($flow_ids_cnt==0) {
+        $DMES[] = "案件が正しくありません";
+      } else {
+        $seqno = 0;
+        for ($i=0;$i<$flow_ids_cnt;$i++) {
+          if (get_count("users","id='".$flow_ids_arr[$i]."'")==0) {
+            $DMES[] = "案件の決裁者に削除されたユーザーが含まれていました。この案件については決裁を行うことはできません";
+            break;
+          }
+          if ($flow_ids_arr[$i]==$login_id) {
+            $seqno = $i+1;
+          }
+        }
+        if ($seqno==0) {
+          $DMES[] = "決裁対象者に含まれていません";
+        }
+      }
+    }
+
+    // 案件結果データの整理
+    if (sizeof($DMES)==0) {
+      $sql = "DELETE FROM workflow_ret WHERE refno=$refno AND seqno>=$seqno";
+      $res = pg_query($conn,$sql);
+
+      // 登録
+      $sql  = "INSERT INTO workflow_ret (";
+      $sql .= "refno, seqno, user_id, note, result_sign, recognize_sign, createstamp ";
+      $sql .= ") VALUES (";
+      $sql .=      $refno    .",";
+      $sql .=      $seqno    .",";
+      $sql .= "'". $login_id ."',";
+      $sql .= "'". db_textsafe($note)."',";
+      $sql .= "'t',";
+      $sql .= "'$result',";
+      $sql .= "'now()'";
+      $sql .= ")";
+
+      $res = pg_query($conn, $sql);
+      if ($res == false || pg_affected_rows($res)<1) {
+        $DMES[] = "案件の登録処理に失敗しました";
+      } else {
+        // 否認の時 || 全て回答済み？
+        if ($result=="f" || $seqno == $flow_ids_cnt) {
+          $sql = "UPDATE workflow SET ";
+          $sql .= "result_sign='$result' ";
+          if ($result=="t") {
+            $resno = get_last("workflow","result_seqno","",0)+1;
+            $sql .= ",result_seqno=$resno ";
+          }
+          $sql .= "WHERE seqno=$refno";
+          $res = pg_query($conn, $sql);
+        }
+      }
+    }
+
+    if (sizeof($WMES)==0 && sizeof($DMES)>0) {
+      // 入力エラー時
+		  include("../../header.inc.php");
+
+      $pagetext .= "<BR><BR>";
+      $pagetext .= "<CENTER>";
+      $pagetext .= "<FONT COLOR=#FF0000>";
+      while (list($key,$val)=each($DMES)) {
+        $pagetext .= $val."<BR>";
+      }
+      $pagetext .= "<BR><FORM ACTION=\"./\" METHOD=POST>";
+      $pagetext .= "<INPUT TYPE=HIDDEN NAME=\"error\" VALUE=\"t\">";
+      $pagetext .= "<INPUT TYPE=HIDDEN NAME=\"no\" VALUE=\"$refno\">";
+      $pagetext .= "<INPUT TYPE=HIDDEN NAME=\"note\" VALUE=\"$note\">";
+      $pagetext .= "<INPUT TYPE=SUBMIT VALUE=\"戻る\">";
+      $pagetext .= "</FORM>";
+      $pagetext .= "</FONT>";
+      $pagetext .= "</CENTER>";
+
+		  include("../../detail.inc.php");
+		  include("../../footer.inc.php");
+    } else {
+      // 正常時
+			$returl = "../";
+			header("Location: ".$returl);
+    }
+  }
+?>

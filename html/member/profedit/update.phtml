@@ -1,0 +1,242 @@
+<?php
+  include("../../config.inc.php"); include("../../lib.inc.php");
+  include("../../login_check.inc.php");
+
+  $linktext  = "<A HREF=\"../../\" CLASS=\"BAR\">トップページ</A> &gt; ";
+  $linktext .= "<A HREF=\"../\" CLASS=\"BAR\">メンバー一覧</A> &gt; ";
+  $linktext .= "<FONT COLOR=#FFFF00>プロフィール変更</FONT>";
+
+  if ($login && sizeof($MES)==0) {
+    ## 変数処理
+    if (!empty($_POST["secretary_id"]))        $secretary_id        = $_POST["secretary_id"];
+    if (!empty($_POST["righthandman_id_to"]))  $righthandman_id_to  = $_POST["righthandman_id_to"];
+    if (!empty($_POST["righthandman_ids_to"])) $righthandman_ids_to = $_POST["righthandman_ids_to"];
+    if (!empty($_POST["email"]))               $email               = $_POST["email"];
+    if (!empty($_POST["name"])) { 
+#      $name  = mb_convert_kana($_POST["name"],"KV","EUC-JP");
+    }
+    if (!empty($_POST["name_kana"])) {
+      $name_kana = mb_convert_kana($_POST["name_kana"],"KV","EUC-JP");
+    }
+
+    $email      = textsafe($email);
+    $email_sub  = textsafe($email_sub);
+    $name       = textsafe($name);
+    $name_kana  = textsafe($name_kana);
+    $name_ryaku = textsafe($name_ryaku);
+    $depa       = textsafe($depa);
+    $post       = textsafe($post);
+    $dialin     = textsafe($dialin);
+    $handy      = textsafe($handy);
+    $note       = textsafe($note);
+
+    ## 配列整形
+    if ($righthandman_id_to!="") {
+      $righthandman_id_to_back = "";
+      $users_entry = split(",",$righthandman_id_to);
+      if (sizeof($users_entry)>0) {
+        for ($i=0;$i<sizeof($users_entry);$i++) {
+          if ($users_entry[$i]!="") {
+            $righthandman_id_find = false;
+            if ($i>0) {
+              for ($j=0;$j<$i;$j++) {
+                if ($users_entry[$i]==$users_entry[$j]) {
+                  $righthandman_id_find = true;
+                  break;
+                }
+              }
+            }
+            if (!$righthandman_id_find) {
+              if ($righthandman_id_to_back!="") $righthandman_id_to_back .= ",";
+              $righthandman_id_to_back .= $users_entry[$i];
+            }
+          }
+        }
+      }
+    }
+
+    ## メールアドレスチェック
+    $STR = trim($email);
+    $LEN = strlen($STR);
+
+    $err_c_email = false;
+    if ($LEN == 0) {
+      if ($network!="intranet") {
+        $DMES[] = "メールアドレスが入力されていません";
+        $err_c_email = true;
+      }
+    } else {
+      for ($i=0;$i<$LEN;$i++) {
+        $ASC = ord(substr($STR,$i,1));
+        if ( ( $ASC<ord("0") or $ASC>ord("9") ) and ($ASC<ord("a") or $ASC>ord("z") )
+         and ( $ASC<>ord("@") ) and ( $ASC<>ord(".") ) and ( $ASC<>ord("_") ) and ( $ASC<>ord("-") ) ) {
+          $DMES[] = "メールアドレスは英小文字、数字、@(アットマーク)、.(ドット)、_(アンダーバー)、-(ハイフン)で指定してください";
+          $err_c_email = true;
+          break;
+        }
+
+        if (!$err_c_email) {
+          $POS=strpos($STR,"@");
+          if (($POS == false) or ($POS == 0)) {
+            $DMES[] = "メールアドレスが正しくありません";
+            $err_c_email = true;
+          } else {
+            $NS=substr($STR,$POS+1);
+            if (checkdnsrr($NS,"ANY") == false) {
+              $DMES[] = "メールアドレスの宛先サーバーが見つかりません";
+              $err_c_email = true;
+            }
+          }
+        }
+      }
+    }
+
+    ## 携帯メールチェック
+    $STR = trim($email_sub);
+    $LEN = strlen($STR);
+
+    $err_c_email = false;
+    for ($i=0;$i<$LEN;$i++) {
+      $ASC = ord(substr($STR,$i,1));
+      if ( ( $ASC<ord("0") or $ASC>ord("9") ) and ($ASC<ord("a") or $ASC>ord("z") )
+       and ( $ASC<>ord("@") ) and ( $ASC<>ord(".") ) and ( $ASC<>ord("_") ) and ( $ASC<>ord("-") ) ) {
+        $DMES[] = "携帯メールアドレスは英小文字、数字、@(アットマーク)、.(ドット)、_(アンダーバー)、-(ハイフン)で指定してください";
+        $err_c_email = true;
+        break;
+      }
+
+      if (!$err_c_email) {
+        $POS=strpos($STR,"@");
+        if (($POS == false) or ($POS == 0)) {
+          $DMES[] = "携帯メールアドレスが正しくありません";
+          $err_c_email = true;
+        } else {
+          $NS=substr($STR,$POS+1);
+          if (checkdnsrr($NS,"ANY") == false) {
+            $DMES[] = "携帯メールアドレスの宛先サーバーが見つかりません";
+            $err_c_email = true;
+          }
+        }
+      }
+    }
+
+    if(trim($name)==""){
+      $DMES[] = "名前が入力されていません";
+    }
+    if(trim($name_kana)==""){
+      $DMES[] = "カナヨミが入力されていません";
+    }
+
+    ## 誕生日チェック
+    if ($birthday_Y == "" and $birthday_M == "" and $birthday_D == ""){
+      $birthday = "";
+    } else {  
+      if ($birthday_Y == "" or $birthday_M == "" or $birthday_D == ""){
+        $DMES[] = "生年月日が正しくありません";
+      } else {
+        $retstr = chk_date($birthday_Y,$birthday_M,$birthday_D,"生年月日の");
+        if ($retstr != "") {
+          $DMES[] = $retstr;
+        } else {
+          $birthday = $birthday_Y."-".$birthday_M."-".$birthday_D;
+        }
+        if (!checkdate($birthday_M,$birthday_D,$birthday_Y)){
+          $DMES[] = "生年月日が正しくありません";
+        }
+      }
+    }
+
+    ## 携帯番号チェック
+    $STR = $handy;
+    $LEN = strlen($STR);
+    if ($LEN == 0) {
+    } else {
+      for ($i=0;$i<$LEN;$i++) {
+        $ASC = ord(substr($STR,$i,1));
+        if (( $ASC<ord("0") or $ASC>ord("9") ) and ($ASC != ord("-")) ) {
+          $DMES[] = "携帯番号は数字とハイフン(-)で入力してください";
+          break;
+        }
+      }
+    }
+
+    if(trim($name_ryaku)==""){
+      $DMES[] = "略称(名前)が入力されていません";
+    }
+
+    // 更新
+    if (sizeof($DMES)==0) {
+      $sql  = "UPDATE users SET ";
+      $sql .= "email='".db_textsafe($email)."',";
+      $sql .= "email_sub='".db_textsafe($email_sub)."',";
+      $sql .= "name='".db_textsafe($name)."',";
+      $sql .= "name_kana='".db_textsafe($name_kana)."',";
+      $sql .= "name_ryaku='".db_textsafe($name_ryaku)."',";
+      if ($birthday!="") {
+        $sql .= "birthday='".$birthday."',";
+      } else {
+        $sql .= "birthday=NULL,";
+      }
+      $sql .= "sex='".$sex."',";
+      $sql .= "depa='".db_textsafe($depa)."',";
+      $sql .= "post='".db_textsafe($post)."',";
+      $sql .= "dialin='".db_textsafe($dialin)."',";
+      $sql .= "handy='".db_textsafe($handy)."',";
+      $sql .= "secretary_id ='$secretary_id',";
+      $sql .= "righthandman_ids ='$righthandman_id_to',";
+      $sql .= "note='".db_textsafe($note)."',";
+      $sql .= "updatestamp='now' ";
+      $sql .= "where id='".$login_id."'";
+
+      $res = pg_query($conn, $sql);
+
+      if ($res==false || pg_affected_rows($res)==0) {
+        $DMES[] = "個人情報の更新に失敗しました";
+      } else {
+        ## users_entryの以前の情報を削除
+        $sql_grp = "select groups.id from users_entry inner join groups on users_entry.group_id=groups.id where user_id='".$login_id."' and groups.viewsign='t'";
+        $res_grp = pg_query($conn,$sql_grp);
+        $cnt_grp = pg_num_rows($res_grp);
+        if ($cnt_grp>0) {
+          for ($i=0;$i<$cnt_grp;$i++) {
+            $row_grp = pg_fetch_array($res_grp,$i);
+            $sql_del = "DELETE FROM users_entry WHERE group_id='".$row_grp["id"]."' AND user_id='".$login_id."'";
+            pg_query($conn,$sql_del);
+          }
+        }
+
+        ## users_entry追加
+        if (sizeof($groups)>0) {
+          while (list($key,$val)=each($groups)){
+            $sql_ins  = "INSERT INTO users_entry (";
+            $sql_ins .= "user_id,group_id,createstamp,updatestamp";
+            $sql_ins .= ") VALUES (";
+            $sql_ins .= "'".$login_id."','".$val."','now','now'";
+            $sql_ins .= ")";
+            $res_ins = pg_query($conn,$sql_ins);
+          }
+        }
+      }
+    }
+  }
+
+  // 表示or戻り
+  if (sizeof($DMES)>0) {
+    // エラーメッセージ出力
+    include("../../header.inc.php");
+    include("../menu.inc.php");
+    $pagetext .= "<TABLE BORDER=0 WIDTH=100%><FORM><TR><TD ALIGN=CENTER><FONT COLOR=#FF0000>";
+    $pagetext .= "<BR>";
+    while (list($key,$val)=each($DMES)) {
+      $pagetext .= $val."<BR>\n";
+    }
+    $pagetext .= "<BR>";
+    $pagetext .= "<INPUT TYPE=BUTTON VALUE=\"戻る\" ONCLICK=\"history.back()\">";
+    $pagetext .= "</TD></TR></FORM></TABLE>\n";
+    include("../../detail.inc.php");
+    include("../../footer.inc.php");
+  } else {
+    // 正常時
+    header("Location: ./");
+  }
+?>

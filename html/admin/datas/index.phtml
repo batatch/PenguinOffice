@@ -1,0 +1,147 @@
+<?php
+  include "../../config.inc.php";
+  include "../../lib.inc.php";
+
+  $linktext  = "<A HREF=\"../../\" CLASS=\"BAR\">トップページ</A> &gt; ";
+  $linktext .= "<A HREF=\"../\" CLASS=\"BAR\">管理者メニュー</A> &gt; ";
+  $linktext .= "<FONT COLOR=#FFFF00>データ管理</FONT> ";
+
+  include "../../header.inc.php";
+  include "../menu.inc.php";
+
+  if (!$login) {
+    $MES[] = "先にログインしてください";
+  } elseif ($admin_sign!="t") {
+    $MES[] = "本機能は管理者のみご利用可能です";
+  } elseif ($login && $admin_sign=="t") {
+
+    $pagetext .= "
+<SCRIPT Language=\"JavaScript\">
+<!--
+function DelConf(u) {
+  if ((u!='')) {
+    if (confirm(\"データを削除してもよろしいですか？\\n注:一度削除されたデータを元に戻すことはできません\")) {
+      if (confirm(\"本当にいいですか？\")) {
+        if (confirm(\"本当？\")) {
+          window.open(u,\"_self\");
+        }
+      }
+    }
+  }
+}
+// -->
+</SCRIPT>
+";
+
+    $pagetext .= "
+<CENTER><TABLE BORDER=0><FORM>
+<TR><TH ALIGN=CENTER>データ一覧</TH></TR>
+<TR><TD BGCOLOR=#666666>
+<TABLE BORDER=0 CELLPADDING=3 CELLSPACING=0>";
+
+		$pagetext .= "<TR BGCOLOR=$bg_dark><TD>ユーザー データ</TD>
+<TD ALIGN=RIGHT>".number_format(get_count("users",""))."</TD>
+<TD ALIGN=CENTER>&nbsp;</TD>
+<TD ALIGN=CENTER><INPUT TYPE=BUTTON VALUE=\"CSV出力\" onclick=\"window.open('./csvout.phtml?tbl=users&seq=seqno','_self')\"></TD>
+</TR>";
+
+		$pagetext .= "<TR BGCOLOR=$bg_light><TD>グループ データ</TD>
+<TD ALIGN=RIGHT>".number_format(get_count("groups",""))."</TD>
+<TD ALIGN=CENTER>&nbsp;</TD>
+<TD ALIGN=CENTER><INPUT TYPE=BUTTON VALUE=\"CSV出力\" onclick=\"window.open('./csvout.phtml?tbl=groups&seq=seqno','_self')\"></TD>
+</TR>";
+
+		if (file_exists($basepath.$toppath."/event")) {
+			$pagetext .= "<TR BGCOLOR=$bg_dark><TD>イベント データ</TD>
+<TD ALIGN=RIGHT>".number_format(get_count("events",""))."</TD>
+<TD ALIGN=CENTER><INPUT TYPE=BUTTON VALUE=\"一括削除\" onclick=\"DelConf('./tbldelete.phtml?tbl=events')\"></TD>
+<TD ALIGN=CENTER><INPUT TYPE=BUTTON VALUE=\"CSV出力\" onclick=\"window.open('./csvout.phtml?tbl=events&seq=seqno','_self')\"></TD>
+</TR>";
+		}
+		if (file_exists($basepath.$toppath."/schedule")) {
+			$pagetext .= "<TR BGCOLOR=$bg_light><TD>スケジュール データ</TD>
+<TD ALIGN=RIGHT>".number_format(get_count("schedules",""))."</TD>
+<TD ALIGN=CENTER><INPUT TYPE=BUTTON VALUE=\"一括削除\" onclick=\"DelConf('./tbldelete.phtml?tbl=schedules')\"></TD>
+<TD ALIGN=CENTER><INPUT TYPE=BUTTON VALUE=\"CSV出力\" onclick=\"window.open('./csvout.phtml?tbl=schedules&seq=seqno','_self')\"></TD>
+</TR>";
+		}
+		
+		if (file_exists($basepath.$toppath."/room")) {
+			$pagetext .= "<TR BGCOLOR=$bg_dark><TD>施設予約 データ</TD>
+<TD ALIGN=RIGHT>".number_format(get_count("rooms_reserve",""))."</TD>
+  <TD ALIGN=CENTER><INPUT TYPE=BUTTON VALUE=\"一括削除\" onclick=\"DelConf('./tbldelete.phtml?tbl=rooms_reserve')\"></TD>
+  <TD ALIGN=CENTER><INPUT TYPE=BUTTON VALUE=\"CSV出力\" onclick=\"window.open('./csvout.phtml?tbl=rooms_reserve&seq=seqno','_self')\"></TD>
+</TR>";
+		}
+		
+		if (file_exists($basepath.$toppath."/room")) {
+			$pagetext .= "<TR BGCOLOR=$bg_light><TD>BBS投稿 データ</TD>
+<TD ALIGN=RIGHT>".number_format(get_count("boards_post",""))."</TD>
+<TD ALIGN=CENTER><INPUT TYPE=BUTTON VALUE=\"一括削除\" onclick=\"DelConf('./tbldelete.phtml?tbl=boards_post')\"></TD>
+<TD ALIGN=CENTER><INPUT TYPE=BUTTON VALUE=\"CSV出力\" onclick=\"window.open('./csvout.phtml?tbl=boards_post&seq=seqno','_self')\"></TD>
+</TR>";
+		}
+		
+		if (file_exists($basepath.$toppath."/mail")) {
+			$pagetext .= "<TR BGCOLOR=$bg_dark><TD>伝言メモ データ</TD>
+<TD ALIGN=RIGHT>".number_format(get_count("mail",""))."</TD>
+<TD ALIGN=CENTER><INPUT TYPE=BUTTON VALUE=\"一括削除\" onclick=\"DelConf('./tbldelete.phtml?tbl=mail')\"></TD>
+<TD ALIGN=CENTER><INPUT TYPE=BUTTON VALUE=\"CSV出力\" onclick=\"window.open('./csvout.phtml?tbl=mail&seq=seqno','_self')\"></TD>
+</TR>";
+		}
+		
+		if (file_exists($basepath.$toppath."/todo")) {
+			$pagetext .= "<TR BGCOLOR=$bg_light><TD>備忘録 データ</TD>
+<TD ALIGN=RIGHT>".number_format(get_count("todos",""))."</TD>
+<TD ALIGN=CENTER><INPUT TYPE=BUTTON VALUE=\"一括削除\" onclick=\"DelConf('./tbldelete.phtml?tbl=todos')\"></TD>
+<TD ALIGN=CENTER><INPUT TYPE=BUTTON VALUE=\"CSV出力\" onclick=\"window.open('./csvout.phtml?tbl=todos&seq=seqno','_self')\"></TD>
+</TR>";
+		}
+		
+		if (file_exists($basepath.$toppath."/circular")) {
+			$pagetext .= "<TR BGCOLOR=$bg_dark><TD>回覧板 データ</TD>
+<TD ALIGN=RIGHT>".number_format(get_count("circulas",""))."</TD>
+<TD ALIGN=CENTER><INPUT TYPE=BUTTON VALUE=\"一括削除\" onclick=\"DelConf('./tbldelete.phtml?tbl=circulas')\"></TD>
+<TD ALIGN=CENTER><INPUT TYPE=BUTTON VALUE=\"CSV出力\" onclick=\"window.open('./csvout.phtml?tbl=circulas&seq=seqno','_self')\"></TD>
+</TR>";
+		}
+		
+		if (file_exists($basepath.$toppath."/workflow")) {
+			$pagetext .= "<TR BGCOLOR=$bg_light><TD>ワークフロー データ</TD>
+<TD ALIGN=RIGHT>".number_format(get_count("workflow",""))."</TD>
+<TD ALIGN=CENTER><INPUT TYPE=BUTTON VALUE=\"一括削除\" onclick=\"DelConf('./tbldelete.phtml?tbl=workflow')\"></TD>
+<TD ALIGN=CENTER><INPUT TYPE=BUTTON VALUE=\"CSV出力\" onclick=\"window.open('./csvout.phtml?tbl=workflow&seq=seqno','_self')\"></TD>
+</TR>";
+		}
+		if (file_exists($basepath.$toppath."/folder")) {
+			$pagetext .= "<TR BGCOLOR=$bg_dark><TD>共用フォルダ データ(ファイル情報のみ)</TD>
+<TD ALIGN=RIGHT>".number_format(get_count("files",""))."</TD>
+<TD ALIGN=CENTER><INPUT TYPE=BUTTON VALUE=\"一括削除\" onclick=\"DelConf('./tbldelete.phtml?tbl=files')\"></TD>
+<TD ALIGN=CENTER><INPUT TYPE=BUTTON VALUE=\"CSV出力\" onclick=\"window.open('./csvout.phtml?tbl=files&seq=seqno','_self')\"></TD>
+</TR>";
+		}
+		
+		if (file_exists($basepath.$toppath."/address")) {
+			$pagetext .= "
+<TR BGCOLOR=$bg_light><TD>住所録 データ</TD>
+<TD ALIGN=RIGHT>".number_format(get_count("address",""))."</TD>
+<TD ALIGN=CENTER><INPUT TYPE=BUTTON VALUE=\"一括削除\" onclick=\"DelConf('./tbldelete.phtml?tbl=address')\"></TD>
+<TD ALIGN=CENTER><INPUT TYPE=BUTTON VALUE=\"CSV出力\" onclick=\"window.open('./csvout.phtml?tbl=address&seq=seqno','_self')\"></TD>
+</TR>";
+		}
+		
+		if (file_exists($basepath.$toppath."/link")) {
+			$pagetext .= "<TR BGCOLOR=$bg_dark><TD>リンク集 データ</TD>
+<TD ALIGN=RIGHT>".number_format(get_count("links",""))."</TD>
+<TD ALIGN=CENTER><INPUT TYPE=BUTTON VALUE=\"一括削除\" onclick=\"DelConf('./tbldelete.phtml?tbl=links')\"></TD>
+<TD ALIGN=CENTER><INPUT TYPE=BUTTON VALUE=\"CSV出力\" onclick=\"window.open('./csvout.phtml?tbl=links&seq=seqno','_self')\"></TD>
+</TR>";
+		}
+		
+		$pagetext .= "</TABLE>";
+		$pagetext .= "</TD></TR></FORM></TABLE>";
+		$pagetext .= "</CENTER>";
+  }
+  include ("../../detail.inc.php");
+  include ("../../footer.inc.php");
+?>

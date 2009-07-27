@@ -1,0 +1,12 @@
+<?
+  include "./config.inc.php";
+  include "./lib.inc.php";
+
+  // Á°½èÍý
+  $kwd = trim(textsafe($_REQUEST["kwd"]));
+  if (!empty($kwd)) {
+    $kwd = textsafe(stripslashes($_REQUEST["kwd"]));
+    $headertext .= "Set-Cookie: google_kwd=".urlencode($kwd)."; path=/;\n";
+  }
+  header("Location: http://www.google.com/search?q=".urlencode(euc2sjis($kwd))."&hl=ja&num=50&ie=Shift_JIS&lr=lang_ja");
+?>

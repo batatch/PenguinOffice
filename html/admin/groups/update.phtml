@@ -1,0 +1,224 @@
+<?php
+include "../../config.inc.php"; include "../../lib.inc.php";
+include "../../language.inc.php";
+
+// 変数処理
+if (!empty($_POST["p"]))          $p          = $_POST["p"];
+if (!empty($_POST["id"]))         $id         = $_POST["id"];
+if (!empty($_POST["seqno"]))      $seqno      = $_POST["seqno"];
+if (!empty($_POST["old_id"]))     $old_id     = $_POST["old_id"]; // 旧いID
+if (!empty($_POST["name"]))       $name       = $_POST["name"];
+if (!empty($_POST["user_entry"])) $user_entry = $_POST["user_entry"];
+if (!empty($_POST["viewsign"]))   $viewsign   = $_POST["viewsign"];
+
+$linktext  = "<A HREF=\"../../\">トップページ</A> &gt; ";
+$linktext .= "<A HREF=\"../\">管理者メニュー</A> &gt; ";
+$linktext .= "<FONT COLOR=#FFFF00>グループ設定</FONT> ";
+
+include "../../login_check.inc.php";
+
+$pagetext = "";
+
+if ($login && $admin_sign=="t") {
+  // 事前整形
+  $seqno = mb_convert_kana(textsafe($seqno),"a","EUC-JP");
+  $id    = mb_convert_kana(textsafe($id),"a","EUC-JP");
+  $name  = mb_convert_kana(textsafe($name),"a","EUC-JP");
+
+  // エラーチェック
+  if(strlen($id) == 0){
+    $DMES[] = "グループIDが入力されていません";
+  } elseif (strlen($id) < 2) {
+    $DMES[] = "グループIDは2文字以上にして下さい";
+  } elseif (strlen($id) > 10) {
+    $DMES[] = "グループIDは10文字以下にして下さい";
+  } else {
+    for ($i=0;$i<strlen($id);$i++) {
+      $ASC = ord(substr($id,$i,1));
+      if (($ASC<ord("0") or $ASC>ord("9")) and ($ASC<ord("a") or $ASC>ord("z")) and ($ASC<ord("A") or $ASC>ord("Z"))
+       and ($ASC<>ord("_")) and ($ASC<>ord("-"))) {
+        $DMES[] = "グループIDは英数字、_(アンダーバー)、-(ハイフン)で指定してください";
+        break;
+      }
+    }
+    if (sizeof($DMES)==0) {
+      if ($id=="root" or $id=="wheel" or $id=="admin" or $id=="administrator" or $id=="supervisor" or $id=="superuser" or $id=="all") {
+        $DMES[] = "指定されたグループIDを使うことはできません";
+      }
+    }
+  }
+
+  if (sizeof($DMES)==0) {
+    if (empty($seqno)) {
+      $ret_seqno = get_first("groups","seqno","id='$id'",0);
+    } else {
+      $ret_seqno = get_first("groups","seqno","id='$id' AND id <>'$old_id'",0);
+    }
+    if ($ret_seqno > 0){
+      $DMES[] = "入力されたグループＩＤは既に使用されています";
+    }
+  }
+
+  if($name==""){
+    $DMES[] = "グループ名が入力されていません";
+  } else {
+    if (strlen($name)>30) {
+      $DMES[] = "グループ名が長すぎます。全角15文字(半角30文字)までで入力してください";
+    }
+  }
+
+  if($user_entry == ""){
+#    $DMES[] = "参加者が指定されていません";
+  } else {
+    $user_entry_back = "";
+    $users_entry = split(",",$user_entry);
+    if (sizeof($users_entry)>0) {
+      for ($i=0;$i<sizeof($users_entry);$i++) {
+        if ($users_entry[$i]!="") {
+          $user_id_find = false;
+          if ($i>0) {
+            for ($j=0;$j<$i;$j++) {
+              if ($users_entry[$i]==$users_entry[$j]) {
+                $user_id_find = true;
+                break;
+              }
+            }
+          }
+          if (!$user_id_find) {
+            if ($user_entry_back!="") $user_entry_back .= ",";
+            $user_entry_back .= $users_entry[$i];
+          }
+        }
+      }
+    }
+  }
+
+  // 変更時処理
+  if (sizeof($DMES)==0) {
+    if ($id != $old_id and $old_id != "" and $seqno!=0) {
+      // 確認処理
+      $sql = "SELECT id FROM groups WHERE id='$old_id' AND seqno=$seqno";
+      $res = pg_exec($conn,$sql);
+      if ($res) {
+        $cnt = pg_numrows($res);
+        if ($cnt>0) {
+          $row = pg_fetch_array($res, 0);  
+        } else {
+          $DMES[] = "グループ確認に失敗しました";
+        }
+      } else {
+        $DMES[] = "グループ確認に失敗しました";
+      }
+    }
+  }
+
+  if (sizeof($DMES)==0) {
+    if ($seqno != "") {
+      // 更新
+      $sql  = "UPDATE groups SET ";
+      $sql .= "seqno =".$seqno.",";
+      $sql .= "id ='".$id."',";
+      $sql .= "name ='".db_textsafe($name)."',";
+      $sql .= "viewsign ='".$viewsign."',";
+      $sql .= "updatestamp ='now'";
+      $sql .= " WHERE seqno=".$seqno." AND id='".$old_id."'";
+
+      // SQL実行
+      $res = pg_query($conn, $sql);
+      if ($res==false) {
+        $DMES[] = "グループ情報の更新に失敗しました";
+      }
+      if ($id != $old_id && $old_id!="") {
+        // IDの変更に伴うデータ移動処理
+#        pg_exec($conn, "UPDATE users_entry SET group_id='$id' WHERE group_id='$old_id'");
+      }
+
+    } else {
+      // 追加
+      $seqno = get_last("groups","seqno","",1)+1; // seqno採番
+
+      $sql  = "INSERT INTO groups ( ";
+      $sql .= "seqno, id, name, viewsign, createstamp, updatestamp";
+      $sql .= ") VALUES (";
+      $sql .= $seqno.",";
+      $sql .= "'".$id."',";
+      $sql .= "'".db_textsafe($name)."',";
+      $sql .= "'".$viewsign."',";
+      $sql .= "'now',";
+      $sql .= "'now'";
+      $sql .= ")";
+
+      // SQL実行
+      $res = pg_query($conn, $sql);
+      if ($res == false) {
+        $DMES[] = "グループ情報の追加に失敗しました";
+      }
+    }
+
+    // ユーザー参加情報の追加
+    $user_entry_back = "";
+    if (sizeof($DMES)==0) {
+      $sql = "DELETE FROM users_entry";
+      if ($old_id == "") {
+        $sql .= " WHERE group_id='".$id."'";
+      } else {
+        $sql .= " WHERE group_id='".$old_id."'";
+      }
+      $res = pg_query($conn, $sql);
+      $users_entry = split(",",$user_entry);
+      if (sizeof($users_entry)>0) {
+        for ($i=0;$i<sizeof($users_entry);$i++) {
+          if ($users_entry[$i]!="") {
+            $sql = "INSERT INTO users_entry (user_id,group_id,createstamp) VALUES (";
+            $sql .= "'".$users_entry[$i]."',";
+            $sql .= "'".$id."',";
+            $sql .= "'now()')";
+            $res = pg_query($conn, $sql);
+          }
+        }
+      }
+    }
+  }
+  
+  // エラー処理
+  if (sizeof($DMES)>0) {
+		include "../../header.inc.php"; flush();
+		include "../menu.inc.php";
+
+    $pagetext .= "<BR><CENTER>";
+    $pagetext .= "<TABLE>";
+    $pagetext .= "<FORM ACTION=\"./edit.phtml\" METHOD=POST>\n";
+
+    $pagetext .= "<INPUT TYPE=HIDDEN NAME=\"p\" VALUE=\"$p\">\n";
+    $pagetext .= "<INPUT TYPE=HIDDEN NAME=\"back\" VALUE=\"t\">\n";
+    $pagetext .= "<INPUT TYPE=HIDDEN NAME=\"id\" VALUE=\"$id\">\n";
+    if (!$seqno=="") {
+      $pagetext .= "<INPUT TYPE=HIDDEN NAME=\"seqno\" VALUE=\"$seqno\">\n";
+      $pagetext .= "<INPUT TYPE=HIDDEN NAME=\"old_id\" VALUE=\"$old_id\">\n";
+    }
+    $pagetext .= "<INPUT TYPE=HIDDEN NAME=\"name\" VALUE=\"$name\">\n";
+    $pagetext .= "<INPUT TYPE=HIDDEN NAME=\"user_entry\" VALUE=\"$user_entry_back\">\n";
+    $pagetext .= "<INPUT TYPE=HIDDEN NAME=\"viewsign\" VALUE=\"$viewsign\">\n";
+
+    $pagetext .= "<TR><TD>";
+    $pagetext .= "<FONT COLOR=#FF0000>";
+    for ($i=0;$i<sizeof($DMES);$i++){
+      $pagetext .= $DMES[$i]."<BR>";
+    }
+
+    $pagetext .= "</TD></TR>";
+    $pagetext .= "</TABLE>";
+    $pagetext .= "<BR>";
+    $pagetext .= "<INPUT TYPE=SUBMIT VALUE=\"戻る\" STYLE=\"width:80px\">\n";
+    $pagetext .= "</FORM>";
+    $pagetext .= "</CENTER>\n";
+
+		include "../../detail.inc.php"; include "../../footer.inc.php";
+
+  } else {
+    // 正常終了時
+    $returl = "./?p=$p";
+		Header("Location: ".$returl);
+  }
+}
+?>

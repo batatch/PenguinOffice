@@ -1,0 +1,145 @@
+<?php
+  include("./config.inc.php");
+
+  // ログインチェック(簡易版:Cookie使用)
+  if (!empty($logincookieg)) {
+    $login       = true;
+    $login_str   = $logincookieg;
+    $logins      = split("\t",$login_str);
+    $login_id    = $logins[0];
+    $no          = $logins[1];
+    $login_name  = $logins[2];
+    $login_email = $logins[3];
+
+    setcookie("logincookieg", $login_str, time() + 3600, $toppath."/", $domain); //延長
+  } else {
+    $login       = false;
+  }
+
+  // 色の読み込み
+  $sql = "select * from displays where id='".$login_id."'";
+  $res = pg_query($conn,$sql);
+  if (pg_num_rows($res)> 0){
+    $row = pg_fetch_array($res, 0);
+
+    $title_backcolor     = $row["title_backcolor"];
+    $title_forecolor     = $row["title_forecolor"];
+    $title_forecolor1    = $row["title_forecolor"];
+    $title_forecolor2    = $row["title_forecolor"];
+    $title_forecolor3    = $row["title_forecolor"];
+    $logout_backcolor    = $row["top_backcolor"];
+    $logout_forecolor    = $row["top_forecolor"];
+    $bottom_backcolor    = $row["bottom_backcolor"];
+    $bottom_forecolor    = $row["bottom_forecolor"];
+    $menu_backcolor      = $row["menu_backcolor"];
+    $menu_forecolor      = $row["menu_forecolor"];
+    $indexmenu_backcolor = $row["index_backcolor"];
+    $indexmenu_forecolor = $row["index_forecolor"];
+    $bodyBackColor       = $row["body_backcolor"];
+    $bodyForeColor       = $row["body_forecolor"];
+    $bodyLinkColor       = $row["body_linkcolor"];
+    $bodyVLinkColor      = $row["body_vlinkcolor"];
+    $bodyALinkColor      = $row["body_alinkcolor"];
+    $bodyHLinkColor      = $row["body_hlinkcolor"];
+  } else {
+    // デフォルト
+    $sql = "select * from displays where id=''";
+    $res = pg_query($conn,$sql);
+    if (pg_num_rows($res)> 0){
+      $row = pg_fetch_array($res, 0);
+
+      $title_backcolor     = $row["title_backcolor"];
+      $title_forecolor     = $row["title_forecolor"];
+      $title_forecolor1    = $row["title_forecolor"];
+      $title_forecolor2    = $row["title_forecolor"];
+      $title_forecolor3    = $row["title_forecolor"];
+      $logout_backcolor    = $row["top_backcolor"];
+      $logout_forecolor    = $row["top_forecolor"];
+      $bottom_backcolor    = $row["bottom_backcolor"];
+      $bottom_forecolor    = $row["bottom_forecolor"];
+      $menu_backcolor      = $row["menu_backcolor"];
+      $menu_forecolor      = $row["menu_forecolor"];
+      $indexmenu_backcolor = $row["index_backcolor"];
+      $indexmenu_forecolor = $row["index_forecolor"];
+      $bodyBackColor       = $row["body_backcolor"];
+      $bodyForeColor       = $row["body_forecolor"];
+      $bodyLinkColor       = $row["body_linkcolor"];
+      $bodyVLinkColor      = $row["body_vlinkcolor"];
+      $bodyALinkColor      = $row["body_alinkcolor"];
+      $bodyHLinkColor      = $row["body_hlinkcolor"];
+    }
+  }
+
+?>
+<HTML>
+<HEAD>
+<TITLE>ご利用ヘルプ</TITLE>
+<META http-equiv="Content-Type" content="text/html"; charset="EUC-JP">
+<STYLE TYPE="text/css">
+BODY,TABLE { FONT-SIZE: 9pt; FONT-FAMILY: Verdana, sans-serif, 'ＭＳ Ｐゴシック', 'Osaka'; }
+A:link     { font-color:; }
+A:active   { font-color:; }
+A:visited  { font-color:; }
+A:hover    { font-color:; text-decoration:underline; }
+A:link,A:active,A:visited  { text-decoration:none; }
+A:link,A:active,A:visited,A:hover  { font-weight:bold; }
+</STYLE>
+<SCRIPT LANGUAGE="JavaScript">
+<!--
+  window.moveTo(screen.width-510,0); window.focus();
+
+  function detailwin(url,wn,w,h) {
+    var w;
+    w = window.open(url, wn, "directories=no,toolbar=no,location=no,status=no,menubar=no,scrollbars=yes,resizable=yes,width="+ w +",height="+h);
+    w.focus();
+  }
+//-->
+</SCRIPT>
+</HEAD>
+<?php
+  // BODYタグ
+  print "<BODY TEXT=".$bodyForeColor." LINK=".$bodyLinkColor." VLINK=".$bodyVLinkColor." ALINK=".$bodyALinkColor." BGCOLOR=".$bodyBackColor." ";
+#  if ($bodyImage!="") {
+#    print "BACKGROUND=".$bodyImage." ";
+#  }
+  print "BACKGROUND=".$toppath."/image/back1.gif ";
+  print "LEFTMARGIN=".$bodyLeftMargin." TOPMARGIN=".$bodyTopMargin." MARGINHEIGHT=".$bodyMarginHeight." MARGINWIDTH=".$bodyMarginWidth.">\n";
+
+?>
+
+<TABLE CELLPADDING=0 CELLSPACING=3 WIDTH=100%><TR><TD WIDTH=100%>
+
+<TABLE BORDER=0 CELLPADDING=0 CELLSPACING=0 WIDTH=100% BGCOLOR=<? echo $title_backcolor ?>>
+<TR>
+<TD ALIGN=LEFT VALIGN=TOP><IMG SRC="<? $toppath ?>/image/wr-l_t.gif" WIDTH=7 HEIGHT=7></TD>
+<TD ALIGN=RIGHT VALIGN=TOP COLSPAN=2><IMG SRC="<? $toppath ?>/image/wr-r_t.gif" WIDTH=7 HEIGHT=7></TD>
+</TR>
+
+<TR>
+<TH ALIGN=LEFT NOWRAP WIDTH=140>&nbsp;<IMG SRC="<? echo $toppath ?>/image/btn_print.gif" BORDER=0 ALT=<? echo $$titletext ?>></TH>
+<TH ALIGN=LEFT NOWRAP><FONT COLOR=<? echo $title_forecolor ?>>「印刷モード」のヘルプ</TH>
+<FORM><TD ALIGN=RIGHT NOWRAP><INPUT TYPE=BUTTON VALUE="閉じる" onClick="window.close()" tabindex=9999>&nbsp;&nbsp;</TD></FORM>
+</TR>
+<TR>
+<TD ALIGN=LEFT VALIGN=BOTTOM><IMG SRC="<? $toppath ?>/image/wr-l_b.gif" WIDTH=7 HEIGHT=7></TD>
+<TD ALIGN=RIGHT VALIGN=BOTTOM COLSPAN=2><IMG SRC="<? $toppath ?>/image/wr-r_b.gif" WIDTH=7 HEIGHT=7></TD>
+</TR></TABLE>
+
+<TABLE BORDER=0 CELLPADDING=8 CELLSPACING=0 WIDTH=100% HEIGHT=460><TR><TD VALIGN=TOP>
+
+<BR>
+<B>「印刷モード」について</B><BR>
+<HR SIZE=1 NOSHADE>
+<TABLE WIDTH=100% CELLPADDING=5 BGCOLOR=<? echo $menu_backcolor ?>><TR><TD><FONT COLOR=<? echo $menu_forecolor ?>>
+
+<IMG SRC="<? echo $toppath ?>/image/hint.gif" BORDER=0 ALT="Hint!" ALIGN=TOP>左右の余白を<B>5mm</B>にすると、ちょうど縦置きA4用紙に印刷することができます。<BR>
+</TD></TR></TABLE><BR>
+
+<IMG SRC="<? echo $toppath ?>/image/btn_print.gif" BORDER=0 ALT="PrintMode" ALIGN=BOTTOM>ボタンを押すと、余分な表示が省かれた印刷用の表示に変更することができます。<BR>
+印刷モードの表示から通常の表示に戻るには <IMG SRC="<? echo $toppath ?>/image/btn_display.gif" BORDER=0 ALT="DisplayMode" ALIGN=BOTTOM>ボタンを押します。また、他のリンクやボタンを押しても通常の表示に戻ります。<BR>
+
+<HR SIZE=1 NOSHADE>
+
+<?php
+  include "./footer.inc.php";
+?>

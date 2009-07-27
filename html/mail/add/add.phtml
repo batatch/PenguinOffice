@@ -1,0 +1,335 @@
+<?
+include "../../config.inc.php"; include "../../lib.inc.php";
+
+$linktext  = "<A HREF=\"../../\">トップページ</A> &gt; ";
+$linktext .= "<A HREF=\"../\">伝言メモ</A> &gt; ";
+$linktext .= "<FONT COLOR=#FFFF00>新しい伝言</FONT>";
+
+include "../../login_check.inc.php";
+
+if ($login && sizeof($MES)==0) {
+	// 前処理
+	$body = textsafe(stripslashes($body));
+	
+	// エラーチェック
+	if ($priority==""){
+		$DMES[] = "優先度を入力して下さい";
+	}
+	
+	// 送信先チェック
+	if ($to=="") {
+		$DMES[] = "相手先が選択されていません";
+	} else {
+		$to_back = "";
+		$users_entry = split(",",$to);
+		if (sizeof($users_entry)>0) {
+			for ($i=0;$i<sizeof($users_entry);$i++) {
+				if ($users_entry[$i]!="") {
+					$id_find = false;
+					if ($i>0) {
+						for ($j=0;$j<$i;$j++) {
+							if ($users_entry[$i]==$users_entry[$j]) {
+								$id_find = true;
+								break;
+							}
+						}
+					}
+					if (!$id_find) {
+						if ($to_back!="") $to_back .= ",";
+						$to_back .= $users_entry[$i];
+					}
+				}
+			}
+		}
+		if (sizeof($users_entry)>20) {
+			$DMES[] = "同時に送信できるのは20名までです";
+		}
+	}
+	
+	if ($body == "") {
+		$DMES[] = "内容が入力されていません";
+	} elseif (strlen($body)>8192) {
+		$DMES[] = "内容が長すぎます(8192文字まで)";
+		$body = mb_strcut($body,0,8192);
+	}
+	
+	// メール文の生成
+	if (sizeof($DMES)==0 and $send != 0) {
+		// メール本文の作成
+		if ($address_seqno != "") {
+			$sql_addr = "SELECT * FROM address WHERE seqno=".$address_seqno;
+			$res_addr = pg_query($conn,$sql_addr);
+			$cnt_addr = pg_num_rows($res_addr);
+			if ($cnt_addr>0) {
+				$row_addr = pg_fetch_array($res_addr,0);
+				if (trim($corp_name)!="") {
+					$corp_name = $row_addr["corp_name"];
+					$corp_name = ereg_replace("株式会社","",$corp_name);
+					$corp_name = ereg_replace("有限会社","",$corp_name);
+					$corp_name = ereg_replace("合資会社","",$corp_name);
+					$corp_name = ereg_replace("合名会社","",$corp_name);
+					$corp_name = ereg_replace("財団法人","",$corp_name);
+					$corp_name = ereg_replace("社団法人","",$corp_name);
+					$corp_name = ereg_replace("学校法人","",$corp_name);
+					$corp_name = ereg_replace("宗教法人","",$corp_name);
+					$corp_name = ereg_replace("特定非営利活動法人","",$corp_name);
+					$corp_name = ereg_replace("NPO法人","",$corp_name);
+					$corp_name = ereg_replace("社会福祉法人","",$corp_name);
+					$corp_name = ereg_replace("公益法人","",$corp_name);
+					$corp_name = ereg_replace("医療法人","",$corp_name);
+					$corp_name = ereg_replace("事業協同組合","",$corp_name);
+					$corp_name = ereg_replace("協同組合連合会","",$corp_name);
+					$corp_name = ereg_replace("企業組合","",$corp_name);
+					$corp_name = ereg_replace("協業組合","",$corp_name);
+					$corp_name = ereg_replace("振興組合","",$corp_name);
+					$corp_name = trim($corp_name);
+					$corp_name = mberegi_replace("　","",$corp_name);
+					
+					$mailtext .= $corp_name." ";
+				}
+				$mailtext .= $row_addr["person_name"]."様より\n";
+			}
+		}
+		
+		$w_body = str_replace("&lt;","<",$body);
+		$w_body = str_replace("&gt;",">",$w_body);
+		$w_body = str_replace("&amp;","&",$w_body);
+		$mailtext = $w_body;
+		
+		// Subjectの作成
+		$login_ryaku = get_first("users","name_ryaku","id='$login_id'","");
+		
+		$mailsubject  = "伝言:".date("m/d");
+		$mailsubject .= "(";
+		$mailsubject .= $wname[date("w")];
+		$mailsubject .= ") ";
+		$mailsubject .= date("H:i");
+		#      $mailsubject .= " [".$login_ryaku."]";
+		
+		// 本文に発信人を
+		$mailtext = "発信者:".$login_ryaku."\n------------------\n".$mailtext;
+	}
+	
+	// DB処理
+	if (sizeof($DMES)==0) {
+		// 送信者分の登録
+		while (true) { // マルチユーザー対応
+		$seqno = get_last("mail","seqno","",0)+1; // seqno採番
+		
+		$sql  = "INSERT INTO mail (";
+		$sql .= "seqno,user_id,";
+		if ($address_seqno != "") {
+			$sql .= "address_seqno,";
+		}
+		$sql .= "\"from\",\"to\",priority,body,createstamp";
+		$sql .= ") VALUES (";
+		$sql .= $seqno.",";
+		$sql .= "'".$login_id."',";
+		if ($address_seqno != "") {
+			$sql .= $address_seqno.",";
+		}
+		$sql .= "'".$login_id."',";
+		$sql .= "'".$to."',";
+		$sql .= $priority.",";
+		$sql .= "'".db_textsafe($body)."',";
+		$sql .= "'now'";
+		$sql .= ")";
+		$res = pg_query($conn,$sql);
+		
+		if ($res==false) {
+			$errcount++;
+			if ($errcount>10) { //再試行回数 10回
+			$DMES[] = "登録に失敗しました。";
+			break;
+			}
+		} else {
+			// 閲覧ログの生成
+			$sql = "SELECT * FROM mail_res WHERE seqno=".$seqno." AND user_id='$login_id'";
+			$res = pg_query($conn,$sql);
+			$cnt = pg_num_rows($res);
+			if ($cnt==0) {
+				$sql = "INSERT INTO mail_res (seqno,user_id,createstamp) VALUES (".$seqno.",'$login_id','now')";
+				pg_query($conn,$sql);
+			}
+			// 受信者分の登録
+			$users_entry = split(",",$to);
+			if (sizeof($users_entry)>0) {
+				for ($i=0;$i<sizeof($users_entry);$i++) {
+					if ($users_entry[$i]!="") {
+						$res_seqno = get_last("mail","seqno","",0)+1; // seqno採番
+						
+						$sql  = "INSERT INTO mail (";
+						$sql .= "seqno,user_id,";
+						if ($address_seqno != "") {
+							$sql .= "address_seqno,";
+						}
+						$sql .= "\"from\",\"to\",priority,body,createstamp";
+						$sql .= ") VALUES (";
+						$sql .= $res_seqno.",";
+						$sql .= "'".$users_entry[$i]."',";
+						if ($address_seqno != "") {
+							$sql .= $address_seqno.",";
+						}
+						$sql .= "'".$login_id."',";
+						$sql .= "'".$to."',";
+						$sql .= $priority.",";
+						$sql .= "'".db_textsafe($body)."',";
+						$sql .= "'now'";
+						$sql .= ")";
+						
+						$res = pg_query($conn,$sql);
+					}
+					
+					// メール送信処理
+					if (sizeof($DMES)==0 and $send != 0) {
+						// 発信者アドレスのセット
+						$sql = "SELECT * FROM users WHERE id='".$login_id."';";
+						$res = pg_query($conn, $sql);
+						if (pg_num_rows($res)>0) {
+							$row = pg_fetch_array($res,0);
+							if ($send == 2 && trim($row["email_sub"]) != "") {
+								$mailfrom = $row["email_sub"];
+							} else {
+								$mailfrom = $row["email"];
+							}
+						}
+						
+						$sql = "SELECT * FROM users WHERE id='".$users_entry[$i]."';";
+						$res = pg_query($conn, $sql);
+						if (pg_num_rows($res)>0) {
+							$row = pg_fetch_array($res,0);
+							
+							// シリアル値確認
+							$onetime_passwd = $row["onetime_passwd"];
+							if (trim($onetime_passwd)=="") {
+								$onetime_passwd = make_serial(12);
+								$sql_update = "UPDATE users SET onetime_passwd='".$onetime_passwd."' WHERE id='".$row["id"]."'";
+								$res_update = pg_query($conn,$sql_update);
+							}
+							
+							$mailaddr = "";
+							if ($send==2 && trim($row["email_sub"]) != "") {
+								// 携帯アドレスへ送信時
+								$mailaddr = trim($row["email_sub"]);
+								
+								$w_mailtext = mb_convert_kana($mailtext,"ak","EUC-JP");
+								
+								$mailtext_a = "";
+								$strlen = 0;
+								if (eregi("@docomo\.ne\.jp$",$mailaddr)) {
+									# Docomo 500字(-90字[リンク分])まで
+									$maxlen = 500-90;
+								} elseif (eregi("@jp\-.\.ne\.jp$",$mailaddr) || eregi("@..\.vodafone\.ne\.jp$",$mailaddr)) {
+									# J-SKY 384字(-90字[リンク分])まで
+									$maxlen = 384-90;
+								} elseif (eregi("@ezweb\.ne\.jp$",$mailaddr) || eregi("@.*\.ezweb\.ne\.jp$",$mailaddr) || eregi("@ez.*\.ido\.ne\.jp$",$mailaddr)) {
+									# EZWeb 2000字(-90字[リンク分])まで
+									$maxlen = 2000-90;
+								} else {
+									$maxlen = 10000;
+								}
+								for ($l=0;$l<mbstrlen($w_mailtext);$l++) {
+									$checktext = mbsubstr($w_mailtext,$l,1);
+									if ($checktext != "\r") {
+										if (strlen($checktext)==1) {
+											$strlen = $strlen+1;
+										} else {
+											$strlen = $strlen+2;
+										}
+										if ($strlen>=$maxlen) {
+											break;
+										}
+										$mailtext_a .= $checktext;
+									}
+								}
+								
+								if (eregi("@docomo\.ne\.jp$",$mailaddr) || eregi("@jp\-.\.ne\.jp$",$mailaddr)  || eregi("@..\.vodafone\.ne\.jp$",$mailaddr) || eregi("@ezweb\.ne\.jp$",$mailaddr) || eregi("@.*\.ezweb\.ne\.jp$",$mailaddr) || eregi("@ez.*\.ido\.ne\.jp$",$mailaddr)) { // Docomo or J-PHONE or EZWeb
+								$mailtext_a .= "\n--\n";
+								$mailtext_a .= "ﾒﾓの確認⇒"."http://".$domain."/i/mail/view_recv.phtml?sn=".$onetime_passwd."&s=".$res_seqno;
+								}
+								
+								mail($mailaddr,
+								mb_encode_mimeheader(euc2jis($mailsubject),"ISO-2022-JP"),
+								euc2jis($mailtext_a),
+								"From:".$mailfrom."\nX-Mailer: PenguinAgent");
+							}
+							if ($send==1 || ($send==2 && trim($row["email"])=="") && trim($row["email"]) != "") {
+								// 一般アドレスへ送信時
+								$mailaddr = $row["email"];
+								
+								$mailtext_a  = $mailtext;
+								$mailtext_a .= "\n---\n";
+								$mailtext_a .= "メモの確認⇒"."https://".$domain."/mail/?mode=dlogin&sn=".$onetime_passwd."&n=".$res_seqno;
+								
+								mail ($mailaddr,
+								mb_encode_mimeheader(euc2jis($mailsubject),"ISO-2022-JP"),
+								euc2jis($mailtext_a),
+								"From:".$mailfrom."\nX-Mailer: PenguinAgent");
+							}
+						}
+					} // メール送信処理(終)
+				}
+			}
+			
+			// 住所録ログの保存
+			if ($address_seqno != "") {
+				$address_log_seqno = get_last("address_log","seqno","",0)+1; // seqno採番
+				
+				$sql  = "INSERT INTO address_log (";
+				$sql .= "seqno,address_seqno,data_seqno,type,note,createstamp) VALUES (";
+				$sql .= "'".$address_log_seqno."',";
+				$sql .= $address_seqno.",";
+				$sql .= $seqno.",";
+				$sql .= "'memo',";
+				$sql .= "'".db_textsafe($body)."',";
+				$sql .= "'now'";
+				$sql .= ")";
+				
+				$res = pg_query($conn,$sql);
+			}
+			break;
+		}
+		}
+	}
+	
+	if ($type==0) {
+		$typename = "伝言";
+	} else {
+		$typename = "質問";
+	}
+
+  if (sizeof($DMES)>0) {
+  	// エラー時
+  	include "../../header.inc.php";
+    
+  	$pagetext .= "<CENTER><TABLE BORDER=0>\n";
+  	$pagetext .= "<FORM ACTION=\"./\" METHOD=POST>\n";
+  	$pagetext .= "<INPUT TYPE=\"HIDDEN\" NAME=\"p\" value=\"$p\">\n";
+  	$pagetext .= "<INPUT TYPE=\"HIDDEN\" NAME=\"user_id\" value=\"$login_id\">\n";
+  	$pagetext .= "<INPUT TYPE=\"HIDDEN\" NAME=\"to\" value=\"$to_back\">\n";
+  	$pagetext .= "<INPUT TYPE=\"HIDDEN\" NAME=\"send\" value=\"$send\">\n";
+  	$pagetext .= "<INPUT TYPE=\"HIDDEN\" NAME=\"priority\" value=\"$priority\">\n";
+  	$pagetext .= "<INPUT TYPE=\"HIDDEN\" NAME=\"body\" value=\"$body\">\n";
+  	$pagetext .= "<TR><TD ALIGN=CENTER>\n";
+  	$pagetext .= "<TABLE BORDER=0><TR><TD><FONT COLOR=#FF0000><B>";
+  	// エラーメッセージ出力
+  	while (list($key,$val)=each($DMES)) {
+  		$pagetext .= $val."<BR>\n";
+  	}
+  	$pagetext .= "</B></FONT></TD></TR></TABLE>\n";
+  	$pagetext .= "<INPUT TYPE=SUBMIT VALUE=\"戻る\" STYLE=\"width:100px\">";
+  	$pagetext .= "</TD></TR></TABLE></CENTER>\n";
+	 
+  	include "../../detail.inc.php";
+  	include "../../footer.inc.php";
+  	
+  } else {
+  	// 正常処理
+  	$returl = "../";
+  	if ($p=="top") {
+  		$returl = "../../";
+  	}
+  	Header("Location: ".$returl);
+  }
+}
+?>

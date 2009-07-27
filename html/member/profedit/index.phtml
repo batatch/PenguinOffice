@@ -1,0 +1,545 @@
+<?php
+  include("../../config.inc.php"); include("../../lib.inc.php");
+  include("../../login_check.inc.php");
+
+  $linktext  = "<A HREF=\"../../\" CLASS=\"BAR\">トップページ</A> &gt; ";
+  $linktext .= "<A HREF=\"../\" CLASS=\"BAR\">メンバー一覧</A> &gt; ";
+  $linktext .= "<FONT COLOR=#FFFF00>プロフィール変更</FONT>";
+
+  include "../../header.inc.php";
+  flush();
+
+  include "../menu.inc.php";
+
+  if ($login && sizeof($MES)==0) {
+    $pagetext .= "<CENTER><BR>\n";
+    $pagetext .= "<TABLE BORDER=0 CELLPADDING=0 CELLSPACING=0><TR><TD>\n";
+    $pagetext .= "<TABLE BORDER=0 CELLPADDING=0 CELLSPACING=0><TR>\n";
+    $pagetext .= "<TD ALIGN=CENTER WIDTH=100>\n";
+
+    ## 個人設定タブ
+    $pagetext .= "<TABLE BORDER=0 CELLPADDING=0 CELLSPACING=0 BGCOLOR=#CCCCCC WIDTH=100 HEIGHT=19><TR>";
+    $pagetext .= "<TD WIDTH=7 VALIGN=TOP ALIGN=LEFT><IMG SRC=\"../../image/wr-l_t.gif\" WIDTH=7 HEIGHT=7></TD>";
+    $pagetext .= "<TD ALIGN=CENTER><FONT COLOR=".$bodyLinkColor."><B>個人情報</B></FONT>";
+    $pagetext .= "<TD WIDTH=7 VALIGN=TOP ALIGN=RIGHT><IMG SRC=\"../../image/wr-r_t.gif\" WIDTH=7 HEIGHT=7></TD>";
+    $pagetext .= "</TR></TABLE>\n";
+    $pagetext .= "</TD>\n";
+    $pagetext .= "<TD WIDTH=1></TD>\n";
+
+    ## マイグループタブ
+    $pagetext .= "<TD ALIGN=CENTER WIDTH=100>\n";
+    $pagetext .= "<TABLE BORDER=0 CELLPADDING=0 CELLSPACING=0 BGCOLOR=#999999 WIDTH=100 HEIGHT=19><TR>";
+    $pagetext .= "<TD WIDTH=7 VALIGN=TOP ALIGN=LEFT><IMG SRC=\"../../image/wr-l_t.gif\" WIDTH=7 HEIGHT=7></TD>";
+    $pagetext .= "<TD ALIGN=CENTER><A HREF=\"./mygroup.phtml\">マイグループ</A>";
+    $pagetext .= "<TD WIDTH=7 VALIGN=TOP ALIGN=RIGHT><IMG SRC=\"../../image/wr-r_t.gif\" WIDTH=7 HEIGHT=7></TD>";
+    $pagetext .= "</TR></TABLE>";
+    $pagetext .= "</TD>";
+    $pagetext .= "<TD WIDTH=1></TD>";
+
+    ## パスワードタブ
+    $pagetext .= "<TD ALIGN=CENTER WIDTH=100>";
+    $pagetext .= "<TABLE BORDER=0 CELLPADDING=0 CELLSPACING=0 BGCOLOR=#999999 WIDTH=100 HEIGHT=19><TR>";
+    $pagetext .= "<TD WIDTH=7 VALIGN=TOP ALIGN=LEFT><IMG SRC=\"../../image/wr-l_t.gif\" WIDTH=7 HEIGHT=7></TD>";
+    $pagetext .= "<TD ALIGN=CENTER><A HREF=\"./passwd.phtml\">パスワード</A>";
+    $pagetext .= "<TD WIDTH=7 VALIGN=TOP ALIGN=RIGHT><IMG SRC=\"../../image/wr-r_t.gif\" WIDTH=7 HEIGHT=7></TD>";
+    $pagetext .= "</TR></TABLE>";
+    $pagetext .= "</TD>";
+    $pagetext .= "<TD WIDTH=1></TD>";
+
+    ## 表示変更タブ
+    $pagetext .= "<TD ALIGN=CENTER WIDTH=100>";
+    $pagetext .= "<TABLE BORDER=0 CELLPADDING=0 CELLSPACING=0 BGCOLOR=#999999 WIDTH=100 HEIGHT=19><TR>";
+    $pagetext .= "<TD WIDTH=7 VALIGN=TOP ALIGN=LEFT><IMG SRC=\"../../image/wr-l_t.gif\" WIDTH=7 HEIGHT=7></TD>";
+    $pagetext .= "<TD ALIGN=CENTER><A HREF=\"./display.phtml\">表示変更</A>";
+    $pagetext .= "<TD WIDTH=7 VALIGN=TOP ALIGN=RIGHT><IMG SRC=\"../../image/wr-r_t.gif\" WIDTH=7 HEIGHT=7></TD>";
+    $pagetext .= "</TR></TABLE>";
+    $pagetext .= "</TD>";
+    $pagetext .= "<TD WIDTH=1></TD>";
+
+    ## CSV出力タブ
+    $pagetext .= "<TD ALIGN=CENTER WIDTH=100>";
+    $pagetext .= "<TABLE BORDER=0 CELLPADDING=0 CELLSPACING=0 BGCOLOR=#999999 WIDTH=100 HEIGHT=19><TR>";
+    $pagetext .= "<TD WIDTH=7 VALIGN=TOP ALIGN=LEFT><IMG SRC=\"../../image/wr-l_t.gif\" WIDTH=7 HEIGHT=7></TD>";
+    $pagetext .= "<TD ALIGN=CENTER><A HREF=\"./csv.phtml\">CSV出力</A>";
+    $pagetext .= "<TD WIDTH=7 VALIGN=TOP ALIGN=RIGHT><IMG SRC=\"../../image/wr-r_t.gif\" WIDTH=7 HEIGHT=7></TD>";
+    $pagetext .= "</TR></TABLE>";
+    $pagetext .= "</TD>";
+    $pagetext .= "</TR></TABLE>";
+
+    $pagetext .= "<TABLE BORDER=0 CELLPADDING=0 CELLSPACING=0 WIDTH=504>";
+    $pagetext .= "<TR><TD ALIGN=CENTER VALIGN=TOP BGCOLOR=#CCCCCC>";
+    $pagetext .= "<FORM NAME=\"dialog\" ACTION=\"./update.phtml\" METHOD=POST>";
+    $pagetext .= "<BR>";
+
+    ## ユーザー選択用JavaScript
+    $pagetext .= "<SCRIPT LANGUAGE=\"JavaScript\">\n";
+    $pagetext .= "<!--\n";
+    $pagetext .= "//my = \"$login_id\";\n";
+    $pagetext .= "dat_groups = new Array();\n";
+    $sql_group = "SELECT id,name FROM groups ORDER BY seqno";
+    $res_group = pg_query($conn,$sql_group);
+    $cnt_group = pg_num_rows($res_group);
+    $pagetext .= "cnt_groups = ".$cnt_group."\n";
+    if ($cnt_group>0) {
+      for ($i=0;$i<$cnt_group;$i++) {
+        $row_group = pg_fetch_array($res_group,$i);
+        $sql_entry = "SELECT user_id FROM users_entry WHERE group_id='".$row_group["id"]."' AND user_id<>'$login_id'";
+#        $sql_entry = "SELECT user_id FROM users_entry WHERE group_id='".$row_group["id"]."' AND user_id<>'$id'";
+        $res_entry = pg_query($conn,$sql_entry);
+        $cnt_entry = pg_num_rows($res_entry);
+        if ($res_entry>0) {
+          $users_entry = "";
+          for ($j=0;$j<$cnt_entry;$j++) {
+            $row_entry = pg_fetch_array($res_entry,$j);
+            if ($users_entry != "") $users_entry .= ",";
+            $users_entry .= $row_entry["user_id"];
+          }
+        }
+        if ($users_entry!="") {
+          $pagetext .= "dat_groups[\"".$row_group["id"]."\"] = \"".$users_entry."\";\n";
+        }
+      }
+    }
+    $pagetext .= "dat_users = new Array();\n";
+    $all_users = "";
+#    $sql_user = "SELECT id,name FROM users ORDER BY seqno";
+    $sql_user = "SELECT id,name FROM users WHERE id<>'$login_id' ORDER BY seqno";
+    $res_user = pg_query($conn,$sql_user);
+    $cnt_user = pg_num_rows($res_user);
+    $pagetext .= "cnt_users = ".$cnt_user."\n";
+    if ($cnt_user>0) {
+      for ($i=0;$i<$cnt_user;$i++) {
+        $row_user = pg_fetch_array($res_user,$i);
+        $pagetext .= "dat_users[\"".$row_user["id"]."\"] = \"".$row_user["name"]."\";\n";
+        if ($i!=0) $all_users .= ",";
+        $all_users .= $row_user["id"];
+      }
+    }
+    $pagetext .= "dat_groups[\"all\"] = \"".$all_users."\";\n";
+    $pagetext .= "function selectGroup(t) {\n";
+    $pagetext .= "  group_id = t.selgroups[t.selgroups.selectedIndex].value;\n";
+    $pagetext .= "  righthandman_ids = new Array();\n";
+    $pagetext .= "\n";
+    $pagetext .= "  t.users.length = 0;\n";
+    $pagetext .= "\n";
+    $pagetext .= "  if (group_id == '') {\n";
+    $pagetext .= "    righthandman_ids = dat_groups['all'].split(',');\n";
+    $pagetext .= "  } else {\n";
+    $pagetext .= "    if (dat_groups[group_id] != null) {\n";
+    $pagetext .= "      righthandman_ids = dat_groups[group_id].split(',');\n";
+    $pagetext .= "    }\n";
+    $pagetext .= "  }\n";
+    $pagetext .= "  if (righthandman_ids.length>0) {\n";
+    $pagetext .= "    c = 0;\n";
+    $pagetext .= "    for (i=0;i<righthandman_ids.length;i++) {\n";
+    $pagetext .= "//      if (righthandman_ids[i] != my) {\n";
+    $pagetext .= "        t.users.length = t.users.length + 1;\n";
+    $pagetext .= "        t.users.options[c].value = righthandman_ids[i];\n";
+    $pagetext .= "        t.users.options[c].text  = dat_users[righthandman_ids[i]];\n";
+    $pagetext .= "        c++;\n";
+    $pagetext .= "//      }\n";
+    $pagetext .= "    }\n";
+    $pagetext .= "  }\n";
+    $pagetext .= "}\n";
+    $pagetext .= "\n";
+    $pagetext .= "function clearAllUser(t) {\n";
+    $pagetext .= "  for (i=0;i<t.elements.length;i++) {\n";
+    $pagetext .= "    if (t.elements[i].name == \"righthandman_ids_to[]\") {\n";
+    $pagetext .= "      var p = i;\n";
+    $pagetext .= "      break;\n";
+    $pagetext .= "    }\n";
+    $pagetext .= "  }\n";
+    $pagetext .= "  var o = t.elements[p];\n";
+    $pagetext .= "  o.length = 0;\n";
+    $pagetext .= "  t.righthandman_id_to.value = '';\n";
+    $pagetext .= "}\n";
+    $pagetext .= "\n";
+    $pagetext .= "function selectAllUser(t) {\n";
+    $pagetext .= "  if (t.users.length>0) {\n";
+    $pagetext .= "    for (i=0;i<t.users.length;i++) {\n";
+    $pagetext .= "      t.users.options[i].selected = true;\n";
+    $pagetext .= "    }\n";
+    $pagetext .= "  }\n";
+    $pagetext .= "  t.allcheck.checked = false;\n";
+    $pagetext .= "}\n";
+    $pagetext .= "\n";
+    $pagetext .= "function addUser(t) {\n";
+    $pagetext .= "  for (i=0;i<t.elements.length;i++) {\n";
+    $pagetext .= "    if (t.elements[i].name == \"righthandman_ids_to[]\") {\n";
+    $pagetext .= "      var p = i;\n";
+    $pagetext .= "      break;\n";
+    $pagetext .= "    }\n";
+    $pagetext .= "  }\n";
+    $pagetext .= "  var o = t.elements[p];\n";
+    $pagetext .= "\n";
+    $pagetext .= "  s = t.righthandman_id_to.value;\n";
+    $pagetext .= "  if (t.users.length>0) {\n";
+    $pagetext .= "    for (i=0;i<t.users.length;i++) {\n";
+    $pagetext .= "      if (t.users.options[i].selected) {\n";
+    $pagetext .= "        t.users.options[i].selected = false;\n";
+    $pagetext .= "        var id = t.users.options[i].value;\n";
+    $pagetext .= "        var c = false;\n";
+    $pagetext .= "        for(j=0;j<o.length;j++) {\n";
+    $pagetext .= "          if (o.options[j].value == id) {\n";
+    $pagetext .= "            c = true;\n";
+    $pagetext .= "            break;\n";
+    $pagetext .= "          }\n";
+    $pagetext .= "        }\n";
+    $pagetext .= "        if (!c) {\n";
+    $pagetext .= "          if (o.length>0) s = s + ',';\n";
+    $pagetext .= "          o.length = o.length + 1;\n";
+    $pagetext .= "          o.options[o.length-1].value = id;\n";
+    $pagetext .= "          o.options[o.length-1].text = dat_users[id];\n";
+    $pagetext .= "          s = s + id;\n";
+    $pagetext .= "        }\n";
+    $pagetext .= "      }\n";
+    $pagetext .= "    }\n";
+    $pagetext .= "  }\n";
+    $pagetext .= "  t.righthandman_id_to.value = s;\n";
+    $pagetext .= "}\n";
+    $pagetext .= "\n";
+    $pagetext .= "function removeUser(t) {\n";
+    $pagetext .= "  for (i=0;i<t.elements.length;i++) {\n";
+    $pagetext .= "    if (t.elements[i].name == \"righthandman_ids_to[]\") {\n";
+    $pagetext .= "      var p = i;\n";
+    $pagetext .= "      break;\n";
+    $pagetext .= "    }\n";
+    $pagetext .= "  }\n";
+    $pagetext .= "  var o = t.elements[p];\n";
+    $pagetext .= "  var val = new Array();\n";
+    $pagetext .= "  var txt = new Array();\n";
+    $pagetext .= "  var c = 0;\n";
+    $pagetext .= "\n";
+    $pagetext .= "  if (o.length>0) {\n";
+    $pagetext .= "    for (i=0;i<o.length;i++) {\n";
+    $pagetext .= "      if (!o.options[i].selected) {\n";
+    $pagetext .= "        val[c] = o.options[i].value;\n";
+    $pagetext .= "        txt[c] = o.options[i].text;\n";
+    $pagetext .= "        c++;\n";
+    $pagetext .= "      }\n";
+    $pagetext .= "    }\n";
+    $pagetext .= "\n";
+    $pagetext .= "    o.length = 0;\n";
+    $pagetext .= "    s = '';\n";
+    $pagetext .= "    if (c>0) {\n";
+    $pagetext .= "      o.length = c;\n";
+    $pagetext .= "      for (i=0;i<c;i++) {\n";
+    $pagetext .= "        if (i>0) s = s + ',';\n";
+    $pagetext .= "        o.options[i].value = val[i];\n";
+    $pagetext .= "        o.options[i].text  = txt[i];\n";
+    $pagetext .= "        s = s + val[i];\n";
+    $pagetext .= "      }\n";
+    $pagetext .= "    }\n";
+    $pagetext .= "    t.righthandman_id_to.value = s;\n";
+    $pagetext .= "  }\n";
+    $pagetext .= "}\n";
+    $pagetext .= "//-->\n";
+    $pagetext .= "</SCRIPT>\n";
+
+    if ($oid != "") {
+      $pagetext .= "<INPUT TYPE=HIDDEN NAME=\"oid\" VALUE=\"".$oid."\">\n";
+    }
+
+    $sql = "select * from users where id='$login_id'";
+    $res = pg_query($conn, $sql);
+    if (pg_num_rows($res)>0) {
+      $row = pg_fetch_array($res,0);
+      $cnt = pg_num_rows($res);
+    }
+
+    $pagetext .= "<TABLE BORDER=0 CELLPADDING=5><TR><TD>\n";
+    $pagetext .= "<FONT STYLE=\"font-size:8pt\">";
+    $pagetext .= "変更したい箇所を修正して「更新の実行」ボタンを押してください。<BR>\n";
+    $pagetext .= "</TD></TR></TABLE>\n";
+
+    $pagetext .= "<TABLE BORDER=0 CELLPADDING=4 CELLSPACING=1 BGCOLOR=#999999>\n";
+
+    $pagetext .= "<TR STYLE=\"LINE-HEIGHT:16pt\">\n";
+    $pagetext .= "<TD ALIGN=RIGHT NOWRAP BGCOLOR=$td_back_left>ログインID</TD>";
+    $pagetext .= "<TD ALIGN=LEFT BGCOLOR=$td_back>$login_id</TD>\n";
+    $pagetext .= "</TR>\n";
+
+    $pagetext .= "<TR STYLE=\"LINE-HEIGHT:16pt\">\n";
+    $pagetext .= "<TD ALIGN=RIGHT NOWRAP BGCOLOR=$td_back_left>メールアドレス</TD>";
+    $pagetext .= "<TD ALIGN=LEFT BGCOLOR=$td_back><INPUT TYPE=TEXT MAXLENGTH=46 SIZE=36 NAME=\"email\" VALUE=\"".$row["email"]."\" STYLE=\"ime-mode:disabled\"></TD>\n";
+    $pagetext .= "</TR>\n";
+
+    if (file_exists($basepath.$toppath."/i")) {
+      $pagetext .= "<TR STYLE=\"LINE-HEIGHT:16pt\">\n";
+      $pagetext .= "<TD ALIGN=RIGHT NOWRAP BGCOLOR=$td_back_left>携帯メール</TD>";
+      $pagetext .= "<TD ALIGN=LEFT BGCOLOR=$td_back><INPUT TYPE=TEXT MAXLENGTH=46 SIZE=36 NAME=\"email_sub\" VALUE=\"".$row["email_sub"]."\" style=\"ime-mode:disabled\">";
+      $pagetext .= "<BR>";
+      $pagetext .= "<FONT STYLE=\"FONT-SIZE:7pt;COLOR:#555555;LINE-HEIGHT:9pt\">";
+      $pagetext .= "携帯ﾒｰﾙｱﾄﾞﾚｽが登録されると各入力の際にﾒｰﾙを自動的に送信するようになります。<BR>便利な反面ﾊﾟｹｯﾄ料金が発生しますのでご利用には十分ご注意ください。";
+      $pagetext .= "</TD>\n";
+      $pagetext .= "</TR>\n";
+    }
+
+    $pagetext .= "<TR STYLE=\"LINE-HEIGHT:16pt\">\n";
+    $pagetext .= "<TD ALIGN=RIGHT NOWRAP BGCOLOR=$td_back_left>お名前</TD>";
+    $pagetext .= "<TD ALIGN=LEFT BGCOLOR=$td_back><INPUT TYPE=TEXT MAXLENGTH=46 SIZE=24 NAME=\"name\" value=\"".$row["name"]."\" style=\"ime-mode:active\"></TD>\n";
+    $pagetext .= "</TR>\n";
+
+    $pagetext .= "<TR STYLE=\"LINE-HEIGHT:16pt\">\n";
+    $pagetext .= "<TD ALIGN=RIGHT NOWRAP BGCOLOR=$td_back_left>カナヨミ</TD>";
+    $pagetext .= "<TD ALIGN=LEFT BGCOLOR=$td_back><INPUT TYPE=TEXT MAXLENGTH=46 SIZE=24 NAME=\"name_kana\" VALUE=\"".$row["name_kana"]."\" style=\"ime-mode:active\"></TD>\n";
+    $pagetext .= "</TR>\n";
+
+    $pagetext .= "<TR STYLE=\"LINE-HEIGHT:16pt\">\n";
+    $pagetext .= "<TD ALIGN=RIGHT NOWRAP BGCOLOR=$td_back_left>参加グループ</TD>";
+    $pagetext .= "<TD ALIGN=LEFT BGCOLOR=$td_back>";
+    $sql_g = "SELECT * FROM groups RIGHT JOIN (select id from groups LEFT JOIN users_entry ON groups.id=users_entry.group_id WHERE groups.viewsign='t' or users_entry.user_id='".$login_id."' GROUP BY groups.id) as groups2 ON groups.id=groups2.id ORDER BY seqno;";
+    $res_g = pg_query($conn,$sql_g);
+    $cnt_g = pg_num_rows($res_g);
+    if ($cnt_g>0) {
+      for ($g=0;$g<$cnt_g;$g++) {
+        $group = pg_fetch_array($res_g,$g);
+        $groups[] = array($group["id"],$group["name"],$group["viewsign"]);
+      }
+      $pagetext .= "<TABLE BORDER=0 CELLSPACING=0>";
+      for ($y=0;$y<ceil($cnt_g/3);$y++) {
+        $pagetext .= "<TR>\n";
+        for ($x=$y*3;$x<$y*3+3;$x++) {
+          if (isset($groups[$x])) {
+            $pagetext .= "<TD NOWRAP>";
+            // 参加確認
+            $sql_e = "select * from users_entry where user_id='".$login_id."' and group_id='".$groups[$x][0]."'";
+            $res_e = pg_query($conn,$sql_e);
+            $cnt_e = pg_num_rows($res_e);
+
+            if ($groups[$x][2]=="t") {
+              $pagetext .= "<INPUT TYPE=CHECKBOX NAME=\"groups[]\" VALUE=\"".$groups[$x][0]."\"";
+              // 参加確認
+              if ($cnt_e>0) {
+                $pagetext .= " CHECKED";
+              }
+              $pagetext .= ">".$groups[$x][1];
+            } else {
+              if ($cnt_e>0) {
+                $pagetext .= "<IMG SRC=\"../../image/check.gif\" WIDTH=13 HEIGHT=13>&nbsp;".$groups[$x][1];
+              }
+            }
+            $pagetext .= "</TD>";
+          }
+        }
+        $pagetext .= "</TR>";
+      }
+      $pagetext .= "</TABLE>\n";
+    }
+    $pagetext .= "</TD></TR>\n";
+
+    ## サポーター機能設定
+    $pagetext .= "<TR STYLE=\"LINE-HEIGHT:16pt\">\n";
+    $pagetext .= "<TD ALIGN=RIGHT NOWRAP BGCOLOR=$td_back_left>サポーター機能</TD>";
+    $pagetext .= "<TD ALIGN=LEFT NOWRAP BGCOLOR=$td_back>";
+    $pagetext .= "<SELECT NAME=\"secretary_id\">\n";
+    $pagetext .= "<OPTION VALUE=\"\">指定なし</OPTION>\n;";
+    $pagetext .= "<OPTION VALUE=\"\">----------------</OPTION>\n;";
+    $sql_user = "SELECT seqno,id,depa,post,name FROM users ORDER BY seqno,name_kana";
+    $res_user = pg_query($conn,$sql_user);
+    $cnt_user = pg_num_rows($res_user);
+    if ($cnt_user>0) {
+      for ($i=0;$i<$cnt_user;$i++) {
+        $row_user = pg_fetch_array($res_user,$i);
+        if ($login_id != $row_user["id"]) { //自身を除外
+          $pagetext .= "<OPTION VALUE=\"".$row_user["id"]."\"";
+          if ($row["secretary_id"]==$row_user["id"]) {
+            $pagetext .= " SELECTED";
+          }
+          $pagetext .= ">".$row_user["name"];
+          if ($row_user["depa"]!="" or $row_user["post"]) {
+            $pagetext .= "（".$row_user["depa"]."&nbsp;".$row_user["post"]."）";
+          }
+          $pagetext .= "</OPTION>\n";
+        }
+      }
+    }
+    $pagetext .= "</SELECT><BR>\n";
+    $pagetext .= "<FONT STYLE=\"FONT-SIZE:7pt;COLOR:#555555;LINE-HEIGHT:10pt\">";
+    $pagetext .= "&nbsp;指定した相手が秘書のように予定などを自由に登録・更新することができます";
+    $pagetext .= "</FONT>\n";
+    $pagetext .= "</TD>\n";
+    $pagetext .= "</TR>\n";
+
+    ## 右腕機能設定
+    $pagetext .= "<TR STYLE=\"LINE-HEIGHT:16pt\">\n";
+    $pagetext .= "<TD ALIGN=RIGHT NOWRAP BGCOLOR=$td_back_left>右腕メンバー登録</TD>";
+    $pagetext .= "<TD ALIGN=LEFT BGCOLOR=$td_back>";
+    $pagetext .= "<TABLE BORDER=0 CELLPADDING=0 CELLSPACING=0>";
+    $pagetext .= "<TR><TD COLSPAN=4>&nbsp;</TD><TD>";
+    $pagetext .= "<SELECT NAME=\"selgroups\" ONCHANGE=\"selectGroup(this.form)\" STYLE=\"width:120px\">\n";
+    $pagetext .= "<OPTION VALUE=\"\" SELECTED>(全て)\n";
+    $sql_group = "SELECT id,name FROM groups ORDER BY seqno";
+    $res_group = pg_query($conn,$sql_group);
+    $cnt_group = pg_num_rows($res_group);
+    if ($cnt_group>0) {
+      for ($i=0;$i<$cnt_group;$i++) {
+        $row_group = pg_fetch_array($res_group,$i);
+        $res_entry = pg_query($conn,"SELECT user_id FROM users_entry WHERE group_id='".$row_group["id"]."' AND user_id<>'$login_id'");
+        if (pg_num_rows($res_entry)>0) {
+          $pagetext .= "<OPTION VALUE=\"".$row_group["id"]."\">".$row_group["name"];
+          $pagetext .= "\n";
+        }
+      }
+    }
+    $pagetext .= "</SELECT>\n";
+    $pagetext .= "</TD>\n";
+    $pagetext .= "</TR>\n";
+    $pagetext .= "<TR><TD>";
+    $pagetext .= "<SELECT NAME=\"righthandman_ids_to[]\" SIZE=8 STYLE=\"width:140px\">\n";
+    $righthandman_ids_to = split(",",$row["righthandman_ids"]);
+    if (sizeof($righthandman_ids_to)>0) {
+      for ($i=0;$i<sizeof($righthandman_ids_to);$i++) {
+        if ($righthandman_ids_to[$i]!="") {
+          $pagetext .= "<OPTION VALUE=\"".$righthandman_ids_to[$i]."\">";
+          $pagetext .=get_first("users","name","id='".$righthandman_ids_to[$i]."'","");
+          $pagetext .= "\n";
+        }
+      }
+    }
+    $pagetext .= "</SELECT><BR>";
+    $pagetext .= "<INPUT TYPE=BUTTON NAME=\"allclear\" VALUE=\"全て消去\" ONCLICK=\"clearAllUser(this.form)\">";
+    $pagetext .= "</TD>";
+    $pagetext .= "<TD>&nbsp</TD>";
+    $pagetext .= "<TD ALIGN=CENTER VALIGN=MIDDLE>";
+    $pagetext .= "<INPUT TYPE=BUTTON VALUE=\"&lt; 追加\" ONCLICK=\"addUser(this.form)\"><BR><BR>";
+    $pagetext .= "<INPUT TYPE=BUTTON VALUE=\"削除 &gt;\" ONCLICK=\"removeUser(this.form)\"><BR><BR><BR>";
+    $pagetext .= "</TD>";
+    $pagetext .= "<TD>&nbsp</TD>";
+    $pagetext .= "<TD VALIGN=TOP><SELECT NAME=\"users\" MULTIPLE SIZE=8 STYLE=\"width:140px\">\n";
+    $sql_user = "SELECT id,depa,post,name FROM users ORDER BY seqno";
+    $res_user = pg_query($conn,$sql_user);
+    $cnt_user = pg_num_rows($res_user);
+    if ($cnt_user>0) {
+      for ($i=0;$i<$cnt_user;$i++) {
+        $row_user = pg_fetch_array($res_user,$i);
+        if ($login_id != $row_user["id"]) { //自身を除外
+          $pagetext .= "<OPTION VALUE=\"".$row_user["id"]."\" ";
+          if ($sendtype=="P" && preg_match("/(^|,)".$row_user["id"]."(,|$)/",$senddata)){
+            $pagetext .= "selected";
+          }
+          $pagetext .= ">".$row_user["name"];
+          $pagetext .= "</OPTION>\n";
+        }
+      }
+    }
+    $pagetext .= "</SELECT><BR>";
+    $pagetext .= "<INPUT TYPE=BUTTON NAME=\"allcheck\" VALUE=\"全て選択\" ONCLICK=\"selectAllUser(this.form)\">";
+    $pagetext .= "<INPUT TYPE=HIDDEN NAME=\"righthandman_id_to\" VALUE=\"".$row["righthandman_ids"]."\">";
+    $pagetext .= "</TD></TR></TABLE>\n";
+    $pagetext .= "<FONT STYLE=\"FONT-SIZE:7pt;COLOR:#555555;LINE-HEIGHT:10pt\">";
+    $pagetext .= "&nbsp;指定した相手が非公開の予定を閲覧できるようになります";
+    $pagetext .= "</TD>\n";
+    $pagetext .= "</TR>\n";
+
+    $pagetext .= "<TR STYLE=\"LINE-HEIGHT:16pt\">\n";
+    $pagetext .= "<TD ALIGN=RIGHT NOWRAP BGCOLOR=$td_back_left>携帯番号</TD>";
+    $pagetext .= "<TD ALIGN=LEFT BGCOLOR=$td_back><INPUT TYPE=TEXT MAXLENGTH=24 SIZE=18 NAME=\"handy\" VALUE=\"".$row["handy"]."\" style=\"ime-mode:disabled\"></TD>";
+    $pagetext .= "</TR>\n";
+
+    $pagetext .= "<TR STYLE=\"LINE-HEIGHT:16pt\">\n";
+    $pagetext .= "<TD ALIGN=RIGHT NOWRAP BGCOLOR=$td_back_left>ダイヤルイン</TD>";
+    $pagetext .= "<TD ALIGN=LEFT BGCOLOR=$td_back><INPUT TYPE=TEXT MAXLENGTH=24 SIZE=18 NAME=\"dialin\" VALUE=\"".$row["dialin"]."\" style=\"ime-mode:disabled\"></TD>";
+    $pagetext .= "</TR>\n";
+
+    $pagetext .= "<TR STYLE=\"LINE-HEIGHT:16pt\">\n";
+    $pagetext .= "<TD ALIGN=RIGHT NOWRAP BGCOLOR=$td_back_left>略称</TD>";
+    $pagetext .= "<TD ALIGN=LEFT BGCOLOR=$td_back><INPUT TYPE=TEXT MAXLENGTH=24 SIZE=20 NAME=\"name_ryaku\" VALUE=\"".$row["name_ryaku"]."\"></TD>\n";
+    $pagetext .= "</TR>\n";
+
+    $pagetext .= "<TR STYLE=\"LINE-HEIGHT:16pt\">\n";
+    $pagetext .= "<TD ALIGN=RIGHT NOWRAP BGCOLOR=$td_back_left>誕生日</TD>";
+    $pagetext .= "<TD ALIGN=LEFT BGCOLOR=$td_back>";
+    $birthday_Y = substr($row["birthday"],0,4);
+    $birthday_M = substr($row["birthday"],5,2);
+    $birthday_D = substr($row["birthday"],8,10);
+    $pagetext .= "<SELECT NAME=\"birthday_Y\">\n";
+    $pagetext .= "<OPTION VALUE=\"\"";
+    if ($birthday_Y == "") $pagetext .= " SELECTED";
+    $pagetext .= ">未選択</OPTION>\n";
+    $pagetext .= "<OPTION VALUE=\"\">----</OPTION>\n";
+    $today = getdate();
+    $now_y = $today["year"];
+    for ($i=($now_y-90);$i<=$now_y;$i++) {
+      if ($birthday_Y == $i) {
+        $pagetext .= "<OPTION VALUE=\"".$i."\" SELECTED>".$i."</OPTION>\n";
+      } else {
+        $pagetext .= "<OPTION VALUE=\"".$i."\">".$i."</OPTION>\n";
+      }
+    }
+    $pagetext .= "</SELECT>年\n";
+    $pagetext .= "<SELECT NAME=\"birthday_M\">\n";
+    $pagetext .= "<OPTION VALUE=\"\"";
+    if ($birthday_M == "") $pagetext .= " SELECTED";
+    $pagetext .= ">未選択</OPTION>\n";
+    $pagetext .= "<OPTION VALUE=\"\">--</OPTION>\n";
+    for ($i=1;$i<=12;$i++) {
+      if ($birthday_M == $i) {
+        $pagetext .= "<OPTION VALUE=\"".$i."\" SELECTED>".$i."</OPTION>\n";
+      } else {
+        $pagetext .= "<OPTION VALUE=\"".$i."\">".$i."</OPTION>\n";
+      }
+    }
+    $pagetext .= "</SELECT>月\n";
+    $pagetext .= "<SELECT NAME=\"birthday_D\">\n";
+    $pagetext .= "<OPTION VALUE=\"\"";
+    if ($birthday_D == "") $pagetext .= " SELECTED";
+    $pagetext .= ">未選択</OPTION>\n";
+    $pagetext .= "<OPTION VALUE=\"\">--</OPTION>\n";
+    for ($i=1;$i<=31;$i++) {
+      if ($birthday_D == $i) {
+        $pagetext .= "<OPTION VALUE=\"".$i."\" SELECTED>".$i."</OPTION>\n";
+      } else {
+        $pagetext .= "<OPTION VALUE=\"".$i."\">".$i."</OPTION>\n";
+      }
+    }
+    $pagetext .= "</SELECT>日";
+    $pagetext .= "</TD></TR>\n";
+
+    $pagetext .= "<TR STYLE=\"LINE-HEIGHT:16pt\">\n";
+    $pagetext .= "<TD ALIGN=RIGHT NOWRAP BGCOLOR=$td_back_left>性別</TD>";
+    $pagetext .= "<TD ALIGN=LEFT BGCOLOR=$td_back>\n";
+    if ($row["sex"] == "man"){
+      $pagetext .= "<INPUT TYPE=RADIO NAME=\"sex\" VALUE=\"man\" CHECKED>男性\n";
+      $pagetext .= "<INPUT TYPE=RADIO NAME=\"sex\" VALUE=\"woman\">女性\n";
+      $pagetext .= "<INPUT TYPE=RADIO NAME=\"sex\" VALUE=\"\">設定しない\n";
+    } elseif ($row["sex"] == "woman"){
+      $pagetext .= "<INPUT TYPE=RADIO NAME=\"sex\" VALUE=\"man\">男性\n";
+      $pagetext .= "<INPUT TYPE=RADIO NAME=\"sex\" VALUE=\"woman\" CHECKED>女性\n";
+      $pagetext .= "<INPUT TYPE=RADIO NAME=\"sex\" VALUE=\"\">設定しない\n";
+    } else {
+      $pagetext .= "<INPUT TYPE=RADIO NAME=\"sex\" VALUE=\"man\">男性\n";
+      $pagetext .= "<INPUT TYPE=RADIO NAME=\"sex\" VALUE=\"woman\">女性\n";
+      $pagetext .= "<INPUT TYPE=RADIO NAME=\"sex\" VALUE=\"\" CHECKED>設定しない\n";
+    }
+    $pagetext .= "</TD></TR>\n";
+
+    $pagetext .= "<TR STYLE=\"LINE-HEIGHT:16pt\">\n";
+    $pagetext .= "<TD ALIGN=RIGHT NOWRAP BGCOLOR=$td_back_left>所属部署</TD>";
+    $pagetext .= "<TD ALIGN=LEFT BGCOLOR=$td_back><INPUT TYPE=TEXT MAXLENGTH=46 SIZE=36 NAME=\"depa\" VALUE=\"".$row["depa"]."\" style=\"ime-mode:active\"></TD>";
+    $pagetext .= "</TR>\n";
+
+    $pagetext .= "<TR STYLE=\"LINE-HEIGHT:16pt\">\n";
+    $pagetext .= "<TD ALIGN=RIGHT NOWRAP BGCOLOR=$td_back_left>役職</TD>";
+    $pagetext .= "<TD ALIGN=LEFT BGCOLOR=$td_back><INPUT TYPE=TEXT MAXLENGTH=46 SIZE=36 NAME=\"post\" VALUE=\"".$row["post"]."\" style=\"ime-mode:active\"></TD>";
+    $pagetext .= "</TR>\n";
+
+    $pagetext .= "<TR STYLE=\"LINE-HEIGHT:16pt\">\n";
+    $pagetext .= "<TD ALIGN=RIGHT NOWRAP BGCOLOR=$td_back_left>コメント</TD>";
+    $pagetext .= "<TD ALIGN=LEFT BGCOLOR=$td_back><TEXTAREA NAME=\"note\" COLS=52 ROWS=15 STYLE=\"width:380px;height:150px\">".$row["note"]."</TEXTAREA></TD>";
+    $pagetext .= "</TR>\n";
+
+    $pagetext .= "</TABLE><BR>\n";
+
+    $pagetext .= "<INPUT TYPE=submit VALUE=\"更新の実行\"><BR><BR>\n";
+    $pagetext .= "</TD></TR></TABLE>\n";
+    $pagetext .= "</TD></TR></TABLE>\n";
+    $pagetext .= "</FORM>\n";
+    $pagetext .= "</TABLE><BR>\n";
+
+    $pagetext .= "<BR></CENTER>";
+  }
+
+  include "../../detail.inc.php";
+  include "../../footer.inc.php";
+?>

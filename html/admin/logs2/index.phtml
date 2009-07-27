@@ -1,0 +1,159 @@
+<?php
+  include "../../config.inc.php";
+  include "../../lib.inc.php";
+
+  // 表示行数
+  if (empty($_REQUEST["r"])) { $r=18; } else { $r = $_REQUEST["r"]; }
+  if (empty($_REQUEST["p"])) { $p=1;  } else { $p = $_REQUEST["p"]; }
+
+  // リンク用テキストの設定
+  $linktext  = "<A HREF=\"../../\" ALT=\"トップページ\" CLASS=\"BAR\">トップページ</A> &gt; ";
+  $linktext .= "<A HREF=\"../\" ALT=\"管理者メニュー\" CLASS=\"BAR\">管理者メニュー</A> &gt; ";
+  $linktext .= "<FONT COLOR=#FFFF00>アクセス履歴</FONT> ";
+
+  include "../../header.inc.php";
+
+  include "../menu.inc.php";
+
+  if ($login && $admin_sign=="t") {
+    $pagetext .= "<CENTER>";
+    $pagetext .= "過去".$logday."日間分のアクセスを表示しています";
+
+    // 旧データの削除
+    $sql = "DELETE FROM tracking WHERE calltime+'".(24*$logday).":00'<now()";
+    pg_query($conn,$sql);
+
+    $sql = "SELECT COUNT(id) AS counts, Max(id) AS id, Min(serial) AS serial,Min(calltime) AS calltime,Min(ip) AS ip,Min(agent) AS agent FROM tracking GROUP BY serial ORDER BY calltime DESC";
+    $res = pg_query($conn,$sql);
+    $cnt = pg_num_rows($res);
+
+    //テーブル出力
+    $pagetext .= "<TABLE BORDER=0 CELLPADDING=0 CELLSPACING=0><TR><TD VALIGN=TOP>";
+
+    $pagetext .= "<TABLE BORDER=0 CELLPADDING=3 CELLSPACING=1 BGCOLOR=#666666>\n";
+    $pagetext .= "<TR BGCOLOR=#CCCCCC>";
+    $pagetext .= "<TH ALIGN=CENTER>&nbsp;</TH>";
+    $pagetext .= "<TH>ユーザー名</TH>";
+    $pagetext .= "<TH>IPアドレス・ホスト名<BR>ユーザーエージェント</TH>";
+    $pagetext .= "<TH NOWRAP>ページ数</TH>";
+    $pagetext .= "<TH>アクセス日時</TH>";
+    $pagetext .= "</TR>\n";
+
+    if ($cnt==0) {  
+      // 該当無し
+      $pagetext .= "<TR><TD ALIGN=CENTER COLSPAN=".$fc.">\n";
+      $pagetext .= "No data.\n";
+      $pagetext .= "</TD></TR>\n";
+    } else {
+      // 該当あり
+      $s_row = ($p-1) * $r;
+      $e_row = $p * $r - 1;
+      if ($e_row>$cnt-1) {$e_row = $cnt-1;}
+      if ($cnt-1>$e_row) {$nextpage = true;}
+      $allpages = floor(($cnt-1)/$r)+1;
+
+      for ($i=$s_row;$i<=$e_row;$i++){
+        $pagetext .= "<!--";
+        $row = pg_fetch_array($res, $i);  
+        $pagetext .= "-->";
+
+        // プロバイダチェック
+        $hostname = gethostbyaddr($row["ip"]);
+
+        if ($i % 2 == 0){
+          $tdcolor = $bg_dark;
+        } else {
+          $tdcolor = $bg_light;
+        }
+        $pagetext .= "<TR BGCOLOR=".$tdcolor.">\n";
+
+        $pagetext .= "<TD NOWRAP>";
+        $pagetext .= "<A HREF=\"./browse.phtml?s=".$row["serial"]."\">閲覧</A>\n";
+        $pagetext .= "</TD>\n";
+
+        $agent = $row["agent"];
+#        $agent = preg_replace("/ /i","<BR>",$agent,1);
+
+        if ($row["id"]=="") {
+          $user_name = "不明";
+        } else {
+          $user_name = get_first("users","name","id='".$row["id"]."'","");
+        }
+
+        $pagetext .= "<TD NOWRAP>".$user_name." </TD>\n";
+        $pagetext .= "<TD NOWRAP>".mb_strcut($hostname,0,36)."<BR>\n";
+        $pagetext .= mb_strcut($agent,0,32)." </TD>\n";
+
+        $pagetext .= "<TD nowrap ALIGN=RIGHT>&nbsp;";
+        if ($row["counts"]>1) $pagetext .= "<B>";
+        $pagetext .= $row["counts"]."&nbsp;</TD>\n";
+        $pagetext .= "<TD nowrap>&nbsp;";
+        $pagetext .= date("Y-m-d H:i",datetime2timestamp($row["calltime"]));
+#        $pagetext .= $row["calltime"];
+        $pagetext .= "</TD>\n";
+
+        $pagetext .= "</TR>";
+      }
+    }
+    $pagetext .= "</TABLE>\n";
+
+    $pagetext .= "<CENTER>";
+
+    if ($allpages>1) {
+      $g = 0;
+      $s_p = $p - 4;
+      $e_p = $p + 4;
+      if ($s_p<1) {
+        $g = 1-$s_p;
+        $s_p = $s_p + $g;
+        $e_p = $e_p + $g;
+      } elseif ($e_p>$allpages) {
+        $g = $e_p - $allpages;
+        $s_p = $s_p - $g;
+        $e_p = $e_p - $g;
+      }
+      if ($s_p < 1) $s_p = 1;
+      if ($e_p > $allpages) $e_p = $allpages;
+
+      if ($s_p != 1) {
+        $pagetext .= "<A HREF=\"./?p=".($s_p-1)."&r=$r\">&lt;</A>&nbsp;";
+      }
+
+      for ($i=$s_p;$i<=$e_p;$i++){
+        if ($p!=$i) {
+          $pagetext .= "[<A HREF=\"./?p=".$i."&r=$r\">".$i."</A>]";
+        } else {
+          $pagetext .= "[".$i."]";
+        }
+        $pagetext .= "&nbsp;";
+      }
+
+      if ($e_p != $allpages) {
+        $pagetext .= "<A HREF=\"./?p=".($e_p+1)."&r=$r\">&gt;</A>";
+      }
+
+      $pagetext .= "<BR>";
+
+      if ($p>1) {
+        $pagetext .= "<INPUT TYPE=BUTTON ONCLICK=\"location.href='./?p=".($p-1)."&r=$r'\" VALUE=\"前ページ\">";
+      }
+      $pagetext .= "&nbsp;";
+
+      if ($nextpage) {
+        $pagetext .= "<INPUT TYPE=BUTTON ONCLICK=\"location.href='./?p=".($p+1)."&r=$r'\" VALUE=\"次ページ\">";
+      }
+      $pagetext .= "&nbsp;";
+    }
+
+    $pagetext .= "</TD></TR>";
+    $pagetext .= "</TABLE>";
+
+    $pagetext .= "</CENTER>";
+
+    $pagetext .= "</FORM>";
+  }
+  
+  include "../../detail.inc.php";
+
+  include "../../footer.inc.php";
+?>

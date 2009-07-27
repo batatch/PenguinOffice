@@ -1,0 +1,251 @@
+<?php
+  include "../../config.inc.php";
+  include "../../lib.inc.php";
+
+  $linktext  = "<A HREF=\"../../\" CLASS=\"BAR\">トップページ</A> &gt; ";
+  $linktext .= "<A HREF=\"../\" CLASS=\"BAR\">管理者メニュー</A> &gt; ";
+  $linktext .= "<FONT COLOR=#FFFF00>施設設定</FONT> ";
+
+  include "../../header.inc.php";
+  include "../menu.inc.php";
+
+  $pagetext = "";
+
+  if ($login && $admin_sign=="t") {
+    $p         = $_POST["p"];
+    $seqno     = $_POST["seqno"];
+    $id        = $_POST["id"];
+    $old_id    = $_POST["old_id"];
+    $type      = $_POST["type"];
+    $name      = $_POST["name"];
+    $manage_id = $_POST["manage_id"];
+    $group     = $_POST["group"];
+    $user      = $_POST["user"];
+    $group_ids = $_POST["group_ids"];
+    $user_ids  = $_POST["user_ids"];
+
+    // seqnoチェック
+    if($seqno!="" and !is_numeric($seqno)){
+      $DMES[] = "管理番号（seqno）が正しくありません";
+    }
+
+    // 施設ＩＤ
+    if(strlen($id) == 0){
+      $DMES[] = "施設ＩＤが入力されていません";
+    } elseif (strlen($id)<5) {
+      $DMES[] = "施設ＩＤは5文字以上にして下さい";
+    } elseif (strlen($id)>12) {
+      $DMES[] = "施設ＩＤは12文字以下にして下さい";
+    } else {
+      for ($i=0;$i<strlen($id);$i++) {
+        $ASC = ord(substr($id,$i,1));
+        if (($ASC<ord("0")or$ASC>ord("9")) and ($ASC<ord("a")or$ASC>ord("z")) and ($ASC<ord("A")or$ASC>ord("Z"))) {
+          $DMES[] = "施設ＩＤは半角英数字で指定してください";
+          $id = "";
+          break;
+        }
+      }
+      if (sizeof($DMES)==0) {
+        if ($id=="root" or $id=="admin" or $id=="administrator" or $id=="supervisor" or $id=="superuser" or $id=="all") {
+          $DMES[] = "指定された施設ＩＤを使うことはできません";
+          $id = "";
+        } else {
+          $sql_same  = "SELECT * FROM rooms WHERE id='".$id."'";
+          if ($seqno!="") {
+            $sql_same .= " AND seqno!=".$seqno;
+          }
+          $res_same = pg_query($conn,$sql_same);
+          if (pg_num_rows($res_same)>0) {
+            $DMES[] = "「".$id."」は施設ＩＤとして既に登録されています";
+            $id = "";
+          }
+        }
+      }
+    }
+
+    // 施設名
+    if($type==""){
+      $DMES[] = "施設種別が選択されていません";
+    }
+    // 施設名
+    if($name==""){
+      $DMES[] = "施設名が入力されていません";
+    } elseif (strlen($name)>28) {
+      $DMES[] = "施設名は全角14文字（半角28文字）までにして下さい";
+    } else {
+      $name = textsafe($name);
+      $name = db_textsafe($name);
+    }
+
+    // 選択
+    if ($group!="all" && sizeof($group_ids)==0) {
+      $DMES[] = "グループが選択されていません";
+    }
+    if ($user!="all" && sizeof($user_ids)==0) {
+      $DMES[] = "ユーザーが選択されていません";
+    }
+
+    // 重複チェック
+    if (sizeof($DMES)==0) {
+      $sql = "SELECT * FROM rooms where name='".$name."'";
+      if (!empty($seqno)) {
+        $sql.= " AND seqno!=$seqno AND id!='$id'";
+      }
+      $res = pg_query($conn,$sql);
+      $cnt = pg_num_rows($res);
+      if ($cnt>0) {
+        $DMES[] = "既にその施設名で登録されています";
+      }
+    }
+
+    // 管理者
+    if (empty($manage_id) or $manage_id==""){
+#      $DMES[] = "管理者を選択してください";
+    }
+
+    // 存在確認
+    if (sizeof($DMES)==0) {
+      if (!empty($seqno)) {
+        if (get_first("rooms","seqno","seqno=$seqno",0)==0) {
+          $DMES[] = "施設の確認に失敗しました";
+        }
+      }
+    }
+
+    if (sizeof($DMES)==0) {
+      if ($seqno != "") {
+        // 更新
+        $sql  = "UPDATE rooms SET ";
+        $sql .= "type =".$type.",";
+        $sql .= "name ='".$name."',";
+        $sql .= "id ='".$id."',";
+        $sql .= "manage_id ='".$manage_id."',";
+        // グループの変更
+        if ($group=="all") {
+          $sql .= "view_group_ids = null ";
+        } else {
+          $sql .= "view_group_ids = '";
+          for ($i=0;$i<sizeof($group_ids);$i++) {
+            if ($i>0) $sql .= ",";
+            $sql .= $group_ids[$i];
+          }
+          $sql .= "'";
+        }
+        $sql .= ",";
+        // ユーザーの変更
+        if ($user=="all") {
+          $sql .= "view_user_ids = null ";
+        } else {
+          $sql .= "view_user_ids = '";
+          for ($i=0;$i<sizeof($user_ids);$i++) {
+            if ($i>0) $sql .= ",";
+            $sql .= $user_ids[$i];
+          }
+          $sql .= "'";
+        }
+
+        $sql .= " WHERE id='".$old_id."' AND seqno=".$seqno."";
+        $res = pg_query($conn, $sql);
+        if ($res==false) {
+          $DMES[] = "施設情報の更新に失敗しました";
+        }
+
+        if ($id != $old_id) {
+          $sql_reserve  = "UPDATE rooms_reserve SET ";
+          $sql_reserve .= "room_id='".$id."'";
+          $sql_reserve .= " WHERE room_id='".$old_id."'";
+          $res_reserve  = pg_query($conn, $sql_reserve);
+          if ($res_reserve==false) {
+            $DMES[] = "予約情報の更新に失敗しました";
+          }
+        }
+      } else {
+        // 追加
+        // seqno採番
+        $seqno = get_last("rooms","seqno","",0)+1;
+        $sql  = "INSERT INTO rooms ( ";
+        $sql .= "id,seqno,type,name,createstamp,updatestamp,manage_id,view_group_ids,view_user_ids";
+        $sql .= ") VALUES (";
+        $sql .= "'".$id."',";
+        $sql .= $seqno.",";
+        $sql .= $type.",";
+        $sql .= "'".$name."',";
+        $sql .= "'now',";
+        $sql .= "'now',";
+        $sql .= "'".$manage_id."',";
+        // グループの変更
+        if ($group=="all") {
+          $sql .= "null";
+        } else {
+          $sql .= "'";
+          for ($i=0;$i<sizeof($group_ids);$i++) {
+            if ($i>0) $sql .= ",";
+            $sql .= $group_ids[$i];
+          }
+          $sql .= "'";
+        }
+        $sql .= ",";
+        // ユーザーの変更
+        if ($user=="all") {
+          $sql .= "null";
+        } else {
+          $sql .= "'";
+          for ($i=0;$i<sizeof($user_ids);$i++) {
+            if ($i>0) $sql .= ",";
+            $sql .= $user_ids[$i];
+          }
+          $sql .= "'";
+        }
+        $sql .= ")";
+        // SQL実行
+        $res = pg_query($conn, $sql);
+        if ($res == false) {
+          $DMES[] = "施設情報の追加に失敗しました";
+        }
+      }
+    }
+
+    // エラー処理
+    if (sizeof($DMES)>0) {
+      $pagetext .= "<BR><CENTER>";
+      $pagetext .= "<TABLE><TR><TD>\n";
+      $pagetext .= "<FORM ACTION=\"./edit.phtml\" METHOD=POST>\n";
+      $pagetext .= "<INPUT TYPE=HIDDEN NAME=\"back\"      VALUE=\"t\">\n";
+      $pagetext .= "<INPUT TYPE=HIDDEN NAME=\"p\"         VALUE=\"$p\">\n";
+      $pagetext .= "<INPUT TYPE=HIDDEN NAME=\"seqno\"     VALUE=\"$seqno\">\n";
+      $pagetext .= "<INPUT TYPE=HIDDEN NAME=\"type\"      VALUE=\"$type\">\n";
+      $pagetext .= "<INPUT TYPE=HIDDEN NAME=\"name\"      VALUE=\"$name\">\n";
+      $pagetext .= "<INPUT TYPE=HIDDEN NAME=\"id\"        VALUE=\"$id\">\n";
+      $pagetext .= "<INPUT TYPE=HIDDEN NAME=\"manage_id\" VALUE=\"$manage_id\">\n";
+      $pagetext .= "<FONT COLOR=#FF0000>\n";
+      for ($i=0;$i<sizeof($DMES);$i++){
+        $pagetext .= $DMES[$i]."<BR>\n";
+      }
+      $pagetext .= "</TD></TR></TABLE><BR>\n";
+      $pagetext .= "<INPUT TYPE=SUBMIT VALUE=\"戻る\" STYLE=\"WIDTH:80px\">\n";
+      $pagetext .= "</FORM>";
+      $pagetext .= "</CENTER>\n";
+    } else {
+      // 正常終了時
+      $pagetext .= "
+<BR>
+<CENTER>
+更新完了<BR>
+<BR>
+<A HREF=\"#\" ONCLICK=\"location.replace('./?p=$p');location.href='./?p=$p';\">≪一覧へ戻る≫</A>
+</CENTER>
+<BR>
+  <SCRIPT LANGUAGE=\"JavaScript\">
+<!--
+setTimeout(\"location.replace('./?p=$p');location.href='./?p=$p';\", 3000);
+//-->
+</SCRIPT>
+";
+    }
+  }
+
+  include "../../detail.inc.php";
+
+  // フッタ表示
+  include "../../footer.inc.php";
+?>

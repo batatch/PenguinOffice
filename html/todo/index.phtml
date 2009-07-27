@@ -1,0 +1,339 @@
+<?
+	include "../config.inc.php"; include "../lib.inc.php";
+	include "./func.inc.php";
+
+	include "./cookie.inc.php";
+
+	$linktext  = "<A HREF=\"../\" CLASS=\"BAR\">トップページ</A> &gt; ";
+	$linktext .= "<FONT COLOR=#FFFF00>備忘録</FONT>";
+
+	include "../header.inc.php";
+//print_r($_POST);
+	// 引数チェック
+	if (sizeof($_POST) != 0){
+		// 開始日
+		if ($_POST["from_begin_year"] <> "" or $_POST["from_begin_month"] <> "" or $_POST["from_begin_day"] <> ""){
+			if (!checkdate($_POST["from_begin_month"],$_POST["from_begin_day"],$_POST["from_begin_year"])){
+				$WMES[] = "開始日 が正しくありません";
+			}
+		}
+		if ($_POST["from_begin_year"] == ""){
+			$WMES[] = "開始日 を全て入力して下さい";
+		}
+		if ($_POST["to_begin_year"] <> "" or $_POST["to_begin_month"] <> "" or $_POST["to_begin_day"] <> ""){
+			if (!checkdate($_POST["to_begin_month"],$_POST["to_begin_day"],$_POST["to_begin_year"])){
+				$WMES[] = "開始日 が正しくありません";
+			}
+		}
+		if ($_POST["to_begin_year"] == ""){
+			$WMES[] = "開始日 を全て入力して下さい";
+		}
+		// 終了日
+		if ($_POST["s_use_end_flg"] != "on"){
+			if ($_POST["from_end_year"] <> "" or $_POST["from_end_month"] <> "" or $_POST["from_end_day"] <> ""){
+				if (!checkdate($_POST["from_end_month"],$_POST["from_end_day"],$_POST["from_end_year"])){
+					$WMES[] = "締切日 が正しくありません";
+				}
+			}
+			if ($_POST["from_end_year"] == ""){
+				$WMES[] = "締切日 を全て入力して下さい";
+			}
+			if ($_POST["to_end_year"] <> "" or $_POST["to_end_month"] <> "" or $_POST["to_end_day"] <> ""){
+				if (!checkdate($_POST["to_begin_month"],$_POST["to_begin_day"],$_POST["to_begin_year"])){
+					$WMES[] = "締切日 が正しくありません";
+				}
+			}
+			if ($_POST["to_end_year"] == ""){
+				$WMES[] = "締切日 を全て入力して下さい";
+			}
+		}
+	}
+
+	$today = getdate();
+	include("./session.inc.php");
+
+	if ($login && sizeof($MES)==0) {
+		include "./menu.inc.php";
+		// 表示行数
+		$rows = 10;
+		
+		$pagetext .= "<SCRIPT LANGUAGE=\"JavaScript\">\n";
+		$pagetext .= "<!--\n";
+		$pagetext .= "	  function delConf() {\n";
+		$pagetext .= "	    if(confirm(\"全てのメモを削除しますか？\\n注:一度削除したメモを戻すことはできません。\")) {\n";
+		$pagetext .= "	      if(confirm(\"本当によろしいですか？\")) {\n";
+		$pagetext .= "	        window.open('./del/?type=all','_self');\n";
+		$pagetext .= "	     }\n";
+		$pagetext .= "	    }\n";
+		$pagetext .= "	  }\n";
+		$pagetext .= "\n";
+		$pagetext .= "	  function sequence(user_id,from,to,sort) {\n";
+		$pagetext .= "	    window.open('./?mode=sequence&user_id='+user_id+'&from='+from+'&to='+to+'&sort='+sort,'_self');\n";
+		$pagetext .= "	  }\n";
+		$pagetext .= "	// -->\n";
+		$pagetext .= "	</SCRIPT>\n";
+
+		if (!empty($todo_s_n) && $todo_s_n > 0){
+			$pagetext .= "</form>\n";
+			$sql = "SELECT * FROM todos where user_id='".$login_id."' and seqno=".$todo_s_n;
+			$res = pg_query($conn,$sql);
+			if (pg_num_rows($res)>0) {
+				$row = pg_fetch_array($res,0);
+				$seqno	   = $row["seqno"];
+				$priority  = $row["priority"];
+				$subject   = $row["subject"];
+				$body      = $row["body"];
+				$begin_day = $row["begin_day"];
+				$end_day   = $row["end_day"];
+				$progress  = $row["progress"];
+				$updatestamp  = $row["updatestamp"];
+
+				$pagetext .= "<INPUT type=\"hidden\" name=\"seqno\" value=".$seqno.">\n";
+			} else {
+				$DMES[] = "既に指定されたメモは既に削除されたか登録されていません";
+			}
+
+			$pagetext .= "<TD VALIGN=TOP>\n";
+			$pagetext .= "<TABLE BORDER=0 CELLPADDING=0 CELLSPACING=0 WIDTH=100%>\n";
+			$pagetext .= "<TR>\n";
+			$pagetext .= "<TD><TABLE BORDER=0 CELLPADDING=0 CELLSPACING=0 width=100%>\n";
+			$pagetext .= "<TR>\n";
+			$pagetext .= "<TD ALIGN=LEFT VALIGN=MIDDLE>&nbsp;</TD>\n";
+			$pagetext .= "<TD ALIGN=RIGHT VALIGN=MIDDLE>";
+			if ($todo_s_p == "todo"){
+				$pagetext .= "&nbsp;<A HREF=\"./\">一覧に戻る</a>";
+			}
+			$pagetext .= "&nbsp;<A HREF=\"./add/?p=".$todo_s_p."\"><IMG SRC=\"../image/entrysadd.gif\" WIDTH=10 HEIGHT=9 BORDER=0 ALIGN=ABSMIDDLE ALT=\"メモの追加\">新しいメモ</A><!--&nbsp;<A HREF=\"#\" ONCLICK=\"delConf()\"><IMG SRC=\"../image/eraser.gif\" WIDTH=14 HEIGHT=14 BORDER=0 ALIGN=ABSMIDDLE ALT=\"メモの全件削除\">全て削除</A>--></TD>\n";
+			$pagetext .= "</TR>\n";
+			$pagetext .= "</TABLE>\n";
+		
+			$pagetext .= "<TABLE BORDER=0 CELLPADDING=0 CELLSPACING=0 WIDTH=100%>\n";
+			$pagetext .= "<TR>\n";
+			$pagetext .= "<TD VALIGN=TOP ALIGN=CENTER><TABLE CELLPADDING=0 CELLSPACING=0>\n";
+			$pagetext .= "<TR>\n";
+			$pagetext .= "<TD VALIGN=TOP><TABLE BORDER=0 CELLPADDING=4 CELLSPACING=1 ALIGN=CENTER BGCOLOR=#666666>\n";
+			$pagetext .= "<TR>\n";
+			$pagetext .= "<TD ALIGN=LEFT BGCOLOR=#DDDDFF VALIGN=TOP><TABLE CELLPADDING=0 CELLPADDING=0 BORDER=0 WIDTH=100%>\n";
+			$pagetext .= "<TR>\n";
+			$pagetext .= "<TD COLSPAN=2>".$subject."</TD>\n";
+			$pagetext .= "</TR>\n";
+			$pagetext .= "<TR>\n";
+			$pagetext .= "<TD><TABLE CELLPADDING=0 CELLPADDING=0 BORDER=0>\n";
+			$pagetext .= "<TR>\n";
+			switch ($priority){
+				case 3:
+					$pagetext .= "<TD BGCOLOR=#FFEE00>　優先度:普通　&nbsp;</TD>\n";
+					break;
+				case 2:
+					$pagetext .= "<TD BGCOLOR=#FF6600>　優先度:やや高　&nbsp;</TD>\n";
+					break;
+				case 1:
+					$pagetext .= "<TD BGCOLOR=RED>　優先度:高　&nbsp;</TD>\n";
+					break;
+			}
+			$pagetext .= "</TR>\n";
+			$pagetext .= "</td></table>\n";
+			$pagetext .= "</tr>\n";
+			$pagetext .= "<tr>\n";
+			$pagetext .= "<TD><TABLE CELLPADDING=0 CELLPADDING=0 BORDER=0 width=100%>\n";
+			$pagetext .= "<TR>\n";
+			$pagetext .= "<TD><table border=0 cellpadding=0 cellspacing=0 width=100%>\n";
+			$pagetext .= "<tr>\n";
+
+			if (strlen($begin_day) == 0){
+				$ret = "指定無し";
+			} else {
+				$ret = date("Y年m月d日", datetime2timestamp($begin_day));
+			}
+			
+			$pagetext .= "<td>開始日：".$ret."</TD>\n";
+			$pagetext .= "</tr>\n";
+			$pagetext .= "<tr>\n";
+			if (strlen($end_day) == 0){
+				$ret = "指定無し";
+			} else {
+				$ret = date("Y年m月d日", datetime2timestamp($end_day));
+			}
+			
+			$pagetext .= "<td>締切日：".$ret."</TD>\n";
+			$pagetext .= "</tr>\n";
+			$pagetext .= "<tr>\n";
+			$pagetext .= "<td>達成状況：".get_progress($seqno, $progress, "edit")."</td>\n";
+			$pagetext .= "</tr>\n";
+			$pagetext .= "</table></td>\n";
+			$pagetext .= "</TR>\n";
+			$pagetext .= "</TABLE></TD>\n";
+			$pagetext .= "<TD ALIGN=RIGHT VALIGN=TOP><TABLE>\n";
+			$pagetext .= "<FORM ACTION=\"./add/\" METHOD=GET>\n";
+			$pagetext .= "<TR>\n";
+			$pagetext .= "<TD><INPUT TYPE=HIDDEN NAME=\"seqno\" VALUE=\"".$todo_s_n."\"><INPUT TYPE=HIDDEN NAME=\"p\" VALUE=\"".$todo_s_p."\"><INPUT TYPE=SUBMIT VALUE=\"編集\" STYLE=\"width:60px\" ACCESSKEY=\"E\"></TD>\n";
+			$pagetext .= "</TR>\n";
+			$pagetext .= "</FORM>\n";
+			$pagetext .= "</TABLE></TD>\n";
+			$pagetext .= "</TR>\n";
+			$pagetext .= "</TABLE></TD>\n";
+			$pagetext .= "</TR>\n";
+			$pagetext .= "<TR>\n";
+			$pagetext .= "<TD ALIGN=LEFT BGCOLOR=#FFFFFF VALIGN=TOP STYLE=\"width:450px;height:240px\">".str_wiki($body)."</TD>\n";
+			$pagetext .= "</TR>\n";
+			$pagetext .= "</TABLE><DIV ALIGN=RIGHT><FONT COLOR=#555555>更新日時 : ".$updatestamp."</DIV></TD>\n";
+			$pagetext .= "</TR>\n";
+			$pagetext .= "</TABLE><TABLE BORDER=0 CELLPADDING=4 CELLSPACING=0 ALIGN=CENTER>\n";
+			$pagetext .= "<TR>\n";
+			$pagetext .= "</TR>\n";
+			$pagetext .= "</TABLE></TD>\n";
+			$pagetext .= "</TR>\n";
+			$pagetext .= "</TABLE>\n";
+		} else {
+
+			$pagetext .= "<TD VALIGN=TOP>\n";
+			$pagetext .= "<TABLE BORDER=0 CELLPADDING=0 CELLSPACING=0 WIDTH=100%>\n";
+			$pagetext .= "<TR>\n";
+			$pagetext .= "<TD STYLE=\"line-height:13px\"><TABLE BORDER=0 CELLPADDING=0 CELLSPACING=0 width=100%>\n";
+			$pagetext .= "<TR>\n";
+			$pagetext .= "<TD ALIGN=LEFT VALIGN=MIDDLE>&nbsp;</TD>\n";
+			$pagetext .= "<TD ALIGN=RIGHT VALIGN=MIDDLE>&nbsp;<A HREF=\"./add/?p=edit\"><IMG SRC=\"../image/entrysadd.gif\" WIDTH=10 HEIGHT=9 BORDER=0 ALIGN=ABSMIDDLE ALT=\"メモの追加\">新しいメモ</A><!--&nbsp;<A HREF=\"#\" ONCLICK=\"delConf()\"><IMG SRC=\"../image/eraser.gif\" WIDTH=14 HEIGHT=14 BORDER=0 ALIGN=ABSMIDDLE ALT=\"メモの全件削除\">全て削除</A>--></TD>\n";
+			$pagetext .= "</TR>\n";
+			$pagetext .= "</TABLE>\n";
+			
+			$pagetext .= "<TABLE BORDER=0 CELLSPACING=0 CELLPADDING=4 WIDTH=100%>\n";
+			$pagetext .= "<TR>\n";
+			$pagetext .= "<TD ALIGN=LEFT> </TD>\n";
+
+			if (strlen($todo_c_viewtype) == 0) $todo_c_viewtype = "begin_day";
+			$selected[$todo_c_viewtype] = " selected";
+			$checkedradio[$todo_c_vieworder] = " checked";
+
+			$pagetext .= "<TD ALIGN=RIGHT HEIGHT=22><SELECT TYPE=RADIO NAME=\"viewtype\" ONCHANGE=\"javascript:input_form.submit();\"><OPTION VALUE=\"begin_day\"".$selected["begin_day"].">開始日</OPTION><OPTION VALUE=\"end_day\"".$selected["end_day"].">締切日</OPTION><OPTION VALUE=\"priority\"".$selected["priority"].">優先度</OPTION><OPTION VALUE=\"progress\"".$selected["progress"].">達成率順</OPTION></SELECT><INPUT TYPE=RADIO NAME=\"vieworder\" VALUE=\"asc\"".$checkedradio["asc"]." ONCLICK=\"javascript:input_form.submit();\">昇順<INPUT TYPE=RADIO NAME=\"vieworder\" VALUE=\"desc\"".$checkedradio["desc"]." ONCLICK=\"javascript:input_form.submit();\">降順</TD>\n";
+			$pagetext .= "</TR>\n";
+			$pagetext .= "</TABLE>\n";
+			$pagetext .= "<table width=100% border=0 cellpadding=0 cellspacing=0>\n";
+			$pagetext .= "<INPUT TYPE=\"HIDDEN\" NAME=\"type\" VALUE=\"to\">\n";
+			$pagetext .= "<tr>\n";
+			$pagetext .= "<td width=100%><TABLE WIDTH=100% BORDER=0 CELLPADDING=3 CELLSPACING=0 BGCOLOR=#CCCCCC>\n";
+			$pagetext .= "<TR BGCOLOR=#999999 HEIGHT=22>\n";
+			$pagetext .= "<TH ALIGN=left width=100%-480 NOWRAP><FONT COLOR=#FFFFFF>タイトル</TH>\n";
+			$pagetext .= "<TH ALIGN=left width=150 NOWRAP><FONT COLOR=#FFFFFF>開始日</TH>\n";
+			$pagetext .= "<TH ALIGN=left width=150 NOWRAP><FONT COLOR=#FFFFFF>締切日</TH>\n";
+			$pagetext .= "<TH ALIGN=left width=180 NOWRAP><FONT COLOR=#FFFFFF>達成状況</TH>\n";
+			$pagetext .= "</TR>\n";
+			
+			unset($checkedradio);
+			unset($selected);
+
+			$sql = "SELECT * FROM todos where user_id='".$login_id."'";
+			if ($todo_s_priority != 0) {
+				$sql .= " and priority = ".$todo_s_priority;
+			}
+
+			$sql .= " and (begin_day between '".$begin_from_date."' and '".$begin_to_date."' or begin_day is NULL)";
+
+			if ($todo_s_use_end_flg == "off") {
+				$sql .= " and end_day between '".$end_from_date."' and '".$end_to_date."'";
+			}
+			$sql .= " and progress between ".$todo_s_progress_min." and ".$todo_s_progress_max;
+
+			if (strlen($todo_s_title) != 0){
+				$title  = str_replace("　", " ", $todo_s_title);
+				$titles = explode(" ", $todo_s_title);
+				$sql .= " and (";
+				while(list($key, $item) = each($titles)){
+					$c++;
+					$sql .= " subject like '%".$item."%'";
+					if ($c < count($titles)) $sql .= " or";
+				}
+				$sql .= ")";
+			}
+
+			if ($todo_c_viewtype == "priority"){
+				$sql .= " order by priority ".$todo_c_vieworder.", coalesce(end_day,'1970-04-14') desc,begin_day desc, seqno desc";
+			} elseif ($todo_c_viewtype == "end_day") {
+				if ($todo_c_vieworder == "desc"){
+					$sql .= " order by coalesce(end_day,'1970-04-14') ".$todo_c_vieworder.", seqno desc";
+				} else {
+					$sql .= " order by coalesce(end_day,'2970-04-14') ".$todo_c_vieworder.", seqno desc";
+				}
+			} else {
+				$sql .= " order by ".$todo_c_viewtype." ".$todo_c_vieworder.", seqno desc";
+			}
+
+			$res = pg_query($conn,$sql);
+			if (pg_num_rows($res)>0) {
+				$num = pg_numrows($res); 
+			 
+				for ($i=0; $i < $num; $i++) {
+			  		
+			  		$r = pg_fetch_row($res, $i);
+					
+					$pagetext .= "<TR HEIGHT=31>\n";
+
+					switch ($r[2]){
+						case 3:
+							$color = "#FFEE00";
+							break;
+						case 2:
+							$color = "#FF6600";
+							break;
+						case 1:
+							$color = "red";
+							break;
+					}
+
+					if ($i % 2 == 0){
+						$bg_color = "#DDDDFF";
+					} else {
+						$bg_color = "#EEEEFF";
+					}
+					
+					$pagetext .= "<td bgcolor=".$bg_color." align=left><font color=\"".$color."\">●</font><a href=\"?p=todo&n=".$r[0]."\">$r[3]</a></td>\n";
+					if (strlen($r[7]) == 0){
+						$pagetext .= "<td bgcolor=".$bg_color." align=left>指定無し</td>\n";
+					} else {
+						$ret = date("Y年m月d日", datetime2timestamp($r[7]));
+						$pagetext .= "<td bgcolor=".$bg_color." align=left>$ret</td>\n";
+					}
+					if (strlen($r[8]) == 0){
+						$pagetext .= "<td bgcolor=".$bg_color." align=left>指定無し</td>\n";
+					} else {
+						$ret = date("Y年m月d日", datetime2timestamp($r[8]));
+						$pagetext .= "<td bgcolor=".$bg_color." align=left>$ret</td>\n";
+					}
+					$pagetext .= "<td bgcolor=".$bg_color." align=left>".get_progress($r[0], $r[9], "todo")."</td>\n";
+					$pagetext .= "</TR>\n";
+				}
+
+			  	if (sizeof($DMES)>0) {
+				    // エラー時
+				    $pagetext .= "<BR>\n";
+				    $pagetext .= "<TABLE BORDER=0 WIDTH=100%><FORM>";
+				    $pagetext .= "<TR><TD ALIGN=CENTER><FONT COLOR=#FF0000>";
+				    // エラーメッセージ出力
+				    while (list($key,$val)=each($DMES)) {
+				      $pagetext .= $val."<BR>\n";
+				    }
+				    $pagetext .= "<BR>\n";
+				    $pagetext .= "<INPUT TYPE=button VALUE=\"戻る\" onClick=\"history.back()\">\n";
+				    $pagetext .= "</TD></TR></FORM></TABLE>\n";
+				} else {
+				    // 正常処理
+				    $pagetext .= "<SCRIPT LANGUAGE=\"JavaScript\">\n";
+				    $pagetext .= "<!--\n";
+				    $pagetext .= "  function delwin(seqno) {\n";
+				    $pagetext .= "    if(confirm(\"このメモを削除しますか。\\n注:一度削除したメモを戻すことはできません。\")) {\n";
+				    $pagetext .= "      window.open(\"../del/?p=$p&seqno=\"+seqno,\"_self\");\n";
+				    $pagetext .= "    }\n";
+				    $pagetext .= "  }\n";
+				    $pagetext .= "//-->\n";
+				    $pagetext .= "</SCRIPT>\n";
+				}
+			} else {
+				$pagetext .= "<TR HEIGHT=31>\n";
+				$pagetext .= "<TD COLSPAN=5 bgcolor=#FFFFFF align=center>メモはありません</TD>\n";
+				$pagetext .= "</TR>\n";
+			}
+		}
+	}
+	
+	include "../detail.inc.php";
+	include "../footer.inc.php";
+?>

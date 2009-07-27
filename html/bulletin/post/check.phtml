@@ -1,0 +1,159 @@
+<?php
+  include ("../../config.inc.php");
+  include ("../../lib.inc.php");
+
+#  $board = $_COOKIE["board_id"];
+  if (!empty($_POST["board"]) && $_POST["board"] != $_COOKIE["board_id"]) {
+    $headertext .= "Set-Cookie: board_id=".$_POST["board"]."; path=/;\n";
+  }
+
+  $kwd   = stripslashes(urldecode($_COOKIE["board_kwd"]));
+
+  // リンク用テキストの設定
+  $linktext  = "<A HREF=\"../../\" ALT=\"トップページ\" CLASS=\"BAR\">トップページ</A> &gt; ";
+  $linktext .= "<A HREF=\"../\" ALT=\"掲示板\" CLASS=\"BAR\">掲示板</A> &gt; ";
+  $linktext .= "<FONT COLOR=#FFFF00>新しい発言</FONT> ";
+
+  // 検索機能の使用?
+  $search = true;
+  $searchuri = "/bulletin/";
+
+  // ヘッダ表示
+  include ("../../header.inc.php");
+
+  if ($login && sizeof($MES)==0) {
+    // エラーチェック
+    $board     = $_POST["board"];
+    $subject   = textsafe($_POST["subject"]);
+    $body      = textsafe($_POST["body"]);
+    $parent    = textsafe($_POST["parent"]);
+    $replysign = textsafe($_POST["replysign"]);
+
+    ## 投稿許可チェック
+    $use        = false;
+    $row_boards = get_row("boards","*","id='$board'");
+    $manage_id  = $row_boards["admin_id"];
+    $boardsname = $row_boards["name"];
+    $group_ids  = $row_boards["view_group_ids"];
+    $user_ids   = $row_boards["view_user_ids"];
+    if ($manage_id==$login_id || ($group_ids=="" && $user_ids=="")) {
+      ## 管理者 or 掲示板管理者 or 制約のない掲示板
+      $use = true;
+    } else {
+      if ($group_ids!="") {
+        $view_group_id = split(",",$group_ids);
+        if (sizeof($view_group_id)>0) while (list($seq,$id)=each($view_group_id)) {
+          $chkcnt = get_count("users_entry","user_id='$login_id' AND group_id='$id'");
+          if ($chkcnt>0) { $use = true; break; }
+        }
+      }
+      if ($user_ids!="") {
+        $view_user_id = split(",",$user_ids);
+        if (sizeof($view_user_id)>0) while (list($seq,$id)=each($view_user_id)) {
+          if ($login_id==$id) { $use = true; break; }
+        }
+      }
+    }
+    if (!$use) {
+      $DMES[] = "指定された掲示板への投稿は許可されていません";
+    }
+
+    ## 投稿先チェック
+    if (empty($board)) {
+      $DMES[] = "掲示板が選択されていません";
+    }
+
+    ## タイトルチェック
+    if (trim($subject)=="") {
+      $DMES[] = "タイトルが入力されていません";
+    } elseif(strlen($subject)>80) {
+      $DMES[] = "タイトルが長すぎます。全角40文字までで入力してください";
+      $subject = mb_strcut($subject,0,80);
+    }
+
+    ## 本文チェック
+		$org_body = $body;
+    if (trim($body)=="") {
+      $DMES[] = "本文が入力されていません";
+    } elseif(strlen($body)>10000) {
+      $DMES[] = "本文が長すぎます。全角5000文字までで入力してください";
+      $body = mb_strcut($body,0,10000);
+    }
+
+    if (sizeof($DMES)==0) {
+      // ページ内容作成
+      $pagetext .= "<BR>\n";
+      $pagetext .= "<CENTER>\n";
+      $pagetext .= "下記内容でよろしければ、「発言を投稿する」ボタンをクリックしてください。<BR><BR>\n";
+      $pagetext .= "<FORM ACTION=\"./post.phtml\" METHOD=POST ONSUBMIT=\"return confirm('発言を投稿しますか？')\">\n";
+      $pagetext .= "<INPUT TYPE=HIDDEN NAME=\"p\" VALUE=\"$p\">\n";
+      $pagetext .= "<INPUT TYPE=HIDDEN NAME=\"parent\" VALUE=\"$parent\">\n";
+      $pagetext .= "<INPUT TYPE=HIDDEN NAME=\"board\" VALUE=\"$board\">\n";
+      $pagetext .= "<INPUT TYPE=HIDDEN NAME=\"subject\" VALUE=\"$subject\">\n";
+      $pagetext .= "<INPUT TYPE=HIDDEN NAME=\"body\" VALUE=\"".$org_body."\">\n";
+      $pagetext .= "<INPUT TYPE=HIDDEN NAME=\"replysign\" VALUE=\"$replysign\">\n";
+      $pagetext .= "<TABLE WIDTH=480 BORDER=0><TR><TD ALIGN=CENTER>\n";
+      $pagetext .= "<DIV ALIGN=LEFT><FONT COLOR=#555555>";
+
+      $pagetext .= "投稿先 : $boardsname";
+      $pagetext .= "</FONT></DIV>";
+
+      $pagetext .= "<TABLE BORDER=0 CELLPADDING=4 CELLSPACING=1 width=480 BGCOLOR=#999999>";
+      $pagetext .= "<TR><TD ALIGN=LEFT BGCOLOR=$bg_dark>".$subject."</TR>";
+      $pagetext .= "<TR><TD ALIGN=LEFT BGCOLOR=$td_back STYLE=\"font-family:'MS ゴシック','Osaka等幅',monospace\">";
+
+      ## 表示用整形
+			$body = preg_replace("/<BR>|\r\n|\r|\n/i","\n",$body);
+			$body = str_wiki($body);
+
+      $pagetext .= $body;
+
+      $pagetext .= "</TD></TR>";
+      $pagetext .= "</TABLE>";
+      $pagetext .= "<DIV ALIGN=RIGHT><FONT COLOR=#555555>返信通知 : ";
+      if ($replysign=="t") {
+        $pagetext .= "あり";
+      } else {
+        $pagetext .= "なし";
+      }
+      $pagetext .= "&nbsp;</FONT></DIV>";
+      $pagetext .= "</TD></TR></TABLE><BR>";
+
+      $pagetext .= "<TABLE BORDER=0><TR>";
+      $pagetext .= "<TD><INPUT TYPE=SUBMIT VALUE=\"発言を投稿する\" STYLE=\"width:140px\"></TD>";
+      $pagetext .= "</FORM>\n";
+      $pagetext .= "<FORM ACTION=\"./\" METHOD=POST>\n";
+      $pagetext .= "<INPUT TYPE=HIDDEN NAME=\"p\" VALUE=\"$p\">\n";
+      $pagetext .= "<INPUT TYPE=HIDDEN NAME=\"parent\" VALUE=\"$parent\">\n";
+      $pagetext .= "<INPUT TYPE=HIDDEN NAME=\"board\" VALUE=\"$board\">\n";
+      $pagetext .= "<INPUT TYPE=HIDDEN NAME=\"subject\" VALUE=\"$subject\">\n";
+      $pagetext .= "<INPUT TYPE=HIDDEN NAME=\"body\" VALUE=\"".$org_body."\">\n";
+      $pagetext .= "<INPUT TYPE=HIDDEN NAME=\"replysign\" VALUE=\"$replysign\">\n";
+      $pagetext .= "<TD><INPUT TYPE=SUBMIT VALUE=\"戻る\" STYLE=\"width:70px\"></TD>";
+      $pagetext .= "</TR></TABLE>";
+      $pagetext .= "</FORM>\n";
+
+    } else {
+      // エラー時
+      $pagetext .= "<BR><BR>\n";
+      $pagetext .= "<CENTER>\n";
+      $pagetext .= "<FONT COLOR=#FF0000>\n";
+      while (list($key,$val)=each($DMES)) {
+        $pagetext .= $val."<BR>\n";
+      }
+      $pagetext .= "</FONT>\n";
+
+      $pagetext .= "<BR><FORM ACTION=\"./\" METHOD=POST>\n";
+      $pagetext .= "<INPUT TYPE=BUTTON VALUE=\"戻る\" ONCLICK=\"history.back()\">\n";
+
+      $pagetext .= "</FORM>\n";
+      $pagetext .= "</CENTER>\n";
+    }
+  }
+
+  // 明細表示
+  include "../../detail.inc.php";
+
+  // フッタ表示
+  include "../../footer.inc.php";
+?>

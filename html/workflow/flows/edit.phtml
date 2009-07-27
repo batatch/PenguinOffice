@@ -1,0 +1,231 @@
+<?php
+  include "../../config.inc.php"; include "../../lib.inc.php";
+
+  $linktext  = "<A HREF=\"../../\" CLASS=\"BAR\">トップページ</A> &gt; ";
+  $linktext .= "<A HREF=\"../\" CLASS=\"BAR\">ワークフロー</A> &gt; ";
+  $linktext .= "<FONT COLOR=#FFFF00>フロー設定</FONT> ";
+
+  include "../../header.inc.php"; flush();
+  include "../menu.inc.php";
+
+  if ($login && $admin_sign=="t") {
+    print "<!--";
+    $pagetext = "";
+    $pagetext .= "<SCRIPT LANGUAGE=\"JavaScript\">\n";
+    $pagetext .= "<!--\n";
+    $pagetext .= "function delConfirm(seqno,id,p) {\n";
+    $pagetext .= "  if (confirm(\"このフロー設定を削除しますか？\\n注:一度削除した設定は元に戻すことはできません\")) {\n";
+    $pagetext .= "    window.open('./delete.phtml?seqno='+seqno+'&id='+id+'&p='+p+'','_self');\n";
+    $pagetext .= "  }\n";
+    $pagetext .= "}\n";
+    $pagetext .= "// -->\n";
+    $pagetext .= "</SCRIPT>\n";
+
+    $pagetext .= "&lt;<A HREF=\"../\">ワークフローへ戻る</A>&gt;\n";
+
+    $pagetext .= "<BR><CENTER>\n";
+
+    if (!empty($_POST["back"]) && $_POST["back"] == "t") {
+      // 更新ページからの戻り(エラー)時
+      $p        = stripslashes($_POST["p"]);
+      $seqno    = stripslashes($_POST["seqno"]);
+      $id       = stripslashes($_POST["id"]);
+      $name     = stripslashes($_POST["name"]);
+      $user_ids = split(",",stripslashes($_POST["user_ids"]));
+    } else {
+      if (!empty($_REQUEST["p"])) $p = $_REQUEST["p"];
+
+      // SELECT条件の指定
+      if ((!empty($_REQUEST["seqno"]) && is_numeric($_REQUEST["seqno"])) && !empty($_REQUEST["id"]))  {
+        $sql = "SELECT * FROM flows WHERE seqno=".$_REQUEST["seqno"]." AND id='".$_REQUEST["id"]."'";
+        $res = pg_query($conn, $sql);
+        $cnt = pg_num_rows($res);
+      } else {
+        $cnt = 0;
+      }
+
+      if ($cnt>0) {
+        $row = pg_fetch_array($res, 0);
+        $seqno    = $row["seqno"];
+        $id       = $row["id"];
+        $name     = $row["name"];
+        $user_ids = split(",",$row["user_ids"]);
+      } else {
+        $seqno    = "";
+        $id       = "";
+        $name     = "";
+        $user_ids = "";
+      }
+    }
+
+    //テーブル出力
+    $pagetext .= "<TABLE BGCOLOR=#999999 BORDER=0 CELLPADDING=3 CELLSPACING=1>\n";
+    $pagetext .= "<FORM ACTION=\"./update.phtml\" METHOD=POST>\n";
+    $pagetext .= "<INPUT TYPE=HIDDEN NAME=\"p\" VALUE=\"$p\">\n";
+
+    if (!empty($_REQUEST["seqno"])) {
+      $pagetext .= "<INPUT TYPE=HIDDEN NAME=\"seqno\" VALUE=\"".$_REQUEST["seqno"]."\">\n";
+      $pagetext .= "<INPUT TYPE=HIDDEN NAME=\"id\" VALUE=\"".$id."\">\n";
+    }
+
+    $pagetext .= "<TR><TH ALIGN=RIGHT NOWRAP BGCOLOR=$td_back_left>&nbsp;フロー名&nbsp;</TH>";
+    $pagetext .= "<TD NOWRAP BGCOLOR=#FFFFEE>";
+    $pagetext .= "<INPUT TYPE=TEXT NAME=\"name\" SIZE=24 MAXLENGTH=60 VALUE=\"".$name."\">\n";
+    $pagetext .= "</TD></TR>\n";
+
+    $pagetext .= "<TR><TH ALIGN=RIGHT NOWRAP BGCOLOR=$td_back_left>&nbsp;フロー設定&nbsp;</TH>";
+    $pagetext .= "<TD ALIGN=RIGHT NOWRAP BGCOLOR=#FFFFEE>";
+
+    $sql_user = "SELECT * FROM users ORDER BY seqno";
+    $res_user = pg_query($conn,$sql_user);
+    $cnt_user = pg_num_rows($res_user);
+    if ($cnt_user>0) {
+      $pagetext .= "1.<SELECT NAME=\"flows[]\">";
+      $pagetext .= "<OPTION VALUE=\"\">(選択してください)";
+      $pagetext .= "<OPTION VALUE=\"\">----------------";
+      for ($i=0;$i<$cnt_user;$i++) {
+        $row_user = pg_fetch_array($res_user,$i);
+        $pagetext .= "<OPTION VALUE=\"".$row_user["id"]."\"";
+        if ($user_ids[0]==$row_user["id"]) { $pagetext .= " SELECTED"; }
+        $pagetext .= ">".$row_user["name"];
+      }
+      $pagetext .= "</SELECT>\n";
+      $pagetext .= "<BR>\n";
+
+      $pagetext .= "2.<SELECT NAME=\"flows[]\">";
+      $pagetext .= "<OPTION VALUE=\"\">(選択してください)";
+      $pagetext .= "<OPTION VALUE=\"\">----------------";
+      for ($i=0;$i<$cnt_user;$i++) {
+        $row_user = pg_fetch_array($res_user,$i);
+        $pagetext .= "<OPTION VALUE=\"".$row_user["id"]."\"";
+        if ($user_ids[1]==$row_user["id"]) { $pagetext .= " SELECTED"; }
+        $pagetext .= ">".$row_user["name"];
+      }
+      $pagetext .= "</SELECT>\n";
+      $pagetext .= "<BR>\n";
+
+      $pagetext .= "3.<SELECT NAME=\"flows[]\">";
+      $pagetext .= "<OPTION VALUE=\"\">(選択してください)";
+      $pagetext .= "<OPTION VALUE=\"\">----------------";
+      for ($i=0;$i<$cnt_user;$i++) {
+        $row_user = pg_fetch_array($res_user,$i);
+        $pagetext .= "<OPTION VALUE=\"".$row_user["id"]."\"";
+        if ($user_ids[2]==$row_user["id"]) { $pagetext .= " SELECTED"; }
+        $pagetext .= ">".$row_user["name"];
+      }
+      $pagetext .= "</SELECT>\n";
+      $pagetext .= "<BR>\n";
+
+      $pagetext .= "4.<SELECT NAME=\"flows[]\">";
+      $pagetext .= "<OPTION VALUE=\"\">(選択してください)";
+      $pagetext .= "<OPTION VALUE=\"\">----------------";
+      for ($i=0;$i<$cnt_user;$i++) {
+        $row_user = pg_fetch_array($res_user,$i);
+        $pagetext .= "<OPTION VALUE=\"".$row_user["id"]."\"";
+        if ($user_ids[3]==$row_user["id"]) { $pagetext .= " SELECTED"; }
+        $pagetext .= ">".$row_user["name"];
+      }
+      $pagetext .= "</SELECT>\n";
+      $pagetext .= "<BR>\n";
+
+      $pagetext .= "5.<SELECT NAME=\"flows[]\">";
+      $pagetext .= "<OPTION VALUE=\"\">(選択してください)";
+      $pagetext .= "<OPTION VALUE=\"\">----------------";
+      for ($i=0;$i<$cnt_user;$i++) {
+        $row_user = pg_fetch_array($res_user,$i);
+        $pagetext .= "<OPTION VALUE=\"".$row_user["id"]."\"";
+        if ($user_ids[4]==$row_user["id"]) { $pagetext .= " SELECTED"; }
+        $pagetext .= ">".$row_user["name"];
+      }
+      $pagetext .= "</SELECT>\n";
+      $pagetext .= "<BR>\n";
+
+      $pagetext .= "6.<SELECT NAME=\"flows[]\">";
+      $pagetext .= "<OPTION VALUE=\"\">(選択してください)";
+      $pagetext .= "<OPTION VALUE=\"\">----------------";
+      for ($i=0;$i<$cnt_user;$i++) {
+        $row_user = pg_fetch_array($res_user,$i);
+        $pagetext .= "<OPTION VALUE=\"".$row_user["id"]."\"";
+        if ($user_ids[5]==$row_user["id"]) { $pagetext .= " SELECTED"; }
+        $pagetext .= ">".$row_user["name"];
+      }
+      $pagetext .= "</SELECT>\n";
+      $pagetext .= "<BR>\n";
+
+      $pagetext .= "7.<SELECT NAME=\"flows[]\">";
+      $pagetext .= "<OPTION VALUE=\"\">(選択してください)";
+      $pagetext .= "<OPTION VALUE=\"\">----------------";
+      for ($i=0;$i<$cnt_user;$i++) {
+        $row_user = pg_fetch_array($res_user,$i);
+        $pagetext .= "<OPTION VALUE=\"".$row_user["id"]."\"";
+        if ($user_ids[6]==$row_user["id"]) { $pagetext .= " SELECTED"; }
+        $pagetext .= ">".$row_user["name"];
+      }
+      $pagetext .= "</SELECT>\n";
+      $pagetext .= "<BR>\n";
+
+      $pagetext .= "8.<SELECT NAME=\"flows[]\">";
+      $pagetext .= "<OPTION VALUE=\"\">(選択してください)";
+      $pagetext .= "<OPTION VALUE=\"\">----------------";
+      for ($i=0;$i<$cnt_user;$i++) {
+        $row_user = pg_fetch_array($res_user,$i);
+        $pagetext .= "<OPTION VALUE=\"".$row_user["id"]."\"";
+        if ($user_ids[7]==$row_user["id"]) { $pagetext .= " SELECTED"; }
+        $pagetext .= ">".$row_user["name"];
+      }
+      $pagetext .= "</SELECT>\n";
+      $pagetext .= "<BR>\n";
+
+      $pagetext .= "9.<SELECT NAME=\"flows[]\">";
+      $pagetext .= "<OPTION VALUE=\"\">(選択してください)";
+      $pagetext .= "<OPTION VALUE=\"\">----------------";
+      for ($i=0;$i<$cnt_user;$i++) {
+        $row_user = pg_fetch_array($res_user,$i);
+        $pagetext .= "<OPTION VALUE=\"".$row_user["id"]."\"";
+        if ($user_ids[8]==$row_user["id"]) { $pagetext .= " SELECTED"; }
+        $pagetext .= ">".$row_user["name"];
+      }
+      $pagetext .= "</SELECT>\n";
+      $pagetext .= "<BR>\n";
+
+      $pagetext .= "10.<SELECT NAME=\"flows[]\">";
+      $pagetext .= "<OPTION VALUE=\"\">(選択してください)";
+      $pagetext .= "<OPTION VALUE=\"\">----------------";
+      for ($i=0;$i<$cnt_user;$i++) {
+        $row_user = pg_fetch_array($res_user,$i);
+        $pagetext .= "<OPTION VALUE=\"".$row_user["id"]."\"";
+        if ($user_ids[9]==$row_user["id"]) { $pagetext .= " SELECTED"; }
+        $pagetext .= ">".$row_user["name"];
+      }
+      $pagetext .= "</SELECT>\n";
+      $pagetext .= "<BR>\n";
+    }
+#    $pagetext .= "<INPUT TYPE=TEXT NAME=\"flows[]\" ONFOCUS=\"blur(this);\" STYLE=\"border-style:outset;border-width:1px;background-color:#FFFFEE\"><BR>\n";
+#    $pagetext .= "<INPUT TYPE=TEXT NAME=\"flows[]\" ONFOCUS=\"blur(this);\" STYLE=\"border-style:outset;border-width:1px;background-color:#FFFFEE\"><BR>\n";
+#    $pagetext .= "<INPUT TYPE=TEXT NAME=\"flows[]\" ONFOCUS=\"blur(this);\" STYLE=\"border-style:outset;border-width:1px;background-color:#FFFFEE\"><BR>\n";
+#    $pagetext .= "<INPUT TYPE=TEXT NAME=\"flows[]\" ONFOCUS=\"blur(this);\" STYLE=\"border-style:outset;border-width:1px;background-color:#FFFFEE\"><BR>\n";
+#    $pagetext .= "<INPUT TYPE=TEXT NAME=\"flows[]\" ONFOCUS=\"blur(this);\" STYLE=\"border-style:outset;border-width:1px;background-color:#FFFFEE\"><BR>\n";
+#    $pagetext .= "<INPUT TYPE=HIDDEN NAME=\"flow\">\n";
+    $pagetext .= "</TD></TR>\n";
+
+    $pagetext .= "</TABLE>\n";
+
+
+    $pagetext .= "<BR>\n";
+
+    if (!empty($_REQUEST["seqno"])) {
+      $pagetext .= "<INPUT TYPE=SUBMIT VALUE=\"更新する\" STYLE=\"width:80px\">&nbsp;";
+      $pagetext .= "<INPUT TYPE=BUTTON VALUE=\"削除\" onclick=\"delConfirm(".$_REQUEST["seqno"].",'$id','$p')\">\n";
+    } else {
+      $pagetext .= "<INPUT TYPE=SUBMIT VALUE=\"登録する\" STYLE=\"width:80px\">";
+    }
+    $pagetext .= "</FORM>\n";
+    $pagetext .= "</CENTER>\n";
+    print "-->";
+  }
+  // 明細表示
+  include "../../detail.inc.php";
+
+  // フッタ表示
+  include "../../footer.inc.php";
+?>

@@ -1,0 +1,204 @@
+<?
+  include ("../../config.inc.php");
+  include ("../../lib.inc.php");
+  include ("../../language.inc.php");
+
+  $linktext  = "<A HREF=\"../../\" CLASS=\"BAR\">トップページ</A> &gt; ";
+  $linktext .= "<A HREF=\"../\" CLASS=\"BAR\">住所録</A> &gt; ";
+  $linktext .= "<FONT COLOR=#FFFF00>項目別検索</FONT>";
+  include "../../header.inc.php";
+  flush();
+
+  // エラーチェック
+  if ($login == false) {
+    $MES[] = "先に、ログインしてください ⇒ <A HREF=\"$toppath/\">ログインページへ</A>";
+  } else {
+    if (trim($login_id) == "") {
+      $MES[] = "ユーザーＩＤが正しくありません";
+    } else {
+      $sql = "select * from users where id='".$login_id."'";
+      print "<!--";
+      $res = pg_query($conn, $sql);
+
+      if (pg_num_rows($res)<1) {
+        $MES[] = "ユーザーＩＤが正しくありません";
+      } else {
+        $row = pg_fetch_array($res,0);
+      }
+      print "-->\n";
+    }
+  }
+
+  if (sizeof($MES) > 0) {
+    // エラー時
+    print "<TABLE BORDER=0 WIDTH=100%><TR><TD ALIGN=CENTER>\n";
+    print "<TABLE BORDER=0 HEIGHT=260>\n";
+    // エラーメッセージ出力
+    while (list($key,$val)=each($MES)) {
+      print "<TR><TD><FONT COLOR=#FF0000><B>".$val."</B></FONT></TD></TR>\n";
+    }
+    print "</TABLE>\n";
+    print "<INPUT TYPE=BUTTON VALUE=\"閉じる\" onClick=\"window.close()\" tabindex=999>\n";
+    print "</TD></TR></TABLE>\n";
+
+    include "../../footer.inc.php";
+    exit;
+  }
+
+  // 初期値
+  if ($kind_list == "") {
+    $kind_list = "all";
+  }
+?>
+<BR>
+
+<SCRIPT LANGUAGE="JavaScript">
+<!--
+function clearkind(f) {
+  for (i=0;i<f.elements.length;i++) {
+    if (f.elements[i].name == "kind[]") {
+      if (f.elements[i].value != "all") {
+        f.elements[i].checked = 0;
+      }
+    }
+  }
+}
+function clearkindall(f) {
+  for (i=0;i<f.elements.length;i++) {
+    if (f.elements[i].name == "kind[]") {
+      if (f.elements[i].value == "all") {
+        f.elements[i].checked = 0;
+      }
+    }
+  }
+}
+//-->
+</SCRIPT>
+
+<CENTER>
+<TABLE HEIGHT=445>
+
+<TR HEIGHT=21><TD VALIGN=TOP ALIGN=RIGHT COLSPAN=2>
+<TABLE CELLPADDING=4><TR><TD>
+項目に関係なく検索したい場合は <A HREF="./">フリーワード検索</A> へ
+</TD></TR></TABLE>
+</TD></TR>
+
+<TR><TD VALIGN=TOP ALIGN=CENTER>
+
+<TABLE BORDER=0>
+
+<FORM NAME="search" ACTION="./search2.phtml" METHOD="POST">
+<TR><TD VALIGN=TOP ALIGN=CENTER>
+
+<TABLE BORDER=1 CELLPADDING=2 CELLSPACING=0>
+<TR><TD ALIGN=CENTER BGCOLOR=#CCCCCC>項目指定</TD></TR>
+<TR><TD VALIGN=TOP STYLE="height:240px">
+
+<TABLE BORDER=0 CELLPADDING=2 CELLSPACING=0>
+
+<TR><TD NOWRAP>氏名</TD><TD>
+<INPUT TYPE=TEXT NAME="name" VALUE="<? echo $name ?>" SIZE=40 style="ime-mode:active;width:216px">
+</TD></TR>
+<TR><TD NOWRAP>会社名</TD><TD>
+<INPUT TYPE=TEXT NAME="corp" VALUE="<? echo $corp ?>" SIZE=40 style="ime-mode:active;width:216px">
+</TD></TR>
+<TR><TD NOWRAP>所属・役職</TD><TD>
+<INPUT TYPE=TEXT NAME="depa" VALUE="<? echo $depa ?>" SIZE=40 style="ime-mode:active;width:216px">
+</TD></TR>
+<TR><TD NOWRAP>〒・住所</TD><TD>
+<INPUT TYPE=TEXT NAME="addr" VALUE="<? echo $addr ?>" SIZE=40 style="ime-mode:active;width:216px">
+</TD></TR>
+<TR><TD NOWRAP>TEL・FAX</TD><TD>
+<INPUT TYPE=TEXT NAME="tel" VALUE="<? echo $tel ?>" SIZE=40 style="ime-mode:disabled;width:216px">
+</TD></TR>
+<TR><TD NOWRAP>URL・EMAIL</TD><TD>
+<INPUT TYPE=TEXT NAME="url" VALUE="<? echo $url ?>" SIZE=40 style="ime-mode:disabled;width:216px">
+</TD></TR>
+<TR><TD NOWRAP>コメント</TD><TD>
+<INPUT TYPE=TEXT NAME="comment" VALUE="<? echo $comment ?>" SIZE=40 style="ime-mode:active;width:216px">
+</TD></TR>
+
+<TR><TD>&nbsp;</TD><TD>
+<FONT COLOR=#555555 STYLE="font-size:7pt">氏名と会社名は漢字・カナの区別無く検索できます<BR>複数指定した場合は全てに合致するものを探します<BR></FONT>
+</TD></TR>
+</TABLE>
+
+</TD></TR></TABLE>
+
+<?
+    if ($kind_list != "") {
+      $kinds = split("(,|\t)",$kind_list);
+    }
+?>
+</TD><TD VALIGN=TOP>
+<TABLE BORDER=1 CELLPADDING=2 CELLSPACING=0>
+<TR><TD ALIGN=CENTER BGCOLOR=#CCCCCC>分類指定</TD></TR>
+<TR><TD VALIGN=TOP STYLE="height:240px">
+<INPUT TYPE=CHECKBOX NAME="kind[]" VALUE="all" onClick="clearkind(this.form)" <?
+    if (eregi("(^|,)all(,|$)",$kind_list)) {
+      print "checked";
+    }
+?>
+>指定しない
+<TABLE CELLPADDING=1 CELLSPACING=0>
+<?
+    $sql_kind = "SELECT * FROM address_kind ORDER BY seqno;";
+    $res_kind = pg_query($conn,$sql_kind);
+    $cnt_kind = pg_num_rows($res_kind);
+    if ($cnt_kind>0) {
+
+      $p = 1;
+      $tr_sign = false;
+      for ($i=0;$i<$cnt_kind;$i++) {
+        $row_kind = pg_fetch_array($res_kind,$i);
+
+        if ($p==1) {
+          print "<TR>\n";
+          $tr_sign=true;
+        }
+
+        print "<TD WIDTH=33% NOWRAP>";
+        print "<INPUT TYPE=CHECKBOX NAME=\"kind[]\" VALUE=\"".$row_kind["key"]."\"";
+        if (sizeof($kinds)>0) {
+          reset($kinds);
+          while (list($key,$val)=each($kinds)) {
+            if ($val==$row_kind["key"]) {
+              print " checked";
+              break;
+            }
+          }
+        }
+        print " onClick=\"clearkindall(this.form)\">".$row_kind["value"];
+        print "</TD>\n";
+
+        if ($p==3) {
+          print "</TR>\n";
+          $p=1;
+        } else {
+          $p++;
+        }
+      }
+      if ($tr_sign) {
+        print "</TR>\n";
+      }
+    }
+?>
+</TABLE>
+
+</TD></TR></TABLE>
+  
+</TD></TR>
+<TR><TD COLSPAN=2 ALIGN=CENTER><BR>
+<INPUT TYPE=SUBMIT VALUE="検索" style="width:100px">
+</TD></TR>
+
+</TABLE>
+
+</FORM>
+
+</TD></TR></TABLE>
+</CENTER>
+<?php
+  include "../../footer.inc.php";
+?>

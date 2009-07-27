@@ -1,0 +1,265 @@
+<?php
+include "../../config.inc.php";  include "../../lib.inc.php";
+include "../../language.inc.php";
+
+$linktext  = "<A HREF=\"/\" CLASS=\"BAR\">トップページ</A> &gt; ";
+$linktext .= "<A HREF=\"/link/\" CLASS=\"BAR\">リンク集</A> &gt; ";
+$linktext .= "<FONT COLOR=#FFFF00>リンクの登録</FONT>";
+
+include "../../login_check.inc.php";
+
+// エラーチェック
+if ($login && sizeof($DMES)==0) {
+	// 整形処理
+	$title     = urldecode(textsafe($_POST["title"]));
+	$path      = urldecode(textsafe($_POST["path"]));
+	$group     = $_POST["group"];
+	$user      = $_POST["user"];
+	$group_ids = $_POST["group_ids"];
+	$user_ids  = $_POST["user_ids"];
+	if (substr($path,strlen($path)-1,1) != "/") {
+		$path .= "/";
+	}
+	
+	if ($type=="dir"){
+		if ($title=="") {
+			$DMES[] = "タイトルが入力されていません。";
+		} elseif(strlen($title)>40) { // 最大40文字
+		$DMES[] = "作成フォルダ名が長すぎます。";
+		} else {
+			if ($title=="/" or $title=="\\\\") {
+				$DMES[] = "フォルダ名に使用できない文字が入っています";
+			} else {
+				if ($title=="." or $title=="..") {
+					$DMES[] = "フォルダ名に使用できない文字が入っています";
+				} else {
+					if (mberegi("\/",$title) or mberegi("\\\\",$title) or mberegi("\[",$title) or mberegi("\(",$title) or mberegi("\*",$title)  or mberegi("\+",$title)  or mberegi("\?",$title)  or mberegi("\|",$title) or mberegi("<",$title) or mberegi(">",$title)) {
+						#              $DMES[] = "フォルダ名に使用できない文字が含まれています";
+					} else {
+						$path = mbereg_replace("/","\/",$path);
+						$sql = "SELECT * FROM links WHERE path='$path' AND title='$title'";
+						$res = pg_query($conn,$sql);
+						if (pg_num_rows($res)>0 && empty($seqno)) {
+							$DMES[] = "同名のフォルダが既に存在しています";
+						}
+						$path = mbereg_replace("\\\/","/",$path);
+					}
+				}
+			}
+		}
+		if ($group!="all" && sizeof($group_ids)==0) {
+			$DMES[] = "グループが選択されていません";
+		}
+		if ($user!="all" && sizeof($user_ids)==0) {
+        $DMES[] = "ユーザーが選択されていません";
+      }
+    }
+
+    if ($type=="link"){
+      if ($title=="") {
+        $DMES[] = "タイトルが入力されていません";
+      } else {
+        if (eregi("/",$title)) {
+          $DMES[] = "タイトル名に使用できない文字が含まれています";
+        }
+      }
+
+      //$url チェック
+      if ($type=="link"){
+        $url=trim($edit_url);
+        if (substr($url,strlen($url)-1,1)=="/") {
+          $url=substr($url,0,strlen($url));
+        }
+        $STR = $url;
+        $LEN = strlen($STR);
+        if ($LEN == 0) {
+          $DMES[] = "URLを入力して下さい";
+        } else {
+          if ($STR == "http://") {
+            $DMES[] = "URLを入力して下さい";
+          } else {
+            if (substr($STR,0,5) != "http:" && substr($STR,0,6) != "https:") {
+              $DMES[] = "URLにはhttpまたはhttpsではじまるアドレスしか指定できません";
+            } else {
+              for ($i=0;$i<$LEN;$i++) {
+                if (substr($STR,$i,1)==",") {
+                  $DMES[] = "URLに「,」が含まれています";
+                  break;
+                }
+                if (substr($STR,$i,1)==";") {
+                  $DMES[] = "URLに「;」が含まれています";
+                  break;
+                }
+              }
+              if (preg_match("/^ftp:\/\//",$STR)) {
+                $DMES[] = "URLにftpディレクトリを指定することはできません";
+              } else {
+                if (!preg_match("/^http:\/\//",$STR) && !preg_match("/^https:\/\//",$STR)) {
+                  $DMES[] = "URLはhttp://またはhttps://ではじまるアドレスを正確に指定してください";
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+
+    if (sizeof($DMES)==0) {
+      if ($seqno == ""){
+        // 新規処理
+        $sql = "SELECT * FROM links ORDER BY seqno desc;";
+        $res = pg_query($conn, $sql);
+        $cnt = pg_num_rows($res);
+        if ($cnt==0) {
+          $seqno = 1;
+        } else {
+          $row = pg_fetch_array($res, 0);
+          $seqno = $row["seqno"] + 1;
+        }
+        $sql  = "INSERT INTO links (seqno,type,user_id,path,title,url,linksign,view_group_ids,view_user_ids,createstamp,updatestamp) VALUES (";
+        $sql .= $seqno.",";
+        $sql .= "'".$type."',";
+        $sql .= "'".$login_id."',";
+        $sql .= "'".db_textsafe($path)."',";
+        $sql .= "'".db_textsafe($title)."',";
+        $sql .= "'".$edit_url."',";
+        $sql .= "'t',";
+        // グループの変更
+        if ($group=="all") {
+          $sql .= "null";
+        } else {
+          $sql .= "'";
+          for ($i=0;$i<sizeof($group_ids);$i++) {
+            if ($i>0) $sql .= ",";
+            $sql .= $group_ids[$i];
+          }
+          $sql .= "'";
+        }
+        $sql .= ",";
+        // ユーザーの変更
+        if ($user=="all") {
+          $sql .= "null,";
+        } else {
+          $sql .= "'";
+          for ($i=0;$i<sizeof($user_ids);$i++) {
+            if ($i>0) $sql .= ",";
+            $sql .= $user_ids[$i];
+          }
+          $sql .= "',";
+        }
+        $sql .= "'now','now'";
+        $sql .= ")";
+
+        $res = pg_query($conn,$sql);
+        if ($res != false) {
+          $cnt = pg_affected_rows($res);
+        } else {
+          $cnt = 0;
+        }
+        if ($cnt==0) $DMES[] = "登録処理に失敗しました";
+      } else {
+        // 更新処理
+        $sql  = "UPDATE links SET ";
+        $sql .= "user_id='".$login_id."',";
+        $sql .= "url='$edit_url',";
+        $sql .= "title='".db_textsafe($title)."',";
+        $sql .= "path='".db_textsafe($path)."',";
+        $sql .= "linksign='t',";
+        // グループの変更
+        if ($group=="all") {
+          $sql .= "view_group_ids = null ";
+        } else {
+          $sql .= "view_group_ids = '";
+          for ($i=0;$i<sizeof($group_ids);$i++) {
+            if ($i>0) $sql .= ",";
+            $sql .= $group_ids[$i];
+          }
+          $sql .= "'";
+        }
+        $sql .= ",";
+        // ユーザーの変更
+        if ($user=="all") {
+          $sql .= "view_user_ids = null,";
+        } else {
+          $sql .= "view_user_ids = '";
+          for ($i=0;$i<sizeof($user_ids);$i++) {
+            if ($i>0) $sql .= ",";
+            $sql .= $user_ids[$i];
+          }
+          $sql .= "',";
+        }
+        $sql .= "updatestamp='now' ";
+        $sql .= " WHERE seqno=$seqno";
+        $res = pg_query($conn,$sql);
+
+        if ($res != false) {
+          $cnt = pg_affected_rows($res);
+        } else {
+          $cnt = 0;
+        }
+        if ($cnt==0) $DMES[] = "更新処理に失敗しました";
+
+        if (sizeof($DMES)==0) {
+          // 関連フォルダ・リンクUPDATE
+          $old_path1 = $old_path.$old_title."/";
+          $old_path_len = strlen($old_path);
+          $old_path_quota = mberegi_replace('/',"\/",$old_path1);
+          $sql_u = "SELECT * FROM links WHERE path ~* '^".$old_path_quota."'";
+          $res_u = pg_query($conn,$sql_u);
+          if (pg_num_rows($res_u)>0){
+            for ($i=0;$i<pg_num_rows($res_u);$i++){
+              $row_u = pg_fetch_array($res_u,$i);
+              $new_path = $path.$title."/";
+              $sql = "UPDATE links SET path='$new_path' WHERE seqno=".$row_u["seqno"];
+              $res = pg_query($conn,$sql);
+              if (!$res){
+                $DMES[] = "関連フォルダ・リンクの更新処理に失敗しました。";
+                berak;
+              }
+            }
+          }
+        }
+      }
+    }
+
+    // リンク先テキストの更新
+    if (sizeof($DMES)==0) {
+#      $rc = exec($basedir."/bin/get_urls.pl ".$db." ".$edit_url." > /dev/null &",$res);
+    }
+
+    if (sizeof($DMES)>0) {
+      // エラー時
+      include "../../header.inc.php";
+
+      print "<BR><CENTER>";
+      print "<FORM ACTION=\"./\" METHOD=POST>";
+      print "<FONT COLOR=#FF0000>";
+      while (list($key,$val)=each($DMES)) {
+        print $val."<BR>\n";
+      }
+      print "</FONT><BR><BR>\n";
+      print "<INPUT TYPE=HIDDEN NAME=\"p\" VALUE=\"$p\">\n";
+      print "<INPUT TYPE=HIDDEN NAME=\"seqno\" VALUE=\"$seqno\">\n";
+      print "<INPUT TYPE=HIDDEN NAME=\"user_id\" VALUE=\"$user_id\">\n";
+      print "<INPUT TYPE=HIDDEN NAME=\"path\" VALUE=\"$path\">\n";
+      print "<INPUT TYPE=HIDDEN NAME=\"old_path\" VALUE=\"$old_path\">\n";
+      print "<INPUT TYPE=HIDDEN NAME=\"old_title\" VALUE=\"$old_title\">\n";
+      print "<INPUT TYPE=HIDDEN NAME=\"type\" VALUE=\"$type\">\n";
+      print "<INPUT TYPE=HIDDEN NAME=\"title\" VALUE=\"$title\">\n";
+      print "<INPUT TYPE=HIDDEN NAME=\"edit_url\" VALUE=\"$edit_url\">\n";
+      print "<INPUT TYPE=SUBMIT VALUE=\"戻る\">\n";
+      print "</FORM>\n";
+      print "</CENTER>\n";
+
+      include "../../footer.inc.php";
+    } else {
+      // 正常処理
+#      $returl = "/link/?new_path=".urlencode($path);
+      $returl = "../";
+      if ($p=="top") {
+        $returl = "../../";
+      }
+      Header("Location: ".$returl);
+    }
+  }
+?>

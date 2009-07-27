@@ -1,0 +1,283 @@
+<?
+  include "../../config.inc.php";
+  include "../../lib.inc.php";
+  include "../../language.inc.php";
+
+  $linktext  = "<A HREF=\"../../\" CLASS=\"BAR\">トップページ</A> &gt; ";
+  $linktext .= "<A HREF=\"../\" CLASS=\"BAR\">住所録</A> &gt; ";
+  $linktext .= "<A HREF=\"./\" CLASS=\"BAR\">フリーワード検索</A> &gt; ";
+  $linktext .= "<FONT COLOR=#FFFF00>検索結果：CSV出力</FONT>";
+
+  include "../../login_check.inc.php";
+  if (!$login) exit;
+  flush();
+
+  if (sizeof($MES)==0) {
+    // フリーワード検索
+    if ($type=="free") {
+      if ($kwd != "") {
+        $kwds = $kwd;
+        $searchkeys = split(" ",$kwds);
+        $key = "";
+        while (list($seq,$searchkey)=each($searchkeys)) {
+          $searchkey = db_textsafe($searchkey);
+          $searchkey_katakana = db_textsafe(mb_convert_kana($searchkey,"CKV","EUC-JP"));
+          $searchkey_hiragana = db_textsafe(mb_convert_kana($searchkey,"HcV","EUC-JP"));
+          if ($key != "") { $key .= " and ("; } else {  $key .= "("; }
+          $key .= "corp_name ~* '".$searchkey."' or ";
+          $key .= "corp_kana ~* '".$searchkey_katakana."' or ";
+          $key .= "corp_kana ~* '".$searchkey_katakana."' or ";
+          $key .= "corp_kana ~* '".$searchkey_hiragana."' or ";
+          $key .= "corp_email ~* '".$searchkey."' or ";
+          $key .= "corp_url ~* '".$searchkey."' or ";
+          $key .= "corp_zip ~* '".$searchkey."' or ";
+          $key .= "corp_state ~* '".$searchkey."' or ";
+          $key .= "corp_city ~* '".$searchkey."' or ";
+          $key .= "corp_street ~* '".$searchkey."' or ";
+          $key .= "corp_build ~* '".$searchkey."' or ";
+          $key .= "corp_tel ~* '".$searchkey."' or ";
+          $key .= "corp_fax ~* '".$searchkey."' or ";
+          $key .= "person_depa ~* '".$searchkey."' or ";
+          $key .= "person_post ~* '".$searchkey."' or ";
+          $key .= "person_name ~* '".$searchkey."' or ";
+          $key .= "person_kana ~* '".$searchkey_katakana."' or ";
+          $key .= "person_kana ~* '".$searchkey_hiragana."' or ";
+          $key .= "person_email ~* '".$searchkey."' or ";
+          $key .= "person_email2 ~* '".$searchkey."' or ";
+          $key .= "person_dialin ~* '".$searchkey."' or ";
+          $key .= "person_handy ~* '".$searchkey."' or ";
+          $key .= "person_zip ~* '".$searchkey."' or ";
+          $key .= "person_state ~* '".$searchkey."' or ";
+          $key .= "person_city ~* '".$searchkey."' or ";
+          $key .= "person_street ~* '".$searchkey."' or ";
+          $key .= "person_build ~* '".$searchkey."' or ";
+          $key .= "person_tel ~* '".$searchkey."' or ";
+          $key .= "person_fax ~* '".$searchkey."' or ";
+          $key .= "comment ~* '".$searchkey."')";
+        }
+        $sql = "SELECT * FROM address WHERE ".$key." ORDER BY person_kana,createstamp DESC";
+      }
+    } elseif ($type=="normal") {
+      $key = "";
+
+      $name      = textsafe($name);
+      $name_kana = mb_convert_kana(textsafe($name),"C");
+      $corp      = textsafe($corp);
+      $corp_kana = mb_convert_kana(textsafe($corp),"C");
+      $depa      = textsafe($depa);
+      $addr      = textsafe($addr);
+      $tel       = mb_convert_kana(textsafe($tel),"a");
+      $url       = textsafe($url);
+      $comment   = textsafe($comment);
+
+      $name_gana = mb_convert_kana($name_kana,"HcV");
+      $corp_gana = mb_convert_kana($corp_kana,"HcV");
+
+      $key = "";
+
+      if ($name != "") {
+        if ($key != "") { $key .= " and "; }
+        $key .= "(person_name ~* '".db_textsafe($name)."' or ";
+        $key .= "person_kana ~* '".db_textsafe($name_kana)."' or ";
+        $key .= "person_kana ~* '".db_textsafe($name_gana)."')";
+      }
+
+      if ($corp != "") {
+        if ($key != "") { $key .= " and "; }
+        $key .= "(corp_name ~* '".db_textsafe($corp)."' or ";
+        $key .= "corp_kana ~* '".db_textsafe($corp_kana)."' or ";
+        $key .= "corp_kana ~* '".db_textsafe($corp_gana)."')";
+      }
+      if ($depa != "") {
+        if ($key != "") { $key .= " and "; }
+        $key .= "(person_depa ~* '".db_textsafe($depa)."' or ";
+        $key .= "person_post ~* '".db_textsafe($depa)."')";
+      }
+      if ($addr != "") {
+        if ($key != "") { $key .= " and "; }
+        $key .= "(corp_zip ~* '".db_textsafe($addr)."' or ";
+        $key .= "corp_state ~* '".db_textsafe($addr)."' or ";
+        $key .= "corp_city ~* '".db_textsafe($addr)."' or ";
+        $key .= "corp_street ~* '".db_textsafe($addr)."' or ";
+        $key .= "corp_build ~* '".db_textsafe($addr)."' or ";
+        $key .= "person_zip ~* '".db_textsafe($addr)."' or ";
+        $key .= "person_state ~* '".db_textsafe($addr)."' or ";
+        $key .= "person_city ~* '".db_textsafe($addr)."' or ";
+        $key .= "person_street ~* '".db_textsafe($addr)."' or ";
+        $key .= "person_build ~* '".db_textsafe($addr)."')";
+      }
+      if ($tel != "") {
+        if ($key != "") { $key .= " and "; }
+        $key .= "(corp_tel ~* '".db_textsafe($tel)."' or ";
+        $key .= "corp_fax ~* '".db_textsafe($tel)."' or ";
+        $key .= "person_tel ~* '".db_textsafe($tel)."' or ";
+        $key .= "person_fax ~* '".db_textsafe($tel)."' or ";
+        $key .= "person_dialin ~* '".db_textsafe($tel)."' or ";
+        $key .= "person_handy ~* '".db_textsafe($tel)."')";
+      }
+      if ($url != "") {
+        if ($key != "") { $key .= " and "; }
+        $key .= "(corp_email ~* '".db_textsafe($url)."' or ";
+        $key .= "corp_url ~* '".db_textsafe($url)."' or ";
+        $key .= "person_email ~* '".db_textsafe($url)."' or ";
+        $key .= "person_email2 ~* '".db_textsafe($url)."')";
+      }
+      if ($comment != "") {
+        if ($key != "") { $key .= " and "; }
+        $key .= "comment ~* '".db_textsafe($comment)."'";
+      }
+
+      if (sizeof($kind) > 0 && $kind[0] != "all") {
+        if ($key != "") { $key .= " and "; }
+        $key .= "(";
+        $c = 0;
+        reset($kind);
+        while (list($k,$val)=each($kind)) {
+          if ($val != "all") {
+            if ($c>0) { $key .= " and "; }
+          $key .= "kind_list ~ '(^|,)".$val."(,|$)'";
+            $c++;
+          }
+        }
+        $key .= ")";
+      }
+
+      if ($key != "") {
+        $sql = "SELECT * FROM address WHERE ".$key;
+      } else {
+        $sql = "SELECT * FROM address ";
+      }
+      $sql .= " ORDER BY person_kana,createstamp DESC";
+
+    }
+    if ($sql != "") {
+      $res = pg_query($conn,$sql);
+      $cnt = pg_num_rows($res);
+    } else {
+      $cnt = 0;
+    }
+  }
+
+  if ($cnt==0) {
+    $MES[] = "出力対象のデータが見つかりませんでした。";
+  }
+
+  if (sizeof($MES)>0) {
+    // エラー時
+    include "../../header.inc.php";
+
+    print "<TABLE BORDER=0 WIDTH=100%>\n";
+    print "  <TR><TD ALIGN=CENTER>\n";
+    print "    <TABLE BORDER=0 HEIGHT=260>\n";
+    // エラーメッセージ出力
+    while (list($key,$val)=each($MES)) {
+      print "      <TR><TD><FONT COLOR=#FF0000><B>".$val."</B></FONT></TD></TR>\n";
+    }
+    print "    </TABLE>\n";
+
+    print "    <INPUT TYPE=\"BUTTON\" VALUE=\"閉じる\" onClick=\"window.close()\" tabindex=999>\n";
+    print "  </TD></TR>\n";
+    print "</TABLE>\n";
+
+    include "../../footer.inc.php";
+  } else {
+    /* Download */
+    header("Content-Type: application/download"); 
+    header("Content-Disposition: attachment; filename=address.csv"); 
+    header("Content-Description: Generated Data");
+    header("Content-Transfer-Encoding: binary"); 
+
+    for ($i=0;$i<$cnt;$i++) {
+      $row = pg_fetch_array($res,$i);
+
+      $seqno          = $row["seqno"];
+      $corp_name      = $row["corp_name"];
+      $corp_kana      = $row["corp_kana"];
+      $corp_email     = $row["corp_email"];
+      $corp_url       = $row["corp_url"];
+      $corp_zip       = $row["corp_zip"];
+      $corp_state     = $row["corp_state"];
+      $corp_city      = $row["corp_city"];
+      $corp_street    = $row["corp_street"];
+      $corp_build     = $row["corp_build"];
+      $corp_tel       = $row["corp_tel"];
+      $corp_fax       = $row["corp_fax"];
+      $person_depa    = $row["person_depa"];
+      $person_post    = $row["person_post"];
+      $person_name    = $row["person_name"];
+      $person_kana    = $row["person_kana"];
+      $person_email   = $row["person_email"];
+      $person_email2  = $row["person_email2"];
+      if ($row["person_birthday"]!="") {
+        $person_birthday = date("Y-m-d",date2timestamp($row["person_birthday"]));
+      } else {
+        $person_birthday = "";
+      }
+      $person_dialin  = $row["person_dialin"];
+      if ($row["person_sex"]=="man") {
+        $person_sex = "男";
+      } elseif ($row["person_sex"]=="man") {
+        $person_sex = "女";
+      } else {
+        $person_sex = "";
+      }
+      $person_handy   = $row["person_handy"];
+      $person_zip     = $row["person_zip"];
+      $person_state   = $row["person_state"];
+      $person_city    = $row["person_city"];
+      $person_street  = $row["person_street"];
+      $person_build   = $row["person_build"];
+      $person_tel     = $row["person_tel"];
+      $person_fax     = $row["person_fax"];
+      $comment        = $row["comment"];
+      $kind_list      = $row["kind_list"];
+
+      $sql_cuser = "select * from users where id='".$row["create_user_id"]."'";
+      $res_cuser = pg_query($conn, $sql_cuser);
+      if (pg_num_rows($res_cuser)>0) {
+        $row_cuser = pg_fetch_array($res_cuser,0);
+        $create_user_id = $row_cuser["name"];
+      } else {
+        $create_user_id = "";
+      }
+      $createstamp    = date("Y-m-d H:i:s",datetime2timestamp($row["createstamp"]));
+      $updatestamp    = date("Y-m-d H:i:s",datetime2timestamp($row["updatestamp"]));
+
+      print "\"".euc2sjis($seqno)."\",";
+      print "\"".euc2sjis($corp_name)."\",";
+      print "\"".euc2sjis($corp_kana)."\",";
+      print "\"".euc2sjis($corp_email)."\",";
+      print "\"".euc2sjis($corp_url)."\",";
+      print "\"".euc2sjis($corp_zip)."\",";
+      print "\"".euc2sjis($corp_state)."\",";
+      print "\"".euc2sjis($corp_city)."\",";
+      print "\"".euc2sjis($corp_street)."\",";
+      print "\"".euc2sjis($corp_build)."\",";
+      print "\"".euc2sjis($corp_tel)."\",";
+      print "\"".euc2sjis($corp_fax)."\",";
+      print "\"".euc2sjis($person_depa)."\",";
+      print "\"".euc2sjis($person_post)."\",";
+      print "\"".euc2sjis($person_name)."\",";
+      print "\"".euc2sjis($person_kana)."\",";
+      print "\"".euc2sjis($person_email)."\",";
+      print "\"".euc2sjis($person_email2)."\",";
+      print "\"".euc2sjis($person_birthday)."\",";
+      print "\"".euc2sjis($person_dialin)."\",";
+      print "\"".euc2sjis($person_sex)."\",";
+      print "\"".euc2sjis($person_handy)."\",";
+      print "\"".euc2sjis($person_zip)."\",";
+      print "\"".euc2sjis($person_state)."\",";
+      print "\"".euc2sjis($person_city)."\",";
+      print "\"".euc2sjis($person_street)."\",";
+      print "\"".euc2sjis($person_build)."\",";
+      print "\"".euc2sjis($person_tel)."\",";
+      print "\"".euc2sjis($person_fax)."\",";
+      print "\"".euc2sjis($comment)."\",";
+      print "\"".euc2sjis($create_user_id)."\",";
+      print "\"".euc2sjis($createstamp)."\",";
+      print "\"".euc2sjis($updatestamp)."\"";
+#      print "\"".euc2sjis($kind_list)."\"";
+      print "\n";
+    }
+  }
+?>

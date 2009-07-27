@@ -1,0 +1,80 @@
+<?
+  include "../../config.inc.php";
+  include "../../lib.inc.php";
+
+  // リンク用テキストの設定
+  $linktext  = "<A HREF=\"../../\" CLASS=\"BAR\">トップページ</A> &gt; ";
+  $linktext .= "<A HREF=\"../\" CLASS=\"BAR\">管理者メニュー</A> &gt; ";
+  $linktext .= "<FONT COLOR=#FFFF00>施設設定</FONT> ";
+
+  include "../../header.inc.php";
+  include "../menu.inc.php";
+
+  if ($login && $admin_sign=="t") {
+    $pagetext = "";
+    if (!empty($_REQUEST["seqno"]))  $seqno = $_REQUEST["seqno"];
+    if (!empty($_REQUEST["id"]))     $id    = $_REQUEST["id"];
+    if (!empty($_REQUEST["p"]))      $p     = $_REQUEST["p"];
+
+    // 削除対象の確認
+    $sql = "SELECT * FROM rooms WHERE id='".$id."' AND seqno=".$seqno;
+    $res = pg_query($conn,$sql);
+    if (pg_num_rows($res)<1) {
+      $DMES[] = "施設情報の確認に失敗しました";
+    }
+
+    if (sizeof($DMES)==0) {
+      // 削除処理
+      $sql = "DELETE FROM rooms WHERE id='".$id."' AND seqno=".$seqno;
+      $res = pg_query($conn, $sql);
+      if ($res==false) {
+        $DMES[] = "施設情報の削除に失敗しました";
+      }
+
+      $sql_reserve = "DELETE FROM rooms_reserve WHERE room_id = '".$id."'";
+      $res_reserve = pg_query($conn, $sql_reserve);
+      if ($res_reserve==false) {
+        $DMES[] = "予約情報の削除に失敗しました";
+      }
+    }
+
+    // エラー処理
+    if (sizeof($DMES)>0) {
+      $pagetext .= "<BR><CENTER>";
+      $pagetext .= "<TABLE>";
+      $pagetext .= "<FORM ACTION=\"./edit.phtml\" METHOD=POST>\n";
+      $pagetext .= "<TR><TD>";
+
+      $pagetext .= "<FONT COLOR=#FF0000>";
+      for ($i=0;$i<sizeof($DMES);$i++){
+        $pagetext .= $DMES[$i]."<BR>";
+      }
+
+      $pagetext .= "</TD></TR></TABLE>";
+      $pagetext .= "<BR>";
+      $pagetext .= "<INPUT TYPE=BUTTON VALUE=\"戻る\" ONCLICK=\"history.back()\" STYLE=\"width:80px\">\n";
+      $pagetext .= "</FORM>";
+      $pagetext .= "</CENTER>\n";
+
+    } else {
+      // 正常終了時
+        $pagetext .= "
+<BR>
+<CENTER>
+削除完了<BR>
+<BR>
+<A HREF=\"#\" ONCLICK=\"location.replace('./?p=$p');location.href='./?p=$p';\">≪一覧へ戻る≫</A>
+</CENTER>
+<BR>
+  <SCRIPT LANGUAGE=\"JavaScript\">
+<!--
+setTimeout(\"location.replace('./?p=$p');location.href='./?p=$p';\", 3000);
+//-->
+</SCRIPT>
+";
+    }
+  }
+
+  include "../../detail.inc.php";
+  include "../../footer.inc.php";
+?>

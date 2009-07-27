@@ -1,0 +1,76 @@
+<?php
+include "../../config.inc.php"; include "../../lib.inc.php";
+include "../../language.inc.php";
+
+$linktext  = "<A HREF=\"../../\" CLASS=\"BAR\">トップページ</A> &gt; ";
+$linktext .= "<A HREF=\"../\" CLASS=\"BAR\">リンク集</A> &gt; ";
+if ($kind=="dir") {
+	$linktext .= "<FONT COLOR=#FFFF00>フォルダの削除</FONT>";
+} else {
+	$linktext .= "<FONT COLOR=#FFFF00>リンクの削除</FONT>";
+}
+
+include "../../login_check.inc.php";
+
+if ($login && sizeof($MES)==0) {
+	// 整形処理
+	if (substr($path,strlen($path)-1,1) != "/") { $path .= "/"; }
+	
+	$sql = "SELECT * FROM links WHERE seqno=".$seqno;
+	$res = pg_query($conn,$sql);
+	if (pg_num_rows($res)<1) {
+		$DMES[] = "指定された情報はありません";
+	} else {
+		$row = pg_fetch_array($res,0);
+		if ($kind=="dir") {
+			// 関連フォルダチェック
+			$sql = "SELECT * FROM links where path ~* '".$row["path"].$row["title"]."/'";
+			$res = pg_query($conn,$sql);
+			if (pg_num_rows($res)>0){
+				$DMES[] = "フォルダ内にデータが残っています";
+			}
+		}
+		
+		if (sizeof($MES)==0){
+			$sql_del = "DELETE FROM links WHERE seqno=".$seqno;
+			$res_del = pg_query($conn,$sql_del);
+			if ($res_del==false) {
+				$DMES[] = "削除に失敗しました";
+			}
+		}
+	}
+	
+	### 元に戻す
+	$path = mbereg_replace("\\\/","/",$path);
+	
+	if (sizeof($DMES)>0) {
+		include "../../header.inc.php"; flush();
+		
+		// エラー発生時
+		print "<BR><CENTER>";
+		print "<FORM NAME=\"\" ACTION=\"../add/\" METHOD=\"POST\">\n";
+		print "<INPUT TYPE=HIDDEN NAME=\"seqno\" VALUE=\"$seqno\">\n";
+		print "<INPUT TYPE=HIDDEN NAME=\"kind\" VALUE=\"$kind\">\n";
+		print "<INPUT TYPE=HIDDEN NAME=\"user_id\" VALUE=\"$user_id\">\n";
+		print "<INPUT TYPE=HIDDEN NAME=\"path\" VALUE=\"$path\">\n";
+		print "<INPUT TYPE=HIDDEN NAME=\"type\" VALUE=\"$type\">\n";
+		print "<FONT COLOR=#FF0000>\n";
+		while (list($key,$val)=each($MES)) {
+			print $val."<BR>\n";
+		}
+		print "</B></FONT><BR><BR>\n";
+		print "<INPUT TYPE=SUBMIT VALUE=\"戻る\">\n";
+		print "</FORM>\n";
+		print "</CENTER>";
+		
+		include "../../footer.inc.php";
+	} else {
+		// 正常処理
+		$returl = "../";
+		if ($p=="top") {
+			$returl = "../../";
+		}
+		Header("Location: ".$returl);
+	}
+}
+?>

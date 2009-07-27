@@ -1,0 +1,277 @@
+<?
+  include "../../config.inc.php";
+  include "../../lib.inc.php";
+  include "../../language.inc.php";
+
+  $linktext  = "<A HREF=\"../../\" CLASS=\"BAR\">トップページ</A> &gt; ";
+  $linktext .= "<A HREF=\"../\" CLASS=\"BAR\">住所録</A> &gt; ";
+  $linktext .= "<FONT COLOR=#FFFF00>住所の登録</FONT>";
+  include "../../header.inc.php";
+  flush();
+
+  // 初期値
+  if ($p=="") $p = 1;
+  if ($now_char=="") $now_char = $adr_char;
+  if ($now_char=="") $now_char = "0";
+
+  if (strlen($char)>1) { $char = substr($char,0,1); }
+
+  // エラー判定
+  if ($login==false) {
+    $MES[] = "先に、ログインしてください ⇒ <A HREF=\"$toppath/\">ログインページへ</A>";
+  } else {
+    if (trim($login_id) == "") {
+      $MES[] = "ユーザーＩＤが正しくありません";
+    } else {
+      $sql = "select * from users where id='".$login_id."'";
+      print "<!--";
+      $res = pg_query($conn, $sql);
+
+      if (pg_num_rows($res)<1) {
+        $MES[] = "ユーザーＩＤが正しくありません";
+      } else {
+        $row = pg_fetch_array($res,0);
+
+        $sql_secret = "select * from users where secretary_id='".$login_id."'";
+        $res_secret = pg_query($conn, $sql_secret);
+        $cnt_secret = pg_num_rows($res_secret);
+        if ($cnt_secret>0) {
+          for ($i=0;$i<$cnt_secret;$i++) {
+            $row_secret = pg_fetch_array($res_secret,$i);
+            $master_ids[] = $row_secret["id"];
+            if ($master_checkid != "") { $master_checkid .= "|"; }
+            $master_checkid .= $row_secret["id"];
+          }
+        }
+      }
+      print "-->\n";
+    }
+  }
+
+  // 前処理
+
+  // エラー処理
+  if (sizeof($MES)>0) {
+    // エラーメッセージ出力
+    print "<table BORDER=0 WIDTH=100%>\n";
+    print "  <tr><td align=center width=100%>\n";
+    print "    <table border=0 HEIGHT=260>\n";
+    // エラーメッセージ出力
+    while (list($key,$val)=each($MES)) {
+      print "      <tr><td><font color=#FF0000><b>".$val."</b></font></td></tr>\n";
+    }
+    print "    </table>\n";
+
+    print "  </td></tr>\n";
+    print "</table>\n";
+  } else {
+?>
+<BR>
+
+<CENTER>
+<TABLE HEIGHT=445><TR><TD VALIGN=TOP ALIGN=CENTER>
+
+<TABLE BORDER=0 CELLPADDING=0 CELLSPACING=0 WIDTH=100%><TR><TD>
+
+<TABLE BORDER=0 CELLSPACING=0 CELLPADDING=0><TR HEIGHT=19>
+<?
+function printtab($text,$char) {
+    global $now_char,$bodyLinkColor;
+    if ($now_char == $char) {
+      $linkstr = "<FONT COLOR=".$bodyLinkColor."><B>".$text."</FONT>";
+      $bgcolor = "#999999";
+    } else {
+      $linkstr = "<A HREF=\"./corp.phtml?now_char=".$char."\">".$text."</A>";
+      $bgcolor = "#CCCCCC";
+    }
+    print "<TD BGCOLOR=$bgcolor WIDTH=7 VALIGN=TOP ALIGN=LEFT><IMG SRC=\"/image/wr-l_t.gif\" WIDTH=7 HEIGHT=7></TD>";
+    print "<TD BGCOLOR=$bgcolor ALIGN=CENTER NOWRAP>".$linkstr."</TD>";
+    print "<TD BGCOLOR=$bgcolor WIDTH=7 VALIGN=TOP ALIGN=RIGHT><IMG SRC=\"/image/wr-r_t.gif\" WIDTH=7 HEIGHT=7></TD>\n";
+    print "<TD>&nbsp;</TD>";
+}
+    printtab("全て","0");
+    printtab("あ","A");
+    printtab("か","K");
+    printtab("さ","S");
+    printtab("た","T");
+    printtab("な","N");
+    printtab("は","H");
+    printtab("ま","M");
+    printtab("や","Y");
+    printtab("ら","R");
+    printtab("わをん","W");
+    printtab("英数字","Z");
+
+?>
+</TR></TABLE>
+
+<TABLE BORDER=0 CELLSPACING=0 CELLPADDING=3 WIDTH=100%>
+<?
+
+    $sql = "SELECT corp_kana,min(corp_name) as corp_name FROM address ";
+    $targetkey = "corp_kana";
+    $address_rows = $address_rows_corp;
+
+    $key = "";
+
+    if ($now_char != "0") {
+      if ($now_char == "A") {
+        $key .= $targetkey ." ~* '^[あ-おア-オ]'";
+      } elseif ($now_char == "K") {
+        $key .= $targetkey ." ~* '^[か-こカ-コが-ごガ-ゴ]'";
+      } elseif ($now_char == "S") {
+        $key .= $targetkey ." ~* '^[さ-そサ-ソざ-ぞザ-ゾ]'";
+      } elseif ($now_char == "T") {
+        $key .= $targetkey ." ~* '^[た-とタ-トだ-どダ-ド]'";
+      } elseif ($now_char == "N") {
+        $key .= $targetkey ." ~* '^[な-のナ-ノ]'";
+      } elseif ($now_char == "H") {
+        $key .= $targetkey ." ~* '^[は-ほハ-ホば-ぼバ-ボぱ-ぽパ-ポ]'";
+      } elseif ($now_char == "M") {
+        $key .= $targetkey ." ~* '^[ま-もマ-モ]'";
+      } elseif ($now_char == "Y") {
+        $key .= $targetkey ." ~* '^[や-よヤ-ヨ]'";
+      } elseif ($now_char == "R") {
+        $key .= $targetkey ." ~* '^[ら-ろラ-ロ]'";
+      } elseif ($now_char == "W") {
+        $key .= $targetkey ." ~* '^[わをんワヲン]'";
+      } elseif ($now_char == "Z") {
+        $key .= $targetkey ." ~* '^[ａ−ｚＡ−Ｚ０-９a-zA-Z0-9]'";
+      }
+    }
+
+#    if ($key != "") { $key .= " AND "; }
+#    if ($adr_type=="private") {
+#      $key .= " privatesign='t' AND create_user_id='".$login_id."'";
+#    } else {
+#      $key .= " privatesign='f'";
+#    }
+
+    if ($key != "") { $key .= " AND "; }
+    $key .= " corp_name<>'' and corp_kana<>''";
+
+    if ($key != "") {
+      $sql .= " WHERE ".$key;
+    }
+
+    $sql .= " GROUP BY ".$targetkey;
+
+    $sql .= " ORDER BY ".$targetkey;
+    if ($adr_sort=="desc") { $sql .= " DESC"; }
+
+#print $sql;
+#exit;
+    $res = pg_query($conn,$sql);
+    $cnt = pg_num_rows($res);
+
+    print "<TR BGCOLOR=#999999>\n";
+
+    print "<TH ALIGN=LEFT NOWRAP><FONT COLOR=#FFFFFF>勤務先・屋号</TH>\n";
+    print "<TH ALIGN=LEFT NOWRAP><FONT COLOR=#FFFFFF>代表電話/メールアドレス</TH>\n";
+    print "<TH NOWRAP><FONT COLOR=#FFFFFF>所在地</TH>\n";
+    print "<TH NOWRAP><FONT COLOR=#FFFFFF>選択</TH>\n";
+    print "</TR>\n";
+
+    if ($cnt==0) {
+      // アドレスなし
+      print "<TR BGCOLOR=#FFFFFF>\n";
+      print "<TD ALIGN=CENTER HEIGHT=31 COLSPAN=4>";
+      print "該当なし</TD>\n";
+      print "</TR>\n";
+    } else {
+      // 表示
+      $s_row = ($p-1) * $address_rows;
+      $e_row = $p * $address_rows - 1;
+      if ($e_row>$cnt-1) {$e_row = $cnt-1;}
+      if ($cnt-1>$e_row) {$nextpage = true;}
+      $allpages = floor($cnt/$address_rows)+1;
+
+      $c = 0;
+      for ($i=$s_row;$i<=$e_row;$i++) {
+        $row = pg_fetch_array($res,$i);
+        $c++;
+
+        if ($c % 2 ==1) {
+          print "<TR BGCOLOR=#FFFFFF>\n";
+        } else {
+          print "<TR BGCOLOR=#EEEEEE>\n";
+        }
+
+        print "<TD ALIGN=LEFT>";
+#        print "<FONT STYLE=\"font-size:80%\" COLOR=#555555>".$row["corp_kana"]."</FONT><BR>";
+        $corp_name = $row["corp_name"];
+        $corp_name = ereg_replace("株式会社","",$corp_name);
+        $corp_name = ereg_replace("有限会社","",$corp_name);
+        $corp_name = ereg_replace("合資会社","",$corp_name);
+        $corp_name = ereg_replace("合名会社","",$corp_name);
+        $corp_name = ereg_replace("財団法人","",$corp_name);
+        $corp_name = ereg_replace("社団法人","",$corp_name);
+        $corp_name = ereg_replace("学校法人","",$corp_name);
+        $corp_name = ereg_replace("宗教法人","",$corp_name);
+        $corp_name = ereg_replace("特定非営利活動法人","",$corp_name);
+        $corp_name = ereg_replace("NPO法人","",$corp_name);
+        $corp_name = ereg_replace("社会福祉法人","",$corp_name);
+        $corp_name = ereg_replace("公益法人","",$corp_name);
+        $corp_name = ereg_replace("医療法人","",$corp_name);
+        $corp_name = ereg_replace("事業協同組合","",$corp_name);
+        $corp_name = ereg_replace("協同組合連合会","",$corp_name);
+        $corp_name = ereg_replace("企業組合","",$corp_name);
+        $corp_name = ereg_replace("協業組合","",$corp_name);
+        $corp_name = ereg_replace("振興組合","",$corp_name);
+        $corp_name = trim($corp_name);
+        $corp_name = eregi_replace("　","",$corp_name);
+        print $corp_name;
+        print "</TD>\n";
+
+        $sql_list = "SELECT * FROM address WHERE corp_kana='".$row["corp_kana"]."' ORDER BY seqno DESC";
+        $res_list = pg_query($conn,$sql_list);
+        $cnt_list = pg_num_rows($res_list);
+
+        if ($cnt_list>0) { // 念のため
+          $row_list = pg_fetch_array($res_list,0);
+
+          print "<TD ALIGN=LEFT>";
+          print $row_list["corp_tel"]."<BR>";
+          print "<FONT STYLE=\"font-size:80%\">";
+          if ($row_list["corp_email"]!="") {
+            print "<A HREF=\"".$row_list["corp_email"]."\">".$row_list["corp_email"]."</A><BR>";
+          }
+          print "</TD>\n";
+
+          print "<TD ALIGN=CENTER>";
+          print $row_list["corp_state"];
+          print "</TD>\n";
+
+          print "<TD ALIGN=CENTER NOWRAP>";
+          print "<A HREF=\"./person.phtml?q=".$row_list["seqno"]."\">&lt;選択&gt;</A>";
+          print "</TD>\n";
+        }
+
+        print "</tr>";
+      }
+    }
+?>
+</TABLE>
+
+<CENTER><DIV ALIGN=CENTER>
+<?
+      if ($p>1) {
+        print "[<A HREF=\"./corp.phtml?now_char=".$now_char."&p=".($p-1)."\">".eregi_replace("#",strval($address_rows),$text_prevpage)."</A>]";
+      }
+      print "&nbsp;";
+
+      if ($nextpage) {
+        print "[<A HREF=\"./corp.phtml?now_char=".$now_char."&p=".($p+1)."\">".eregi_replace("#",strval($address_rows),$text_nextpage)."</A>]";
+      }
+
+?>
+</DIV></CENTER>
+
+</TD></TR></TABLE>
+
+</TD></TR></TABLE>
+</CENTER>
+<?
+  }
+  include "../../footer.inc.php";
+?>

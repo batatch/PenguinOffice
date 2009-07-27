@@ -1,0 +1,225 @@
+<?php
+  include "../config.inc.php";
+  include "../lib.inc.php";
+  include "../language.inc.php";
+
+  $linktext  = "<A HREF=\"/\" CLASS=\"BAR\">トップページ</A> &gt; ";
+  $linktext .= "<A HREF=\"/address/\" CLASS=\"BAR\">住所録</A> &gt; ";
+  $linktext .= "<A HREF=\"/address/edit/?s=$a\" CLASS=\"BAR\">住所の表示</A> &gt; ";
+  $linktext .= "<FONT COLOR=#FFFF00>メール送信</FONT> ";
+
+  include "../header.inc.php";
+
+  if ($login) {
+    // 戻り時整形処理
+    if ($subject != "") {
+      $subject = strip_tags($subject);
+    }
+    if ($body != "") {
+      $body = str_replace("<br>", "\n", $body);
+      $body = stripslashes($body);
+    }
+
+    print "<BR>\n";
+
+    print "<FORM ACTION=\"./sendmail.phtml\" METHOD=POST onSubmit=\"return confirm('送信しますか？')\">\n";
+    print "<TABLE HEIGHT=420 BORDER=0 CELLPADDING=0 CELLSPACING=0 ALIGN=CENTER><TR>\n";
+
+    if ($parent != "") {
+      print "<INPUT TYPE=HIDDEN NAME=\"parent\" VALUE=\"".$parent."\">\n";
+    }
+
+    if ($a != "") {
+      print "<INPUT TYPE=HIDDEN NAME=\"address_seqno\" VALUE=\"".$a."\">\n";
+    } elseif ($address_seqno != "") {
+      print "<INPUT TYPE=HIDDEN NAME=\"address_seqno\" VALUE=\"".$address_seqno."\">\n";
+    }
+
+    print "<TD COLSPAN=2 VALIGN=TOP>\n";
+
+    print "<DIV ALIGN=CENTER><TABLE BORDER=0 CELLPADDING=4 CELLSPACING=1 BGCOLOR=#999999>\n";
+
+    print "<TR><TD ALIGN=RIGHT WIDTH=12% NOWRAP VALIGN=TOP BGCOLOR=$td_back_left>&nbsp;送信先&nbsp;</TD>\n";
+    print "<TD ALIGN=LEFT WIDTH=88% NOWRAP BGCOLOR=$td_back>\n";
+
+    if (empty($a) || $a=="") {
+      if ($email=="") $email = "@";
+      print "<INPUT TYPE=TEXT SIZE=46 NAME=\"to\" VALUE=\"$to\" STYLE=\"width:340px;ime-mode:disabled\">\n";
+    } else {
+      $sql_addr = "SELECT * FROM address WHERE seqno=".$a;
+      $res_addr = pg_exec($conn,$sql_addr);
+      $cnt_addr = pg_numrows($res_addr);
+      if ($cnt_addr>0) {
+        $body = "";
+        $row_addr = pg_fetch_array($res_addr,0);
+        print "<TABLE CELLPADDING=0 CELLSPACING=0 BORDER=0>\n";
+        if ($row_addr["corp_email"]!="" && ($row_addr["person_email"]!="" && $row_addr["corp_email"] != $row_addr["person_email"])) {
+          print "<TR><TD NOWRAP>";
+          print "<INPUT TYPE=RADIO NAME=\"to\" VALUE=\"".$row_addr["corp_email"]."\"";
+          if ($row_addr["preson_email"]=="") {
+            print " SELECTED";
+          }
+          print ">代表:<FONT STYLE=\"font-size:85%\">".$row_addr["corp_email"]."\n";
+          print "</TD></TR>\n";
+        }
+        if ($row_addr["person_email"]!="") {
+          print "<TR><TD NOWRAP>";
+          print "<INPUT TYPE=RADIO NAME=\"to\" VALUE=\"".$row_addr["person_email"]."\"";
+          print " CHECKED";
+          print ">個人:<FONT STYLE=\"font-size:85%\">".$row_addr["person_email"]."\n";
+          print "</TD></TR>\n";
+        }
+        if ($row_addr["person_email2"]!="") {
+          print "<TR><TD NOWRAP>";
+          print "<INPUT TYPE=RADIO NAME=\"to\" VALUE=\"".$row_addr["person_email2"]."\">携帯:<FONT STYLE=\"font-size:85%\">".$row_addr["person_email2"]."\n";
+          print "</TD></TR>\n";
+        }
+        print "</TABLE>\n";
+
+        if ($row_addr["corp_name"]!="") {
+          $body .= $row_addr["corp_name"]."\n";
+        }
+        if ($row_addr["person_depa"]!="" || $row_addr["person_post"]) {
+          $body .= $row_addr["person_depa"];
+          if ($row_addr["person_depa"]!="") {
+            $body .= " ";
+          }
+          $body .= $row_addr["person_post"];
+          if ($row_addr["person_post"]) {
+            $body .= " ";
+          }
+        }
+        if ($row_addr["person_name"]!="") {
+          $body .= $row_addr["person_name"]." 様\n";
+        }
+      }
+      $body .= "\n";
+    }
+
+    if ($bcc=="") {
+      $bcc = $login_email;
+    }
+
+    print "<TABLE CELLPADDING=0 CELLSPACING=0 BORDER=0>\n";
+    print "<TR><TD>Cc:</TD><TD>\n";
+
+    if (strlen($cc)<=100) {
+      print "<INPUT TYPE=TEXT SIZE=46 NAME=\"cc\" VALUE=\"".$cc."\" STYLE=\"width:315px;background-color:#EFEFEF;ime-mode:disabled\">";
+    } else {
+      print "<TEXTAREA ROWS=3 COLS=46 NAME=\"cc\" STYLE=\"width:315px;background-color:#EFEFEF;ime-mode:disabled\">".$cc."</TEXTAREA>";
+    }
+
+    print "<BR>\n";
+    print "</TD></TR>\n";
+
+    print "<TR><TD>Bcc:</TD><TD>\n";
+    if (strlen($bcc)<=100) {
+      print "<INPUT TYPE=TEXT SIZE=46 NAME=\"bcc\" VALUE=\"".$bcc."\" STYLE=\"width:315px;background-color:#EFEFEF;ime-mode:disabled\">";
+    } else {
+      print "<TEXTAREA ROWS=3 COLS=46 NAME=\"bcc\" STYLE=\"width:315px;background-color:#EFEFEF;ime-mode:disabled\">".$bcc."</TEXTAREA>";
+    }
+    print "<BR>\n";
+    print "</TD></TR></TABLE>\n";
+    print "</TD></TR>\n";
+
+    if ($from == "") {
+      $from = $login_email;
+    }
+
+    print "<TR><TD ALIGN=RIGHT WIDTH=12% NOWRAP VALIGN=TOP BGCOLOR=$td_back_left>&nbsp;送信元&nbsp;</TD>\n";
+    print "<TD ALIGN=LEFT WIDTH=88% NOWRAP BGCOLOR=$td_back>\n";
+    print "<INPUT TYPE=HIDDEN NAME=\"from\" VALUE=\"$from\">\n";
+    print $login_name."&lt;".$login_email."&gt;\n";
+    print "</TD></TR>\n";
+
+    print "<TR><TD ALIGN=RIGHT WIDTH=12% NOWRAP VALIGN=TOP BGCOLOR=$td_back_left>&nbsp;タイトル&nbsp;</TD>\n";
+    print "<TD ALIGN=LEFT WIDTH=88% NOWRAP  BGCOLOR=$td_back>\n";
+    print "<INPUT TYPE=TEXT SIZE=46 NAME=\"subject\" VALUE=\"$subject\" STYLE=\"width:340px;ime-mode:active\"><BR>\n";
+    print "</TD></TR>\n";
+
+    if ($body == "" || $a != "") {
+      $body .= "\n";
+      $body .= "-----\n";
+
+      $sql_admin = "SELECT * FROM admin";
+      $res_admin = pg_exec($conn,$sql_admin);
+      $cnt_admin = pg_numrows($res_admin);
+      if ($cnt_admin>0) {
+        $row_admin = pg_fetch_array($res_admin,0);
+        $company_name = $row_admin["company"];
+        $company_url  = $row_admin["url"];
+      }
+      if (trim($company_name) != "") {
+        $body .= $company_name;
+        if (trim($company_url)!="") {
+          $body .= "(".$company_url.")";
+        }
+        $body .= "\n";
+      }
+
+      $body .= $login_name."(".$login_email.")\n";
+    }
+
+    print "<TR><TD ALIGN=RIGHT WIDTH=12% NOWRAP VALIGN=TOP BGCOLOR=$td_back_left>&nbsp;本文&nbsp;</TD>\n";
+    print "<TD ALIGN=LEFT WIDTH=88% NOWRAP  BGCOLOR=$td_back>\n";
+    print "<TABLE CELLPADDING=0 CELLPADDING=0 BORDER=0>\n";
+    print "<TR><TD NOWRAP WIDTH=10%><FONT STYLE=\"font-size:85%\">重要度:</TD>\n";
+
+    for($i=5;$i>0;$i--) {
+      print "<TD WIDTH=18% BGCOLOR=".$priority_color[$i-1]." ALIGN=CENTER><FONT STYLE=\"font-size:85%\">";
+      print "<INPUT TYPE=\"RADIO\" NAME=\"priority\" VALUE=\"".$i."\"";
+      if ($priority == $i) {
+         print " checked";
+      }
+      if (empty($priority) and $i == 3){
+        print " checked";
+      }
+      print ">";
+      print "".$priority_name[$i-1]."";
+      print "</TD>";
+    }
+?>
+</TR></TABLE>
+<TEXTAREA cols=46 rows=13 name=body STYLE="width:340px;ime-mode:active"><? print mberegi_replace("&nbsp;"," ",$body); ?></TEXTAREA><BR>
+</TD>
+</TR>
+
+</TABLE>
+
+<TABLE BORDER=0 CELLPADDING=10 CELLSPACING=0 ALIGN=CENTER><TR>
+<TD><INPUT TYPE=SUBMIT VALUE="メール送信" style="width:140px"></TD>
+</TD></TABLE></DIV>
+
+<?
+    if ($r!="") {
+?>
+
+<TABLE BORDER=0 CELLPADDING=4 CELLSPACING=0>
+<TR BGCOLOR=<? echo $postTitleBackColor ?>>
+<TH WIDTH=100% ALIGN=LEFT COLSPAN=2><font color="<? echo $postTitleForeColor ?>">&nbsp;<? echo $text_origcontribution ?></FONT></TH>
+</TR>
+
+<TR BGCOLOR="<? echo $postDetailBackColor ?>">
+<TD COLSPAN=2>
+<?
+      $quotation = "";
+      print "<TABLE BORDER=0 CELLSPACING=0 CELLPADDING=0>\n";
+
+      print "<TR><TD bgcolor=#E0E0E0 STYLE=\"border-style:inset;border-width:2;padding:3\">";
+      print "<TT>";
+      print $prev_body;
+
+      print "</TT></FONT>";
+      print "</TD></TR></TABLE>\n";
+?>
+</TD></TR></TABLE>
+<?
+    }
+?>
+</TD></TR></TABLE>
+</TD></TR></TABLE>
+</FORM>
+<?
+  }
+  include "../footer.inc.php";
+?>

@@ -1,0 +1,474 @@
+<?php
+  include "../config.inc.php";
+  include "../lib.inc.php";
+  include "../language.inc.php";
+
+  // 動作保存用Cookie
+  $headertext .= "Set-Cookie: room_move=monthly; path=/;\n";
+  if (!empty($y)) $headertext .= "Set-Cookie: room_y=$y; path=/;\n";
+  if (!empty($m)) $headertext .= "Set-Cookie: room_m=$m; path=/;\n";
+  if (!empty($d)) $headertext .= "Set-Cookie: room_d=$d; path=/;\n";
+  if (empty($y)) $y = $_COOKIE["room_y"];
+  if (empty($m)) $m = $_COOKIE["room_m"];
+  if (empty($d)) $d = $_COOKIE["room_d"];
+
+  if (!empty($new_target)) {
+    $headertext .= "Set-Cookie: room_target=".$new_target."; path=/;\n";
+    $room_target = $new_target;
+  } elseif (empty($room_target) or $room_target=="") {
+    $room_target="all";
+    $headertext .= "Set-Cookie: room_target=".$room_target."; path=/;\n";
+  }
+
+  // リンク用テキストの設定
+  $linktext  = "<A HREF=\"../\" ALT=\"トップページ\" CLASS=\"BAR\">トップページ</A> &gt; ";
+  $linktext .= "<FONT COLOR=#FFFF00>施設・設備予約:月表示</FONT> ";
+
+  include ("../header.inc.php");
+  flush();
+
+  if ($login && sizeof($MES)==0) {
+    // 現在日の設定
+    if ($y=="" or $y==0 or !is_numeric($y) or $m=="" or $m==0 or !is_numeric($m)) {
+      $tempdate = getdate();
+      $y = $tempdate["year"];
+      $m = $tempdate["mon"];
+    }
+
+    // 表示開始日の調整
+    $tempstamp = mktime(0, 0, 0, $m, 1, $y);
+    $tempdate = getdate($tempstamp);
+    $w = $tempdate["wday"];
+
+    // 表示を月曜日初めか日曜日初めか、判断
+    $sql_start_mon = "SELECT * FROM users where id='".$login_id."'";
+    $res_start_mon = pg_query($conn,$sql_start_mon);
+    if ($res_start_mon == "false"){
+      $start_mon = "f";
+    } else {
+      $start_mon = pg_fetch_array($res_start_mon,0);
+      $start_mon = $start_mon["startmonday"];
+      if ($start_mon == ""){  // 情報が無い場合は、日曜日先頭
+        $start_mon = "f";
+      }
+    }
+
+    if ($start_mon == "f"){
+      $stamp_s = $tempstamp - 86400 * $w;
+    } else {
+      $stamp_s = $tempstamp - 86400 * ($w-1);
+    }
+    $date_s = getdate($stamp_s);
+    $year_s = $date_s["year"];
+    $mon_s = $date_s["mon"];
+    $day_s = $date_s["mday"];
+
+    $stamp_e = $stamp_s + 86400 * 6;
+    $date_e = getdate($stamp_e);
+    $year_e = $date_e["year"];
+    $mon_e = $date_e["mon"];
+    $day_e = $date_e["mday"];
+
+#  // targetが無い場合にはtype, seqnoの一番最初の施設を選択する
+# if ($room_target == "") {
+#    $sql = "SELECT * FROM rooms ORDER BY type, seqno ";
+#    $res = pg_query($conn,$sql);
+#    $row = pg_fetch_array($res,0);
+#    $room_target = "r".$row["id"];
+#  }
+?>
+
+<SCRIPT LANGUAGE="JavaScript">
+<!--
+<?
+  print "function reload(o){\n";
+  print "  var v = o.options[o.selectedIndex].value;\n";
+  print "  o.selectedIndex = 0;\n";
+  print "  if (v!=\"\" && v!=\"null\") {\n";
+  print "    location.href='./monthly.phtml?new_target='+v;\n";
+  print "  }\n";
+  print "}\n";
+?>
+function selectmonth(f){
+<?
+  $cy = $y - 1;  // 月
+  $cm = $m + 5;  // 年
+
+  for ($i=0;$i<=12;$i++){
+    $cm = $cm + 1;
+    if ($cm >= 13){
+      $cy = $cy + 1;
+      $cm = $cm - 12;
+    }
+    print "if (f.month.selectedIndex == $i)";
+    print "{location.href=\"./monthly.phtml?y=".$cy."&m=".$cm."\"}\n";
+  }
+?>
+}
+//-->
+</SCRIPT>
+
+<TABLE BORDER=0 CELLSPACING=0 CELLPADDING=0 WIDTH=100%><TR>
+<TH ALIGN=LEFT NOWRAP WIDTH=70>表示範囲:</TH>
+<FORM>
+<TD ALIGN=LEFT NOWRAP>
+<?
+    // 設備の獲得
+    print "<SELECT NAME=\"new_target\" onChange=\"reload(this)\">\n";
+    if ($room_target=="" || $room_target=="all" || substr($room_target,0,1)=="t") {
+      print "<OPTION VALUE=\"\" SELECTED>施設を選択して下さい</OPTION>\n";
+    }
+    print "<OPTION VALUE=\"\">--------------------</OPTION>\n";
+
+    $sql_room = "SELECT * FROM rooms ORDER BY type,id";
+    $res_room = pg_query($conn,$sql_room);
+    $cnt_room = pg_num_rows($res_room);
+
+    if ($cnt_room>0) {
+      for ($i=0;$i<$cnt_room;$i++) {
+
+        $row_room = pg_fetch_array($res_room,$i);
+        $rooms[$i] = array($row_room["id"],$row_room["type"],$row_room["name"]);
+
+        if (substr($room_target,0,1)=="r" and substr($room_target,1)==$row_room["id"]) {
+          print "<OPTION VALUE=\"r".$row_room["id"]."\" SELECTED>・".$row_room["name"]."</OPTION>\n";
+        } else {
+          print "<OPTION VALUE=\"r".$row_room["id"]."\">・".$row_room["name"]."</OPTION>\n";
+        }
+      }
+    }
+    print "</SELECT>\n";
+?>
+</TD>
+<TD ALIGN=RIGHT WIDTH=40% NOWRAP>&nbsp;
+<A HREF="./add/?id=<? echo substr($room_target,1) ?>"><IMG SRC="../image/roomsadd.gif" BORDER=0 WIDTH=10 HEIGHT=9 ALT="予約の追加">新しい予約</A>&nbsp;
+</TD>
+</FORM>
+</TR></TABLE>
+
+<?
+    // 開始日 終了日の算出
+    $today = getdate();
+    if ($y=="") {
+      $y = $today["year"];
+      $m = $today["mon"];
+    }
+
+    $first = getdate(mktime(0, 0, 1, $m, 1, $y));
+
+    $next_y = $y;
+    $next_m = $m + 1;
+    if ($next_m>12) {
+      $next_y = $y + 1;
+      $next_m = 1;
+    }
+
+    $prev_y = $y;
+    $prev_m = $m - 1;
+    if ($prev_m<1) {
+      $prev_y = $y- 1;
+      $prev_m = 12;
+    }
+
+    $last = getdate(mktime(0, 0, 1, $next_m, 1, $next_y)-86400);
+
+    // 年月表示
+    print "<TABLE BORDER=0 CELLSPACING=0 CELLPADDING=2 WIDTH=100%><TR>\n";
+    print "<TD ALIGN=RIGHT VALIGN=MIDDLE NOWRAP WIDTH=45%>";
+    print "<A HREF=\"./monthly.phtml?y=".$prev_y."&m=".$prev_m."\"><IMG SRC=\"../image/right1.gif\" BORDER=0 WIDTH=16 HEIGHT=16 ALT=\"前の月\"></A></TD>\n";
+
+    // カレンダーメニュー（月単位）
+    print "<TD WIDTH=110>\n";
+    print "<FORM>\n";
+    print "<SELECT NAME=\"month\" onChange=\"selectmonth(this.form)\">\n";
+    $cy = $y - 1; // 年
+    $cm = $m + 5; // 月
+    for ($i=1;$i<=13;$i++){
+      $cm = $cm + 1;
+      if ($cm >= 13){
+        $cy = $cy + 1;
+        $cm = $cm - 12;
+      }
+      print "<OPTION";
+      if ($cy == $y and $cm == $m){
+        print " SELECTED>【";
+      } else {
+        print ">　";
+      }
+      print $cy."年";
+      if (strlen($cm)==1){
+        print "0";
+      }
+      if ($cy == $y and $cm == $m){
+        print $cm."月】\n";
+      } else {
+        print $cm."月\n";
+      }
+    }
+    print "</SELECT>\n";
+    print "</TD>\n";
+    print "</FORM>\n";
+    // カレンダーメニュー終了
+
+    print "<TD ALIGN=LEFT VALIGN=MIDDLE WIDTH=20% NOWRAP>";
+    print "<A HREF=\"./monthly.phtml?y=".$next_y."&m=".$next_m."\"><IMG SRC=\"../image/left1.gif\" BORDER=0 WIDTH=16 HEIGHT=16 ALT=\"次の月\"></A></TD>";
+
+    print "<TD ALIGN=RIGHT NOWRAP>";
+    print "<A HREF=\"./daily.phtml?y=".$today["year"]."&m=".$today["mon"]."&d=".$today["mday"]."\"><IMG SRC=\"./image/today.gif\" BORDER=0 WIDTH=61 HEIGHT=21 ALT=\"今日\"></A>";
+    print "<A HREF=\"./?y=".$today["year"]."&m=".$today["mon"]."&d=".$today["mday"]."\"><IMG SRC=\"./image/toweek.gif\" BORDER=0 WIDTH=61 HEIGHT=21 ALT=\"今週\"></A>";
+    print "<A HREF=\"./monthly.phtml?y=".$today["year"]."&m=".$today["mon"]."&d=".$today["mday"]."\"><IMG SRC=\"./image/tomonth.gif\" BORDER=0 WIDTH=61 HEIGHT=21 ALT=\"今月\"></A>";
+    print "<A HREF=\"./yearly.phtml?y=".$today["year"]."&m=".$today["mon"]."&d=".$today["mday"]."\"><IMG SRC=\"./image/yearly.gif\" BORDER=0 WIDTH=61 HEIGHT=21 ALT=\"年表示\"></A>";
+    print "</TD>\n";
+
+    print "</TR></TABLE>\n";
+
+    // 曜日表示
+    print "<TABLE BORDER=0 CELLSPACING=1 CELLPADDING=2 WIDTH=100% BGCOLOR=#999999>\n";
+    print "<TR HEIGHT=\"23\">\n";
+
+    if ($start_mon == "f"){  ### 月曜先頭か判断
+      for ($col=0;$col<7;$col++) {
+        print "    <TH WIDTH=\"14%\" ALIGN=\"center\" bgcolor=\"".$wcolor_titleback[$col]."\"><font color=\"".$wcolor_title[$col]."\">".$wname[$col]."</FONT>";
+        print "</TH>\n";
+      }
+    } else {
+      for ($col=1;$col<8;$col++) {
+        if ($col == 7){ $col = 0; }
+        print "    <TH width=14% align=center bgcolor=\"".$wcolor_titleback[$col]."\"><font color=\"".$wcolor_title[$col]."\">".$wname[$col]."</font>";
+        print "</TH>\n";
+        if ($col == 0){ break; }
+      }
+    }
+    print "</TR>\n";
+
+    // カレンダー表示
+    $draw = false;
+    $d = 0;
+
+    $drawin = false;
+
+    $row=0;
+    while (true) {
+
+      if ($start_mon == "f"){
+        $col=0;
+      } else {
+        $col=1; ### 月曜日
+      }
+
+      while (true) {
+
+        $daytype = "";
+        // 前月まで
+        if (!$draw) {
+          if ($first["wday"]==$col or $first["wday"] == 0) {
+            $drawin = true;
+            $draw = true;
+          }
+        }
+        if ($first["wday"] == 0 and $draw_start <> "t" and $start_mon=="t"){
+          $draw_start = "t";
+          $d++; 
+        }
+        // 当月まで
+        if ($draw) {
+          if ($d < $last["mday"]) {
+            $d++;
+            $checkdate = date("Y-m-d",mktime(0,0,0,$m,$d,$y));
+            // 祭日チェック
+            $sql_holiday = "select * from holiday where holiday='".$checkdate."'";
+            $res_holiday = pg_query($conn, $sql_holiday);
+
+            if (pg_num_rows($res_holiday)<1) {
+              $daytype = "normal";
+            } else {
+              $daytype = "holiday";
+              $row_holiday = pg_fetch_array($res_holiday,0);
+              $holiday = $row_holiday["name"];
+            }
+            pg_free_result($res_holiday);
+          }
+        }
+
+        // カレンダー日時作成
+        switch ($daytype) {
+          case "":
+            $backcolor = $wcolor_back[$col];
+            $forecolor = $wcolor[$col];
+            if (!$drawin) {
+              // 当月以前
+              $diff = $col-$first["wday"];
+              $wd = getdate((mktime(0, 0, 1, $m, 1, $y)+(86400*$diff)));
+              $checkdate = date("Y-m-d",mktime(0,0,0,$wd["mon"],$wd["mday"],$wd["year"]));
+              $daytext = "<A HREF=\"./daily.phtml?y=$prev_y&m=$prev_m&d=".$wd["mday"]."\" style=\"#\">".$wd["mday"]."</A>";
+            } else {
+              // 当月以降
+              $diff = $col-$last["wday"]-1;
+              $wd = getdate((mktime(0, 0, 1, $next_m, 1, $next_y)+(86400*$diff)));
+              $checkdate = date("Y-m-d",mktime(0,0,0,$wd["mon"],$wd["mday"],$wd["year"]));
+              $daytext = "<A HREF=\"./daily.phtml?y=$next_y&m=$next_m&d=".$wd["mday"]."\" style=\"#\">".$wd["mday"]."</A>";
+            }
+            break;
+          case "normal":
+            $backcolor = $wcolor_back[$col];
+            $forecolor = $wcolor[$col];
+            $daytext = "<A HREF=\"./daily.phtml?y=$y&m=$m&d=$d\" style=\"#\">".$d."</A>";
+            break;
+          case "holiday":
+            $backcolor = $wcolor_back[7];
+            $forecolor = $wcolor[7];
+            $daytext = "<A HREF=\"./daily.phtml?y=$y&m=$m&d=$d\" style=\"#\">".$d."</A>";
+            break;
+        }
+
+        // 色設定
+        if ($daytype != "") {
+          if ($y==$today["year"] and $m==$today["mon"] and $d==$today["mday"]) {
+            $daytext = eregi_replace("#","color:#FFFFFF;font-weight:bold",$daytext);
+            $backcolor = "#9999FF";
+          } else {
+            $daytext = eregi_replace("#","color:".$forecolor.";font-weight:bold",$daytext);
+          }
+        } else {
+          $daytext = eregi_replace("#","color:#999999;font-weight:normal",$daytext);
+        }
+
+        // 通常スケジュールの有無判定
+        $sql  = "SELECT * FROM rooms_reserve WHERE room_id ='".substr($room_target,1)."' and ";
+        $sql .= " (date='".$checkdate. "') ";
+        $sql .= " ORDER BY date,timefrom,timeto";
+
+        $res = pg_query($conn,$sql);
+        $cnt = pg_num_rows($res);
+
+        $check_y = date("Y",date2timestamp($checkdate));
+        $check_m = date("m",date2timestamp($checkdate));
+        $check_d = date("d",date2timestamp($checkdate));
+
+        // スケジュールデータ表示
+        if ($col==0) {
+          print "  <TR>\n";
+        }
+
+        print "    <TD WIDTH=\"14%\" VALIGN=\"TOP\" ALIGN=\"LEFT\" BGCOLOR=\"".$backcolor."\" NOWRAP>\n";
+        // 日
+        print "      <TABLE BORDER=\"0\" CELLPADDING=\"0\" CELLSPACING=\"0\" WIDTH=\"100%\">\n";
+        print "        <TR>\n";
+        print "          <TD ALIGN=LEFT>";
+        print $daytext;
+        print "</TD>\n";
+        print "          <TD ALIGN=\"RIGHT\">";
+        print "&nbsp;";
+
+        if ($start_mon == "f"){
+          if ($col==0) {
+            print "<A HREF=\"./?y=".$check_y."&m=".$check_m."&d=".$check_d."\" style=\"#\"><FONT STYLE=\"background-color:#C0C0C0\">週表示</FONT></A>";
+          }
+        } else {
+          if ($col==1) {
+            print "<A HREF=\"./?y=".$check_y."&m=".$check_m."&d=".$check_d."\" style=\"#\"><FONT STYLE=\"background-color:#C0C0C0\">週表示</FONT></A>";
+          }
+        }
+        print "</TD>\n";
+        print "</TR>\n";
+        print "</TABLE>\n";
+
+        print "<TABLE BORDER=0 CELLPADDING=0 CELLSPACING=0 WIDTH=100%>\n";
+        print "<TR>\n";
+        if ($cnt==0) {
+          print "&nbsp;\n";
+        } else {
+          for($r=0;$r<$cnt;$r++) {
+
+#            print "<TR>\n";
+
+            if ($r<$cnt-1) {
+              print "<TD STYLE=\"border-bottom-style:dotted;border-bottom-width:1;border-bottom-color:#0000FF\">\n";
+            } else {
+              print "<TD>\n";
+            }
+
+            $row=pg_fetch_array($res,$r);
+
+            // リンク
+            print "<A HREF=\"./add/?y=".$check_y."&m=".$check_m."&d=".$check_d."&s=".$row["seqno"]."\" STYLE=\"font-weight:normal\">";
+
+            print "<TT>";
+            print "<FONT STYLE=\"font-size:9pt\">";
+            // 時間帯の表示
+            $outtext = "";
+            $outtext .= date("H:i",datetime2timestamp($row["timefrom"]));
+            $outtext .= "-";
+            $outtext .= date("H:i",datetime2timestamp($row["timeto"]));
+            print "</FONT>";
+            if ($outtext != "") {
+              print $outtext."<BR>";
+            }
+
+            // 名前の取得と表示
+            $sql_user = "select * from users where id='".$row["user_id"]."'";
+            $res_user = pg_query($conn,$sql_user);
+            if (pg_num_rows($res_user)>0){
+              $row_name = pg_fetch_array($res_user,0);
+              $user_name = $row_name["name_ryaku"];
+            } else {
+              $user_name = "";
+            }
+            print $user_name."<BR>";
+
+            // 予約内容の表示
+#            print mbstrcut($row["note"],0,10);
+#            if (mbstrcut($row["note"],0,10)!=$row["note"]) {
+#              print "...";
+#            }
+            print mb_strcut(preg_replace("/\x0D\x0A|\x0D|\x0A|\r\n/"," ",$row["note"]),0,100,"EUC-JP");
+            print "</TT>";
+            print "</A>\n";
+
+            print "</TD>\n";
+            print "</TR>\n";
+          }
+        }
+        print "</TABLE>\n";
+
+        // 予約追加ボタン
+        print "<DIV ALIGN=\"RIGHT\">\n";
+        print "<A HREF=\"./add/?id=".substr($target,1)."&y=$check_y&m=$check_m&d=$check_d&ey=$check_y&em=$check_m&ed=$check_d\"><IMG SRC=\"../image/roomsadd.gif\" BORDER=0 WIDTH=10 HEIGHT=9 ALT=\"予約の追加\"></A>\n";
+        print "</DIV>\n";
+        print "</TD>\n";
+
+        // <TR>改行チェック
+        $col++;
+        if ($start_mon == "f"){
+          if ($col>6) {
+            break;
+          }
+        } else {
+          if ($col>7) {
+            $col = 0;
+            $col_end = "t";
+          } else {
+            $col_end = "f";
+          }
+          if ($col_end == "t"){ break; }
+        }
+      }
+      
+      // 最終改行
+      print "  </TR>\n";
+      $row++;
+      if ($d >= $last["mday"]) {
+        break;
+      }
+    }
+    print "</TABLE>\n";
+?>
+<BR>
+<?php
+  }
+  // 後処理
+  pg_free_result($res);
+
+  // フッタ表示
+  include ("../footer.inc.php");
+?>

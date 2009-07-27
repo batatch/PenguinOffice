@@ -1,0 +1,119 @@
+<?php
+  include("../../config.inc.php"); include("../../lib.inc.php");
+  include("../../login_check.inc.php");
+
+  if ($login && sizeof($MES)==0) {
+    if (!empty($_GET["tbl"])) {
+      $tbl = textsafe($_GET["tbl"]);
+      $STR = trim($tbl);
+      $LEN = strlen($STR);
+      for ($i=0;$i<$LEN;$i++) {
+        $ASC = ord(substr($STR,$i,1));
+        if (($ASC<ord("0")or$ASC>ord("9"))and($ASC<ord("a")or$ASC>ord("z"))and($ASC<>ord("_"))and($ASC<>ord("-"))) {
+          $DMES[] = "出力データのテーブル指定が正しくありません";
+          break;
+        }
+      }
+    } else {
+      $DMES[] = "出力データのテーブルが指定されていません";
+    }
+
+    if (!empty($_GET["fld"])) {
+      $fld = textsafe($_GET["fld"]);
+      $STR = trim($fld);
+      $LEN = strlen($STR);
+      for ($i=0;$i<$LEN;$i++) {
+        $ASC = ord(substr($STR,$i,1));
+        if (($ASC<ord("0")or$ASC>ord("9"))and($ASC<ord("a")or$ASC>ord("z"))and($ASC<>ord("_"))and($ASC<>ord("-"))) {
+          $DMES[] = "出力データのフィールド指定が正しくありません";
+          break;
+        }
+      }
+    } else {
+      $DMES[] = "出力データのフィールドが指定されていません";
+    }
+
+    if (!empty($_GET["id"])) {
+      $id  = textsafe($_GET["id"]);
+      $sql_userchk = "SELECT id FROM users WHERE id='".db_textsafe($id)."'";
+      $res_userchk = pg_query($conn,$sql_userchk);
+      $cnt_userchk = pg_num_rows($res_userchk);
+      if ($cnt_userchk<1) {
+        $DMES[] = "指定されたユーザーは登録されていません";
+      }
+    } else {
+      $DMES[] = "ユーザーIDが指定されていません";
+    }
+
+    if (sizeof($DMES)<1) {
+      ## 指定データ存在チェック
+      $sql = "SELECT * FROM ".db_textsafe($tbl)." WHERE $fld='".db_textsafe($id)."'";
+      $res_csv = pg_query($conn,$sql);
+      $csvrows = pg_num_rows($res_csv);
+      $csvcols = pg_num_fields($res_csv);
+      if ($csvrows<1) {
+        $DMES[] = "データは登録されていません";
+      }
+    }
+
+    if (sizeof($DMES)==0) {
+      ## 正常時
+      header("Content-Type: application/octet-stream\n"); 
+      header("Content-Type: application/download"); 
+      header("Content-Disposition: attachment; filename=\"".$tbl.".csv\""); 
+      header("Content-Disposition: filename=\"".$tbl.".csv\""); 
+      header("Content-Description: Generated Data");
+      header("Content-Transfer-Encoding: binary"); 
+
+      $header = "";
+      for ($i=0;$i<$csvrows;$i++) {
+        // レコードの獲得
+        $row = pg_fetch_array($res_csv,$i);
+        $detail = "";
+
+        for ($j=0; $j<$csvcols; $j++) {
+          ## フィールドの獲得
+          $fieldname = pg_field_name($res_csv, $j);
+          $fieldtype = pg_field_type($res_csv, $j);
+          $fieldsize = pg_field_size($res_csv, $j);
+
+          if ($i==0) {
+            if ($header<>"") { $header .= ","; }
+            $header .= "\"".$fieldname."\"";
+          }
+          $detail .= ",";
+
+          switch($fieldtype) {
+            case "bool":
+              if ($row[$j]=='t') {
+                $row[$j] = "true";
+              } else {
+                $row[$j] = "false";
+              }
+              break;
+            case "varchar":
+              $s = mbereg_replace("'", "''",$row[$j]);
+              $s = mbereg_replace('"', "&quot;", $s);
+              $s = str_replace("\r\n", "", $s);
+              $detail .= "\"".euc2sjis($s)."\"";
+              break;
+            case "int4":
+              $detail .= $row[$j];
+              break;
+            case "timestamp":
+              $detail .= "\"".date("Y-m-d H:i:s",datetime2timestamp($row[$j]))."\"";
+              break;
+            case "date":
+              $detail .= "\"".date("Y-m-d",datetime2timestamp($row[$j]))."\"";
+              break;
+            default:
+              $detail .= "\"".$row[$j]."\"";
+          }
+        }
+        if ($i==0) { print $header."\n"; }
+        print $detail."\n";
+      }
+    }
+  }
+  if (sizeof($DMES)>0) header("HTTP/1.0 404 Not Found");
+?>

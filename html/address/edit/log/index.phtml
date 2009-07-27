@@ -1,0 +1,127 @@
+<?
+  include "../../../config.inc.php"; include "../../../lib.inc.php";
+
+  $linktext  = "<A HREF=\"../../../\" CLASS=\"BAR\">トップページ</A> &gt; ";
+  $linktext .= "<A HREF=\"../../\" CLASS=\"BAR\">住所録</A> &gt; ";
+  $linktext .= "<A HREF=\"../?s=$s\" CLASS=\"BAR\">住所の表示</A> &gt; ";
+  $linktext .= "<FONT COLOR=#FFFF00>履歴の登録</FONT>";
+
+  include "../../../header.inc.php"; flush();
+
+  // 前処理
+  $sql = "select count(*) as allrecords from users";
+  $res = pg_query($conn, $sql);
+  $row = pg_fetch_array($res,0);
+  $user_count = $row["allrecords"];
+
+  if (empty($sendtype)) { $sendtype = 1; }
+
+  //登録ページからの戻り判定
+  if (eregi("memo\/add\/add\.phtml",$referer)){
+
+  } elseif (eregi("\/schedule\/",$referer)) {
+    // スケジュールからの呼び出し時
+    $sch_flag = true;
+    $user_id_to = $id;
+
+  } else {
+
+    if ($edit == "e"){
+      $sql = "SELECT * FROM memo_answer where seqno=".$n;
+      $res = pg_query($conn,$sql);
+      $cnt = pg_num_rows($res);
+      if ($cnt>0) {
+        $seqno         = pg_result($res,0,"seqno");
+        $address_seqno = pg_result($res,0,"address_seqno");
+        $priority      = pg_result($res,0,"priority");
+        $user_id_from  = pg_result($res,0,"id_from");
+        $user_id_to    = pg_result($res,0,"id_to");
+        $type          = pg_result($res,0,"type");
+        $note          = pg_result($res,0,"note");
+        $createstamp   = pg_result($res,0,"createstamp");
+      } else {
+        $MES[] = "指定されたメモは既に削除されています";
+      }
+    }
+  }
+
+  if (sizeof($MES)>0) {
+    // エラー時
+    print "<table BORDER=0 WIDTH=100%>\n";
+    print "<tr><td align=center>\n";
+    print "<table border=0 HEIGHT=260>\n";
+    // エラーメッセージ出力
+    while (list($key,$val)=each($MES)) {
+      print "<tr><td><font color=#FF0000><b>".$val."</b></font></td></tr>\n";
+    }
+    print "</table>\n";
+
+    print "</td></tr></table>\n";
+
+  } else {
+    // 正常処理
+?>
+<SCRIPT Language="JavaScript">
+<!--
+function selectuser(f,o) {
+  if (o.options[o.selectedIndex].value != "") {
+
+    var c = 0;
+    var k = new Array(o.length-1);
+    var v = new Array(o.length-1);
+
+    for (i=0;i<o.length;i++) {
+      if (i != o.selectedIndex) {
+        k[c] = o.options[i].value;
+        v[c] = o.options[i].text;
+        c++;
+      }
+    }
+
+    o.length = o.length-1;
+    f.tousers.value = "";
+
+    for (i=0;i<c;i++) {
+      o.options[i].value = k[i];
+      o.options[i].text  = v[i];
+      if (f.tousers.value=="") {
+        f.tousers.value = k[i];
+      } else {
+        f.tousers.value = f.tousers.value+"\t"+k[i];
+      }
+    }
+  }
+}
+// -->
+</SCRIPT>
+
+<TABLE BORDER=0 CELLPADDING=2 CELLSPACING=0 ALIGN=CENTER HEIGHT=445>
+<FORM ACTION="./add.phtml" METHOD=POST>
+<?
+      print "<INPUT TYPE=\"HIDDEN\" NAME=\"s\" VALUE=\"".$s."\">\n";
+?>
+<TR><TD VALIGN=TOP ALIGN=CENTER>
+<BR>
+メモを入力してから、登録ボタンを押してください<BR>
+<BR>
+<TABLE border=0 cellspacing=1 cellpadding=4 BGCOLOR=#999999>
+<INPUT TYPE=HIDDEN NAME="type" VALUE="0">
+
+<TR>
+<TD ALIGN=RIGHT WIDTH=12% NOWRAP VALIGN=TOP BGCOLOR=<? echo $td_back_left ?>>&nbsp;内容&nbsp;</TD>
+<TD ALIGN=LEFT WIDTH=88% NOWRAP BGCOLOR=<? echo $td_back ?>>
+<TEXTAREA NAME="note" COLS=46 ROWS=6 style="ime-mode:active"><? echo $note ?></TEXTAREA><BR>
+<FONT COLOR=#666666 STYLE="font-size:9pt">※ 内容は全角120文字(半角240文字)以内で入力してください。
+</TD></TR>
+</TABLE>
+
+<TABLE BORDER=0 CELLPADDING=10 CELLSPACING=0 ALIGN=CENTER><TR>
+<TD><INPUT TYPE=SUBMIT VALUE="メモの登録" style="width:100px"></TD>
+</TR></TABLE>
+</FORM>
+
+</TD></TR></TABLE>
+<?
+  }
+  include "../../../footer.inc.php";
+?>

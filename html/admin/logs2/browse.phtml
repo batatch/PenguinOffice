@@ -1,0 +1,94 @@
+<?php
+  // 初期処理
+  include "../../config.inc.php";
+  include "../../lib.inc.php";
+
+  // リンク用テキストの設定
+  $linktext  = "<A HREF=\"../../\" ALT=\"トップページ\" CLASS=\"BAR\">トップページ</A> &gt; ";
+  $linktext .= "<A HREF=\"../\" ALT=\"管理者メニュー\" CLASS=\"BAR\">管理者メニュー</A> &gt; ";
+  $linktext .= "<A HREF=\"./\" ALT=\"アクセス履歴\" CLASS=\"BAR\">アクセス履歴</A> &gt; ";
+  $linktext .= "<FONT COLOR=#FFFF00>履歴の詳細</FONT> ";
+
+  include "../../header.inc.php";
+
+  include "../menu.inc.php";
+
+  if ($login && $admin_sign=="t") {
+    echo "<!--";
+    $sql = "SELECT * FROM tracking WHERE serial='".$_GET["s"]."' ORDER BY calltime";
+    $res = pg_query($conn,$sql);
+    $cnt = pg_num_rows($res);
+
+    if ($cnt>0) {
+      $row = pg_fetch_array($res, 0);
+      //テーブル出力
+      $pagetext .= "<BR>";
+      $pagetext .= "<CENTER>";
+      $pagetext .= "利用ページ数 : ".$cnt."ページ<BR>\n";
+
+      $pagetext .= "<BR>";
+
+      $pagetext .= "<TABLE BORDER=0 WIDTH=320 CELLPADDING=3>\n";
+
+      $pagetext .= "<TR BGCOLOR=#CCCCFF><TD ALIGN=CENTER NOWRAP>START<BR>";
+      $pagetext .= "<FONT STYLE=\"font-size:7pt\">";
+      $pagetext .= date("Y-m-d H:i:s",datetime2timestamp($row["calltime"]));
+      $pagetext .= "</FONT><BR>";
+
+      $backstamp = datetime2timestamp($row["calltime"]);
+
+      if ($row["ref"]!="") {
+        $pagetext .= "<A HREF=\"".$row["ref"]."\">".substr($row["ref"],0,40)."</A>";
+      }
+      $pagetext .= "</TD></TR>";
+
+      for($i=0;$i<$cnt;$i++){
+        $row = pg_fetch_array($res, $i);  
+        $pagetext .= "<TR><TD ALIGN=CENTER NOWRAP>↓</TD></TR>";
+        $pagetext .= "<TR BGCOLOR=#CCCCCC><TD ALIGN=CENTER nowrap>";
+        $pagetext .= "<A HREF=\"".$row["url"]."\">";
+        $pagetext .= $row["url"];
+        $pagetext .= "</A>";
+        $pagetext .= "<BR>";
+
+        $nowstamp = datetime2timestamp($row["calltime"]);
+
+        $pagetext .= "<FONT STYLE=\"font-size:7pt\">";
+
+        $interval = $nowstamp-$backstamp;
+        if ($interval<60) {
+          $pagetext .= "＋".$interval."秒";
+        } else {
+          $pagetext .= "＋".floor($interval/60)."分".($interval % 60)."秒";
+        }
+        $pagetext .= "</FONT>";
+
+        $backstamp = $nowstamp;
+
+        $pagetext .= "</TD>\n";
+        $pagetext .= "</TR>";
+      }
+
+      $pagetext .= "<TR><TD ALIGN=CENTER nowrap>↓</TD></TR>";
+      $pagetext .= "<TR BGCOLOR=#FFCCCC><TD ALIGN=CENTER nowrap>EXIT<BR>";
+      $pagetext .= "<FONT STYLE=\"font-size:7pt\">";
+      $pagetext .= date("Y-m-d H:i:s",datetime2timestamp($row["calltime"]));
+      $pagetext .= "</FONT>";
+      $pagetext .= "</TD></TR>";
+      $pagetext .= "</table>\n";
+
+      $pagetext .= "<TABLE><TR><TD>";
+      $pagetext .= "<BR>\n";
+      $pagetext .= "UserAgent : ".$row["agent"]."<BR>\n";
+      $pagetext .= "RemoteAddress : ". $row["ip"]."(".gethostbyaddr($row["ip"]).")<BR>\n";
+      $pagetext .= "</TD></TR></TABLE>";
+
+      $pagetext .= "</CENTER>\n";
+    }
+
+    echo "-->";
+  }
+
+  include "../../detail.inc.php";
+  include "../../footer.inc.php";
+?>

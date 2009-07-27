@@ -1,0 +1,87 @@
+<?
+  include "../../config.inc.php";
+  include "../../lib.inc.php";
+
+  $linktext  = "<A HREF=\"/\" CLASS=\"BAR\">トップページ</A> &gt; ";
+  $linktext .= "<A HREF=\"/member/\" CLASS=\"BAR\">メンバー一覧</A> &gt; ";
+  $linktext .= "<FONT COLOR=#FFFF00>行き先登録</FONT>";
+
+  include "../../login_check.inc.php";
+
+  if ($login && sizeof($MES)==0) {
+    $text = textsafe($text);
+
+    // エラーチェック
+    if (empty($code) || trim($code)=="") {
+      $MES[] = "行き先が選択されていません";
+    } else {
+      if ($code=="0" && trim($text)=="") {
+        $MES[] = "行き先が入力されていません";
+      } elseif ($code!="0") {
+        if ($code != "-1") {
+          $text = get_first("locations","name","id='".$code."'","");
+        }
+        if ($text=="") {
+          $MES[] = "行き先が正しく選択されていません";
+        }
+      }
+    }
+
+    // 更新処理
+    // ※ ロギングしてるのでうまく使えば工程管理の実績収集なんかにつかえるかも
+    if (sizeof($MES)==0) {
+      $sql  = "DELETE FROM users_location WHERE updatestamp+'".(24*60).":00'<now()";
+      pg_query($conn,$sql); // 60日間以前のログを削除
+
+      $seqno = get_last("users_location","seqno","user_id='".$login_id."'",0)+1;
+
+      $sql  = "INSERT INTO users_location (seqno,user_id,code,text,updatestamp) VALUES (";
+      $sql .=     $seqno.",";
+      $sql .= "'".$login_id."',";
+      $sql .= "'".$code."',";
+      $sql .= "'".db_textsafe($text)."',";
+      $sql .= "'now'";
+      $sql .= ")";
+      $res = pg_query($conn,$sql);
+      if ($res != false) {
+        $cnt = pg_affected_rows($res);
+      } else {
+        $cnt = 0;
+      }
+      if ($cnt==0) $MES[] = "更新処理に失敗しました";
+    }
+
+    if (sizeof($MES)>0) {
+      // エラーメッセージ出力
+      include "../../header.inc.php";
+      flush();
+
+      print "<TABLE WIDTH=100% BORDER=0><TR><TD ALIGN=CENTER VALIGN=TOP>\n";
+      print "<BR><BR>\n";
+      print "<FORM NAME=\"\" ACTION=\"./\" METHOD=\"POST\">\n";
+      print "<INPUT TYPE=\"HIDDEN\" NAME=\"p\"    VALUE=\"$p\">\n";
+      print "<INPUT TYPE=\"HIDDEN\" NAME=\"code\" VALUE=\"$code\">\n";
+      print "<INPUT TYPE=\"HIDDEN\" NAME=\"text\" VALUE=\"$text\">\n";
+      if (sizeof($MES)>0) {
+        print "<FONT COLOR=#FF0000>\n";
+        while (list($key,$val)=each($MES)) {
+          print $val."<BR>\n";
+        }
+        print "</FONT>\n";
+      }
+      print "<BR><BR>\n";
+      print "<INPUT TYPE=SUBMIT VALUE=\"戻る\"><BR>\n";
+      print "</FORM>\n";
+      print "</TD></TR></TABLE>\n";
+
+      include "../../footer.inc.php";
+    } else {
+      // 正常処理
+      $returl = "../?id=$login_id";
+      if ($p=="top") {
+        $returl = "../../";
+      }
+      Header("Location: ".$returl);
+    }
+  }
+?>

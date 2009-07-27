@@ -1,0 +1,77 @@
+<?
+  include "../../../config.inc.php"; include "../../../lib.inc.php";
+
+  $linktext  = "<A HREF=\"../../../\" CLASS=\"BAR\">トップページ</A> &gt; ";
+  $linktext .= "<A HREF=\"../../\" CLASS=\"BAR\">住所録</A> &gt; ";
+  $linktext .= "<A HREF=\"../?s=$s\" CLASS=\"BAR\">住所の表示</A> &gt; ";
+  $linktext .= "<FONT COLOR=#FFFF00>履歴の登録</FONT>";
+
+  include "../../../login_check.inc.php";
+
+  // 前処理
+  $note = textsafe($note);
+
+  // エラーチェック
+  if (trim($note) == "") {
+    $MES[] = "内容が入力されていません";
+  } elseif (strlen($note)>8192) {
+    $MES[] = "内容は8192以内で入力して下さい。";
+   $note = mb_strcut($note,0,8192);
+  }
+
+  // DB処理
+  if (sizeof($MES)==0) {
+    // 伝言/質問テーブル(memo)への登録
+    while (true) { // マルチユーザー対応
+
+      $seqno = get_last("address_log","seqno","",0)+1; // seqno採番
+
+      $sql  = "INSERT INTO address_log (";
+      $sql .= "seqno,user_id,address_seqno,data_seqno,type,note,createstamp) VALUES (";
+      $sql .= "'".$seqno."',";
+      $sql .= "'".$login_id."',";
+      $sql .= $s.",";
+      $sql .= "'".$seqno."',";
+      $sql .= "'address',";
+      $sql .= "'".db_textsafe($note)."',";
+      $sql .= "'now'";
+      $sql .= ")";
+      $res = pg_query($conn,$sql);
+
+      if ($res==false) {
+        $errcount++;
+        if ($errcount>10) { //再試行回数 10回
+          $MES[] = "登録に失敗しました。";
+          break;
+        }
+      } else {
+        break;
+      }
+    }
+  }
+
+  if (sizeof($MES)>0) {
+    // エラー時
+    include "../../../header.inc.php";  flush();
+
+    print "<BR><CENTER>";
+    print "<font color=#FF0000>";
+    // エラーメッセージ出力
+    while (list($key,$val)=each($MES)) {
+      print $val."<BR>\n";
+    }
+    print "</font>\n";
+
+    print "<form name=\"add\" action=\"./\" method=\"post\">\n";
+    print "<INPUT TYPE=\"HIDDEN\" NAME=\"s\" value=\"".$s."\">\n";
+    print "<INPUT TYPE=\"HIDDEN\" NAME=\"note\" value=\"".$note."\">\n";
+    print "<input TYPE=\"submit\" VALUE=\"戻る\" STYLE=\"width:120px\">";
+
+    print "</td></tr></table></CENTER>\n";
+    include "../../../footer.inc.php";
+  } else {
+    // 正常処理
+    header("Location: ".$access.$domain."/address/edit/?s=".$s."&now_type=L");
+    exit;
+  }
+?>

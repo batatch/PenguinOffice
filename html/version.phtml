@@ -1,0 +1,224 @@
+<?php
+  // ヘッダ表示
+  $helptitle = "バージョン情報";
+
+  // ファイルの読込
+  include ("./config.inc.php");
+  include ("./lib.inc.php");
+  include ("./header.inc.php");
+
+  if (sizeof($MES)>0){
+    print "<TABLE WIDTH=100%><TR HEIGHT=260><TD ALIGN=CENTER NOPWRAP><FONT COLOR=#FF0000><B>\n";
+    for ($i=0;$i<sizeof($MES);$i++){
+      print $MES[$i]."<BR>\n";
+    }
+    print "</B></FONT></TD></TR></TABLE>\n";
+  }
+?>
+<CENTER><DIV ALIGN=CENTER>
+<TABLE WIDTH=420>
+<TR><TD WIDTH=50 VALIGN=TOP><IMG SRC="/favicon.gif"></TD><TD>
+<B>PenguinOffice</B> の誕生から、現在のバージョンまでの更新履歴です。皆様のご意見を元に日々カスタマイズを行っています。<BR>
+どんどん進化する <B>PenguinOffice</B> に、どうぞこれからもご愛顧の程よろしくお願いいたします。<BR>
+<BR>
+</TD></TR>
+
+</TABLE>
+
+<TABLE WIDTH=420 CELLPADDING=4 CELLSPACING=0>
+<!-- Ver2.0 -->
+<TR BGCOLOR=#E0E0E0><TD VALIGN=TOP>Ver 2.0</TD><TD ALIGN=RIGHT>2003/10/xx〜</TD></TR>
+<TR><TD COLSPAN=2><FONT STYLE="line-height:16px">
+大幅な改修を行いました。開発ベースをPHP3からPHP4に変更し高速化を計っています。また、<B>チャット</B>を削除し、新たに<B>回覧板</B>,<B>ワークフロー</B>を追加。<B>BBS(旧談話室)</B>,<B>共有フォルダ</B>も機能アップしています。
+</TD></TR>
+
+<!-- Ver1.4+3 -->
+<TR BGCOLOR=#E0E0E0><TD VALIGN=TOP>Ver 1.4<sup>+3</sup></TD><TD ALIGN=RIGHT>2003/04/01〜</TD></TR>
+<TR><TD COLSPAN=2><FONT STYLE="line-height:16px">
+Cookie（クッキー）の利用方法に問題があり、本人になりすましてアクセスできるセキュリティーホールを修正しています。<BR>
+MS-Outlook2000 内の ブラウザ機能からアクセスした場合、サブウィンドウが開けない不具合の修正。その他、細かな修正を行っています。<br>
+</TD></TR>
+
+<!-- Ver1.4+2 -->
+<TR BGCOLOR=#E0E0E0><TD VALIGN=TOP>Ver 1.4<sup>+2</sup></TD><TD ALIGN=RIGHT>2002/12/20〜</TD></TR>
+<TR><TD COLSPAN=2><FONT STYLE="line-height:16px">
+<IMG SRC="<? echo $toppath ?>/image/topics.gif" BORDER=0>&nbsp;<B>住所録</B>の連動機能に今回より新たに、<B>予定表</B>への登録機能を加えました。自動的に履歴が残るようになっています。また、<B>メール送信</B>を使ってグループウェアから直接メールを送ることや、検索結果からのまとめ送り(<B>メルマガ機能</B>)やファイル出力(<B>CSV形式</B>)も可能になり、顧客管理を強力にサポートします。<BR>
+<IMG SRC="<? echo $toppath ?>/image/topics.gif" BORDER=0>&nbsp;<B>予定表</B>で新しく予定を登録する場合に、携帯メールへ時間指定の<B>アラームメール</B>を送ることができるようになりました。<BR>
+<IMG SRC="<? echo $toppath ?>/image/topics.gif" BORDER=0>&nbsp;あわせて、携帯電話向けサービスで<B>チャット</B>,<B>備忘録</B>,<B>リンク集</B>がご利用いただけるようになりました。外出先での活用度がますます上がりました。<BR>
+セキュリティ対策のためパスワードの有効期限（30日間）を自動で報告するようになりました。期限がくるとトップページに警告が表示されるようにしています。<BR>
+その他、画面各部や操作方法を変更して、ユーザーインターフェースを向上させています。<br>
+</TD></TR>
+
+<!-- Ver1.4+1 -->
+<TR BGCOLOR=#E0E0E0><TD VALIGN=TOP>Ver 1.4<sup>+1</sup></TD><TD ALIGN=RIGHT>2002/11/16〜</TD></TR>
+<TR><TD COLSPAN=2><FONT STYLE="line-height:16px">
+<IMG SRC="<? echo $toppath ?>/image/topics.gif" BORDER=0>&nbsp;インターネットをより活用していただくために、ニュース速報を表示する<B>LinkTopics</B>(<A HREF="http://www.d-a.co.jp/" TARGET="_blank">デジタルアライアンス</A>)</B>を搭載しました。<BR>
+<IMG SRC="<? echo $toppath ?>/image/topics.gif" BORDER=0>&nbsp;<B>住所録</B>にメモを追記していくことができるようになりました。また、連動機能の第ニ弾として、<B>住所録</B>で相手を検索し、<B>伝言メモ</B>を登録すると、自動的に履歴が残るようになりました。さらに、作成された伝言に自動的に相手情報のリンクが付加されて、外出先のケータイやモバイル環境で相手の情報がわかるようになり、すぐに電話のコールバックやメールの送信などのアクションを起こすことが可能になりました。攻めの顧客管理にご活用ください。<BR>
+ログインCookieの保存方法を改善しログイン時のID・パスワードなどのプライバシー情報がディスクに保存されなくなっています(従来は暗号化して保存)。そのため、より安心にご活用いただくことができるようになっています。ただし、若干使用感が変わっていますので、ご了承ください。<BR>
+その他、画面各部や操作方法を変更して、ユーザーインターフェースを向上させています。<br>
+</TD></TR>
+
+<!-- Ver1.4 -->
+<TR BGCOLOR=#E0E0E0><TD VALIGN=TOP>Ver 1.4</TD><TD ALIGN=RIGHT>2002/09/19〜</TD></TR>
+<TR><TD COLSPAN=2><FONT STYLE="line-height:16px">
+<IMG SRC="<? echo $toppath ?>/image/topics.gif" BORDER=0>&nbsp;<B><FONT STYLE="font-size:140%">新</FONT>機能 アドレス帳</B>を搭載しました。<BR>
+今までのシステム構築のノウハウを詰め込み、シンプルかつスムーズに情報を引き出せるように心がけました。<BR>
+もちろん、ペンギンオフィスの一番の特徴である検索機能も搭載され、多くの情報が登録されるアドレス帳であっても最低限の操作でで検索が行なえるよう設計しています。<BR>
+また、連動機能第一弾として、<B>住所録</B>に登録されたURLを <B>リンク集</B>にそのまま登録することができるようになっています。<BR>
+<IMG SRC="<? echo $toppath ?>/image/topics.gif" BORDER=0>&nbsp;あわせて携帯電話向けサービスでも<B>アドレス帳</B>がご利用いただけます。会社名および個人名からすばやく情報を利用することができます。<BR>
+携帯電話向けサービスで、<b>J-sky</b>の最新２機種と、<IMG SRC="<? echo $toppath ?>/image/imode.gif" border=0><b>モード</b>最新３機種に対応しました。<BR>
+Netscape(R) Communicatorにおいて、一部表示されない不具合を修正いたしました。<BR>
+</TD></TR>
+
+<!-- Ver1.3+4 -->
+<TR BGCOLOR=#E0E0E0><TD VALIGN=TOP>Ver 1.3<sup>+4</sup></TD><TD ALIGN=RIGHT>2002/08/11〜</TD></TR>
+<TR><TD COLSPAN=2><FONT STYLE="line-height:16px">
+<IMG SRC="<? echo $toppath ?>/image/topics.gif" BORDER=0>&nbsp;ケータイ向けサービスで、NTTドコモ２機種に対応しました。また、あわせて 各機能のユーザーインターフェースを向上させています。<BR>
+<B>共有フォルダ</B>で日本語のファイル名の取り扱いがおかしくなっていた不具合の修正。<BR>
+<B>談話室</B>のスレッド表示がおかしかった不具合の修正。<BR>
+<B>予定表</B>と<B>伝言メモ</B>での相手先選択を１０名以下でご利用の場合、Ver 1.3<sup>+2</sup>以前と同じ操作で選択できるように修正しました。これで、大人数でも少人数でもご利用いただけます。<BR>
+<B>予定表</B>,<B>施設予約</B>,<B>伝言メモ</B>,<B>談話室</B>,<B>共有フォルダ</B>,<B>リンク集</B> に、操作中のページ指定（表示順、相手先など）情報を一時保存するようにして、ユーザーインターフェースを向上させました。<BR>
+ページ下段の検索機能に、新たに <B>AllTheWeb</B>, <B>はてな</B>, <B>AllAboutJapan</B> を追加し、必要に応じて様々な検索エンジンを利用できるようになりました。<BR>
+<B>伝言メモ</B>に検索機能を追加しました。検索語が反転表示され必要な情報を効率よく見つけ出すことができます。また、あわせて送信に一般メール/携帯メールを使った際に、返信しやすいように送られてくるメールの内容を修正しました。<BR>
+<BR>
+</TD></TR>
+
+<!-- Ver1.3+3 -->
+<TR BGCOLOR=#E0E0E0><TD VALIGN=TOP>Ver 1.3<sup>+3</sup></TD><TD ALIGN=RIGHT>2002/07/06〜</TD></TR>
+<TR><TD COLSPAN=2><FONT STYLE="line-height:16px">
+<IMG SRC="<? echo $toppath ?>/image/topics.gif" BORDER=0>&nbsp;<B>ユーザーインターフェースの<FONT STYLE="font-size:140%">大</FONT>変更</B>を行いました。より<A HREF="<? echo $toppath ?>/faq_knowledge.phtml">ナレッジ・マネジメント</A>が行われ易いイメージをこころがけ、多くの箇所を修正しています。<br>
+<IMG SRC="<? echo $toppath ?>/image/topics.gif" BORDER=0>&nbsp;<B>リンク集</B>に、自社製のインターネット巡回ロボットを搭載し、定期的に登録されているリンク先のテキスト情報を拾い出すようになりました。あわせてリンク集でも全文検索が可能になりました。<BR>
+<A HREF="<? echo $toppath ?>/faq.phtml">Ｑ＆Ａ集</A>を追加。あわせてマニュアルも見やすく変更しています<BR>
+ベストリザーブ社との提携により <B>ホテル予約</B> がご利用いただけるようになりました。<BR>
+連続した予定を登録する際に共有がおかしくなる不具合の修正。<br>
+<IMG SRC="<? echo $toppath ?>/image/topics.gif" BORDER=0>&nbsp;携帯電話向けサービスで、NTTドコモ４機種とSigmarionII、J-PHONE２機種に対応しました。<BR>
+<B>共有フォルダ</B>に、ゴミ箱機能を搭載しました。操作ミスによるファイル削除を防止します。<BR>
+<B>予定表</B>にサポーター機能を追加しました。メンテナンス画面で<B>上司のサポーター</B>になるよう設定しておくと、相手のスケジュールを秘書のように自分同様、追加・編集することができます。また、あわせて登録時に他の利用者に表示するかどうかの選択をできるようにしました。<BR>
+<B>施設予約</B>で各施設に管理者を置けるようにしました。管理者は登録済みの予約を変更することができます。<BR>
+<BR>
+</TD></TR>
+
+<!-- Ver1.3+2 -->
+<TR BGCOLOR=#E0E0E0><TD VALIGN=TOP>Ver 1.3<sup>+2</sup></TD><TD ALIGN=RIGHT>2002/05/07〜</TD></TR>
+<TR><TD COLSPAN=2><FONT STYLE="line-height:16px">
+<IMG SRC="<? echo $toppath ?>/image/topics.gif" BORDER=0>&nbsp;<B>マイナーフルチューン</B>を行い全てのページのユーザーインターフェースを大幅に向上させています。特に入力を伴うページは全て別のブラウザが立ち上がり、<B>予定表</B>を確認しながら入力を行うことなども可能になりました。また、トラフィックも大幅に軽減されています。<br>
+<IMG SRC="<? echo $toppath ?>/image/topics.gif" BORDER=0>&nbsp;<B>共有フォルダ</B>に、<A HREF="http://www.dehenken.co.jp/" TARGET="_BLANK">データ変換研究所</A>のDocCatを採用し、Work,Excel,一太郎,PDF形式などの文書ファイルの全文検索が可能になりました。<BR>
+<IMG SRC="<? echo $toppath ?>/image/topics.gif" BORDER=0>&nbsp;携帯電話向けサービスで、<B>伝言メモ</B>がご利用いただけるようになりました。<BR>
+天気予報に加えて、<B>トップページ</B>で、最新のウィルス情報を表示するようにしています。日々のセキュリティ管理にご活用ください。<BR>
+<BR>
+</TD></TR>
+
+<!-- Ver1.3+1 -->
+<TR BGCOLOR=#E0E0E0><TD VALIGN=TOP>Ver 1.3<sup>+1</sup></TD><TD ALIGN=RIGHT>2002/03/29〜</TD></TR>
+<TR><TD COLSPAN=2><FONT STYLE="line-height:16px">
+<IMG SRC="<? echo $toppath ?>/image/topics.gif" BORDER=0>&nbsp;携帯電話向けサービスで、<B>施設予約</B>ができるようになりました。<BR>
+<IMG SRC="<? echo $toppath ?>/image/topics.gif" BORDER=0>&nbsp;携帯電話向けサービスで、<b>J-sky</b>の最新２機種と、<img src="<? echo $toppath ?>/image/imode.gif" border=0><b>モード</b>１機種に対応しました。<BR>
+<B>チャット</B>の画面サイズとメッセージの表示方法を変更して少し見やすくしてみました。<BR>
+<B>トップページ</B>の予定カレンダー表示位置を左側に変更してみました。あわせて、トップページから各機能ページのリンクの使い勝手を修正しています。<br>
+分かりにくかった<B>マイプロフィール</B>へのリンクを上部にも置くようにしました。<BR>
+<B>予定表</B>と<B>施設予約</B>の、ページ移動方法を変更しました。より使いやすくなったと思います。<BR>
+<B>メンテナンス</B>「<B>グループ保守</B>」で、参加メンバーのいるグループが削除できてしまっていた不具合の修正。<br>
+<B>共有フォルダ</B>に、共有とプライベートの区分を追加。<BR>
+<B>リンク集</B>の、共有とプライベートの区分を入れ替え。デフォルトを共有にしました。<BR>
+<img src="<? echo $toppath ?>/image/imode.gif" border=0><b>モード</b>対応ページの<B>予定表</B>で、プライベートな予定が、他のユーザーから見えてしまう不具合の修正。皆様、大変ご迷惑をおかけしました m(_ _)m<br>
+<BR>
+</TD></TR>
+
+<!-- Ver1.3 -->
+<TR BGCOLOR=#E0E0E0><TD VALIGN=TOP>Ver 1.3</TD><TD ALIGN=RIGHT>2002/03/16〜</TD></TR>
+<TR><TD COLSPAN=2><FONT STYLE="line-height:16px">
+<IMG SRC="<? echo $toppath ?>/image/topics.gif" BORDER=0>&nbsp;遂に<B>チャット</B>搭載。出張時や在宅ワーク時の連絡手段などにご活用ください<i>!!!</i><BR>
+ページ下段のGoogle検索機能をパワーアップ。複数の検索エンジンを選択できるようになりました。<BR>
+
+<IMG SRC="<? echo $toppath ?>/favicon.gif" BORDER=1 ALIGN=LEFT>ブックマーク、ショートカット登録時の <B>アイコン画像を変更</B> しました。これからもご愛顧の程お願いします<i>!!!</i><BR>その他、トップページのメニュー表示を機能増加に伴い小さなアイコン画像に変更。また、機能アイコンの画像を見易いものに変更しました。<BR CLEAR=ALL>
+<BR>
+</TD></TR>
+
+<!-- Ver1.2+2 -->
+<TR BGCOLOR=#E0E0E0><TD VALIGN=TOP>Ver 1.2<sup>+2</sup></TD><TD ALIGN=RIGHT>2002/03/04〜</TD></TR>
+<TR><TD COLSPAN=2><FONT STYLE="line-height:16px">
+<IMG SRC="<? echo $toppath ?>/image/topics.gif" BORDER=0>&nbsp;SSL対応となりました。<BR>暗号化されたデータを扱いますので、通信の秘匿性を高めます<i>!!!</i><BR>SSL対応URLは<B>https://<? echo $subdomain.".gw.penguin.ne.jp/" ?></B>です。<BR>
+「<B>予定表</B>」で同一の共通イベントに参加者しているユーザーが一目でわかるようにマークが付くようになりました。<BR>
+<img src="<? echo $toppath ?>/image/imode.gif" border=0><b>モード</b>対応ページのアドレスが<B><? echo $access.$domain.$toppath."/" ?></B>でも見られる様になりました。<BR>
+管理者の皆様へ。自動ログアウト時間がメンテナンスページ「<B>管理者情報保守</B>」で調整出来るようになりました。<BR>
+ログイン画面でも、天気予報が見えるようになりました。<BR>
+<BR>
+</TD></TR>
+
+<!-- Ver1.2+1 -->
+<TR BGCOLOR=#E0E0E0><TD VALIGN=TOP>Ver 1.2<sup>+1</sup></TD><TD ALIGN=RIGHT>2002/02/16〜</TD></TR>
+<TR><TD COLSPAN=2><FONT STYLE="line-height:16px">
+<img src="<? echo $toppath ?>/image/topics.gif" border=0>&nbsp;<a href="<? echo $access.$domain.$toppath."/i/" ?>" target="_blank">携帯電話向けサービス</a>で、天気予報が見えるようになりました。</font><br>
+「<B>掲示板</B>」の名称を、気軽に書き込んでもらえるように「<B>談話室</B>」に変更しました。<br>
+画面の配色で見えにくかったのを修正。その他細かな修正。<br>
+<BR>
+</TD></TR>
+
+<!-- Ver1.2 -->
+<TR BGCOLOR=#E0E0E0><TD VALIGN=TOP>Ver 1.2<sup></sup></TD><TD ALIGN=RIGHT>2002/01/18〜</TD></TR>
+<TR><TD COLSPAN=2><FONT STYLE="line-height:16px">
+<img src="<? echo $toppath ?>/image/topics.gif" border=0>&nbsp;<a href="<? echo $access.$domain.$toppath."/i/" ?>" target="_blank">携帯電話向けサービス</a>で使用機種を、i-mode全機種と<b>J-sky</b>のステーション対応機に拡大対応致しました。また、予定表に月間表示を追加しました。</font><br>
+<img src="<? echo $toppath ?>/image/topics.gif" border=0>&nbsp;「<B>リンク</B>」機能搭載<i>!!!</i><br>プライベート用と全体用に分けて登録できます。お気に入りのサイトをどんどん「<b>リンク</b>」に登録して下さい。</font><br><B>天気予報</b>（提供：<a href="http://www.n-kishou.co.jp/" target="_blank">日本気象</a>）情報が表示される機能に降水確率と最低最高気温を追加。<br>「<B>予定表</B>」で重なっていない時間に登録しても警告メッセージが出てしまう不具合を修正。<BR>
+<BR>
+</TD></TR>
+
+<!-- Ver1.1+2 -->
+<TR BGCOLOR=#E0E0E0><TD VALIGN=TOP>Ver 1.1<sup>+2</sup></TD><TD ALIGN=RIGHT>2002/01/05〜</TD></TR>
+<TR><TD COLSPAN=2><FONT STYLE="line-height:16px">
+<img src="<? echo $toppath ?>/image/topics.gif" border=0>&nbsp;<img src="<? echo $toppath ?>/image/imode.gif" border=0><b>モード</b>ページの提供を開始しました。通常ご利用いただいているURLの末尾に/i/をつけて<img src="<? echo $toppath ?>/image/imode.gif" border=0><b>モード</b>端末からアクセスください（<a href="<? echo $access.$domain.$toppath."/i/" ?>" target="_blank"><? echo $access.$domain.$toppath."/i/" ?></a>）。第一弾として「<B>予定表</B>」をご提供中です。</font><br>
+<img src="<? echo $toppath ?>/image/topics.gif" border=0>&nbsp;「<B>マイプロフィール</B>」からユーザー毎にCSV形式でデータを出力できる機能を追加。<br>&nbsp;<sup><font color=#ff0000>※</font></sup><font color=#666666>MS-Outlookに取り込める形で出力することができます。</font><br>
+&nbsp;「<B>マイプロフィール</B>」で、ユーザー毎に予定表の開始時刻を設定できるように修正。<br>
+<img src="<? echo $toppath ?>/image/topics.gif" border=0>&nbsp;トップページのメニュー下に<B>天気予報</b>（提供：<a href="http://www.n-kishou.co.jp/" target="_blank">日本気象</a>）情報が表示される機能を追加。<br>&nbsp;<sup><font color=#ff0000>※</font></sup><font color=#666666>「<B>管理者情報保守</B>」で自社所在地の都道府県を設定すると該当地域の天気予報が表示されます。</font><br>
+<img src="<? echo $toppath ?>/image/topics.gif" border=0>&nbsp;「<B>予定表</B>」に「<b>共通イベント</b>」が登録できる機能を追加。社内行事やイベントのスケジュール管理にご活用ください。<br>
+「<B>予定表</B>」の長期予定と通常予定を、OutlookやPDAとの連動のため一本化。<br>
+「<B>会議室</B>」の名称を「<B>掲示板</B>」に変更。<br>
+<BR>
+</TD></TR>
+
+<!-- Ver1.1+1 -->
+<TR BGCOLOR=#E0E0E0><TD VALIGN=TOP>Ver 1.1<sup>+1</sup></TD><TD ALIGN=RIGHT>2001/12/07〜</TD></TR>
+<TR><TD COLSPAN=2><FONT STYLE="line-height:16px">
+<img src="<? echo $toppath ?>/image/topics.gif" border=0>&nbsp;「<B>マイプロフィール</B>」と<B>メンテナンス</B>内の「<b>ユーザー保守</b>」で、ユーザー毎に予定表の開始曜日を<FONT COLOR=#000099>月曜</FONT>か<FONT COLOR=#FF0000>日曜</FONT>のどちらか選択できるように修正。<br>
+<img src="<? echo $toppath ?>/image/topics.gif" border=0>&nbsp;「<B>マイプロフィール</B>」で、ユーザーが個別に表示色を変更できる機能や、パスワード変更機能を追加。<br>
+<img src="<? echo $toppath ?>/image/topics.gif" border=0>&nbsp;「<B>予定表</B>」の１ヶ月表示に所属グループのユーザー予定が見れる機能の追加。また、ユーザーの誕生日を表示する機能を追加(なにかお祝いしてあげて下さい(^o^)/)<br>
+「<B>グループ保守</B>」で、所属ユーザーを選択できる機能の追加。<br>
+「<B>会議室</B>」の高速化と、検索時に正しく検索キーワードによって検索が中断されてしまう不具合の修正。<br>
+「<B>管理者情報保守</B>」で、自社ホームページへのURLを記述すると、トップページのタイトルに自社ページへのリンクを設定できる機能を追加。
+Ver1.1以降 <B>メンテナンス</B>「<B>ユーザー保守</B>」で、参加グループの追加・修正ができなくなっていた不具合の修正。<br>
+<BR>
+</TD></TR>
+
+<!-- Ver1.1 -->
+<TR BGCOLOR=#E0E0E0><TD VALIGN=TOP>Ver 1.1</TD><TD ALIGN=RIGHT>2001/10/26〜</TD></TR>
+<TR><TD COLSPAN=2><FONT STYLE="line-height:16px">
+<img src="<? echo $toppath ?>/image/topics.gif" border=0>&nbsp;お待たせしました「<B>会議室</B>」機能。遂に搭載<i>!!!</i><br>
+その他、各機能のブラッシュアップやメンテナンス系の大幅強化など多岐に渡った変更を行い、より使いやすくしています。<br>
+<br>
+</TD></TR>
+
+<!-- Ver1.0 -->
+<TR BGCOLOR=#E0E0E0><TD VALIGN=TOP>Ver 1.0〜1.0<sup>+7.3</sup></TD><TD ALIGN=RIGHT>2001/10/22〜</TD></TR>
+<TR><TD COLSPAN=2><FONT STYLE="line-height:16px">
+<img src="<? echo $toppath ?>/image/topics.gif" border=0>&nbsp;ASP版 提供開始<i>!!!</i><br>
+<img src="<? echo $toppath ?>/image/topics.gif" border=0>&nbsp;「<B>備忘録</B>」機能の追加<br>
+各機能のブラッシュアップ<br>
+<br>
+※ 皆様の貴重なご意見ありがとうございました。随時各機能に反映させていただきました。<br>
+<br>
+</TD></TR>
+
+<!-- Ver0.0 -->
+<TR BGCOLOR=#E0E0E0><TD VALIGN=TOP>Ver β</TD><TD ALIGN=RIGHT>〜2001/10/21</TD></TR>
+<TR><TD COLSPAN=2><FONT STYLE="line-height:16px">
+ASP提供に向け、保守機能の追加とバグフィックス、各機能の大幅見直しを行う<br>
+
+<BR>
+※ モニターにご協力いただいた皆様。ありがとうございました&nbsp;<img src="<? echo $toppath ?>/image/thanks.gif" border=0><br>
+</TD></TR>
+
+</TABLE>
+</DIV></CENTER>
+<?php
+  // フッタ表示
+  include ("./footer.inc.php");
+?>

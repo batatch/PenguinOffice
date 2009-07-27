@@ -1,0 +1,104 @@
+<?
+include ("../../config.inc.php"); include ("../../lib.inc.php");
+
+$linktext  = "<A HREF=\"../../\" CLASS=\"BAR\">トップページ</A> &gt; ";
+$linktext .= "<A HREF=\"../../\" CLASS=\"BAR\">回覧板</A> &gt; ";
+$linktext .= "<A HREF=\"../result/?no=$no\" CLASS=\"BAR\">回覧の表示</A> &gt; ";
+$linktext .= "<FONT COLOR=#FFFF00>回覧への回答</FONT> ";
+
+$no  = $_POST["no"];
+
+include ("../../login_check.inc.php");
+
+if ($login && sizeof($MES)==0) {
+	// エラーチェック
+	$note = textsafe($_POST["note"]);
+	
+	if (trim($note)=="") {
+		#      $DMES[] = "コメントが入力されていません";
+	} elseif(strlen($note)>160) {
+		$DMES[] = "コメントが長すぎます。全角80文字までで入力してください";
+		$note = mb_strcut($note,0,160);
+	}
+	
+	// 回覧データの確認
+	$sql = "SELECT * FROM circulas WHERE seqno=$no";
+	$res = pg_query($conn,$sql);
+	if (pg_num_rows($res)==0) {
+		$DMES[] = "回覧情報が正しくないか既に削除されています";
+	} else {
+		$row = pg_fetch_array($res,0);
+		$user_id_to = $row["user_id_to"];
+		$user_ids_to = split(",",$user_id_to);
+	}
+	
+	// 回覧結果データのチェック
+	$sql = "SELECT * FROM circulas_ret WHERE refno=$no AND user_id='$login_id'";
+	$res = pg_query($conn,$sql);
+	if (pg_num_rows($res)==0) {
+		// なし -> 新規
+		$seqno = get_last("circulas_ret","seqno","refno=$no",0) + 1;
+		$sql  = "INSERT INTO circulas_ret (";
+		$sql .= "refno, seqno, user_id, note, result_sign, createstamp ";
+		$sql .= ") VALUES (";
+		$sql .=      $no       .",";
+		$sql .=      $seqno    .",";
+		$sql .= "'". $login_id ."',";
+		$sql .= "'". db_textsafe($note)."',";
+		$sql .= "'t',";
+		$sql .= "'now()'";
+		$sql .= ")";
+	} else {
+		// あり -> 更新
+		$sql  = "UPDATE circulas_ret SET ";
+		$sql .= "note='". db_textsafe($note)."',";
+		$sql .= "result_sign='t',";
+		$sql .= "createstamp='now()' ";
+		$sql .= "WHERE ";
+		$sql .= "refno=$no AND user_id='$login_id'";
+	}
+	$res = pg_query($conn, $sql);
+	if ($res == false || pg_affected_rows($res)<1) {
+		$DMES[] = "発言の投稿処理に失敗しました";
+	}
+	
+	if (sizeof($DMES)==0) {
+		// 全て回答済み？
+		$cnt_allresult = get_count("circulas_ret","refno=$no AND result_sign='t'");
+		if (sizeof($user_ids_to) <= $cnt_allresult) {
+			$sql = "UPDATE circulas SET result_sign='t' WHERE seqno=$no";
+			$res = pg_query($conn, $sql);
+		}
+	}
+	
+	if (sizeof($WMES)==0 && sizeof($DMES)>0) {
+		// 入力エラー時
+		include ("../../header.inc.php");
+		
+		$pagetext .= "<BR><BR>";
+		$pagetext .= "<CENTER>";
+		$pagetext .= "<FONT COLOR=#FF0000>";
+		while (list($key,$val)=each($DMES)) {
+			$pagetext .= $val."<BR>";
+		}
+		$pagetext .= "<BR><FORM ACTION=\"./\" METHOD=POST>";
+		$pagetext .= "<INPUT TYPE=HIDDEN NAME=\"error\" VALUE=\"t\">";
+		$pagetext .= "<INPUT TYPE=HIDDEN NAME=\"no\" VALUE=\"$no\">";
+		$pagetext .= "<INPUT TYPE=HIDDEN NAME=\"note\" VALUE=\"$note\">";
+		$pagetext .= "<INPUT TYPE=SUBMIT VALUE=\"戻る\">";
+		$pagetext .= "</FORM>";
+		$pagetext .= "</FONT>";
+		$pagetext .= "</CENTER>";
+		
+		include("../../detail.inc.php");
+		include("../../footer.inc.php");
+	} else {
+		// 正常時
+		$returl = "../";
+		if ($p=="top") {
+			$returl = "../../";
+		}
+		header("Location: ".$returl);
+	}
+}
+?>

@@ -1,0 +1,108 @@
+<?php
+  include ("../../config.inc.php"); include ("../../lib.inc.php");
+
+  $linktext  = "<A HREF=\"../../\" CLASS=\"BAR\">トップページ</A> &gt; ";
+  $linktext .= "<A HREF=\"../\" CLASS=\"BAR\">掲示板</A> &gt; ";
+  $linktext .= "<FONT COLOR=#FFFF00>発言の削除</FONT> ";
+
+	if (empty($board)) {
+	  $board = $_COOKIE["board_id"];
+}
+  $no    = $_GET["no"];
+
+  include ("../../login_check.inc.php");
+
+// 関数ここから
+function removepostdata($serial) {
+  global $conn,$board;
+  $sql = "SELECT seqno,serial FROM boards_post WHERE board_id='$board' AND parent='$serial'";
+  $res = pg_query($conn,$sql);
+  $cnt = pg_num_rows($res);
+  if ($cnt > 0) {
+
+    for ($i=0;$i<$cnt;$i++) {
+      $row = pg_fetch_array($res,$i);
+      removepostdata($row["serial"]);
+
+      pg_query($conn,"DELETE FROM boards_post WHERE board_id='$board' AND seqno=".$row["seqno"]);
+      pg_query($conn,"DELETE FROM boards_res WHERE board_id='$board' AND seqno=".$row["seqno"]);
+    }
+  }
+}
+// 関数ここまで
+
+  if ($login && sizeof($MES)==0) {
+    // エラーチェック
+    if ($admin_sign!="t" && $board_admin_id!=$login_id) {
+      $DMES[] = "掲示板もしくは全体管理者のみ削除することができます";
+    }
+    if (empty($no)) {
+      $DMES[] = "発言が選択されていません";
+    } else {
+      $sql = "SELECT * FROM boards_post WHERE board_id='$board' AND seqno=$no";
+      $res = pg_query($conn,$sql);
+      $cnt = pg_num_rows($res);
+      if ($cnt==0) {
+        // 発言なし
+        $DMES[] = "指定された発言は登録されていないか既に削除されています";
+      } else {
+        // シリアル値の事前取得
+        $serial = get_first("boards_post","serial","board_id='$board' AND seqno=$no","");
+
+        // 発言の削除
+        $sql = "DELETE FROM boards_post WHERE board_id='$board' AND seqno=$no";
+        $res = pg_query($conn,$sql);
+        if ($res != false) {
+          $cnt = pg_affected_rows($res);
+        } else {
+          $cnt = 0;
+        }
+        if ($cnt==0) {
+          $DMES[] = "発言の削除処理に失敗しました";
+        }
+
+        // 既読情報の削除処理
+        $sql = "DELETE FROM boards_res WHERE board_id='$board' AND seqno=$no";
+        $res = pg_query($conn,$sql);
+
+        // 発言の閲覧履歴削除
+        if (sizeof($DMES)==0) {
+          if ($serial != "") {
+            removepostdata($serial);
+          }
+        }
+      }
+    }
+
+    // ページ内容作成
+    if (sizeof($DMES)==0) {
+      // 正常時
+      $returl = "../";
+      if ($p=="top") {
+        $returl = "../../";
+      }
+      Header("Location: ".$returl);
+
+    } else {
+      // エラー時
+      include "../../header.inc.php";
+
+      $pagetext .= "<BR><BR>\n";
+      $pagetext .= "<CENTER>\n";
+      $pagetext .= "<FONT COLOR=#FF0000>\n";
+      while (list($key,$val)=each($DMES)) {
+        $pagetext .= $val."<BR>\n";
+      }
+      $pagetext .= "</FONT>\n";
+
+      $pagetext .= "<BR><FORM METHOD=POST>\n";
+      $pagetext .= "<INPUT TYPE=BUTTON VALUE=\"戻る\" ONCLICK=\"history.back()\">\n";
+
+      $pagetext .= "</FORM>\n";
+      $pagetext .= "</CENTER>\n";
+
+      include "../../detail.inc.php";
+      include "../../footer.inc.php";
+    }
+  }
+?>

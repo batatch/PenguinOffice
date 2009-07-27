@@ -1,0 +1,169 @@
+<?
+  include "../../config.inc.php";
+  include "../../lib.inc.php";
+
+  $linktext  = "<A HREF=\"../../\" CLASS=\"BAR\">トップページ</A> &gt; ";
+  $linktext .= "<A HREF=\"../\" CLASS=\"BAR\">住所録</A> &gt; ";
+  $linktext .= "<FONT COLOR=#FFFF00>住所の表示</FONT>";
+
+  // ログイン情報獲得(簡易版)
+  include "../../login_check.inc.php";
+
+	if ($address_flag>1) {
+		$MES[] = "住所録内の情報を更新することはできません";
+	}
+  // 前処理
+  $corp_name   = textsafe(urldecode($corp_name));
+  $corp_kana   = mb_convert_kana(textsafe($corp_kana),"CKV");
+  $corp_zip    = mb_convert_kana(textsafe($corp_zip),"a");
+  $corp_city   = textsafe($corp_city);
+  $corp_street = textsafe($corp_street);
+  $corp_build  = textsafe($corp_build);
+  $corp_tel    = mb_convert_kana(textsafe($corp_tel),"a");
+  $corp_fax    = mb_convert_kana(textsafe($corp_fax),"a");
+  $corp_url    = mb_convert_kana(textsafe($corp_url),"a");
+  $corp_email  = mb_convert_kana(textsafe($corp_email),"a");
+
+  if ($corp_url == "http://") {
+    $corp_url = "";
+  }
+
+  if ($corp_email == "@") {
+    $corp_email = "";
+  }
+
+  // エラーチェック
+  if ($corp_name != "") {
+    if (strlen($corp_name)>80) {
+      $MES[]="会社名が長すぎます。40文字以内(半角80文字)で指定してください";
+    }
+  }
+
+  if ($corp_kana != "") {
+    if (strlen($corp_kana)>80) {
+      $MES[]="会社名のカナヨミが長すぎます。40文字以内(半角80文字)で指定してください";
+    }
+  }
+
+  if ($corp_zip != "") {
+    if (strlen($corp_zip)>8) {
+      $MES[]="郵便番号が長すぎます。8文字以内で指定してください";
+    }
+  }
+
+  if ($corp_city != "") {
+    if (strlen($corp_city)>100) {
+      $MES[]="住所(市区郡)が長すぎます。50文字以内(半角100文字)で指定してください";
+    }
+  }
+
+  if ($corp_street != "") {
+    if (strlen($corp_street)>100) {
+      $MES[]="住所(町村・番地)が長すぎます。50文字以内(半角100文字)で指定してください";
+    }
+  }
+
+  if ($corp_build != "") {
+    if (strlen($corp_build)>100) {
+      $MES[]="住所(ビル・マンション)が長すぎます。50文字以内(半角100文字)で指定してください";
+    }
+  }
+
+  if ($corp_tel != "") {
+    if (strlen($corp_tel)>20) {
+      $MES[]="電話番号が長すぎます。20文字以内で指定してください";
+    } else {
+      if (!is_tel($corp_tel)) {
+        $MES[]="電話番号は半角数字とハイフン[-]で指定してください";
+      }
+    }
+  }
+
+  if ($corp_fax != "") {
+    if (strlen($corp_fax)>20) {
+      $MES[]="FAX番号が長すぎます。20文字以内で指定してください";
+    } else {
+      if (!is_tel($corp_fax)) {
+        $MES[]="FAX番号は半角数字とハイフン[-]で指定してください";
+      }
+    }
+  }
+
+  if ($corp_url != "") {
+    if (strlen($corp_url)>200) {
+      $MES[]="ホームページアドレス(URL)が長すぎます。200文字以内で指定してください";
+    }
+  }
+
+  if ($corp_email != "") {
+    if (strlen($corp_email)>100) {
+      $MES[]="メールアドレスが長すぎます。100文字以内で指定してください";
+    } else {
+      if (!is_email($corp_email)) {
+        $MES[]="メールアドレスの指定が正しくありません";
+      }
+    }
+  }
+
+  // エラー無しならDB更新
+  if (sizeof($MES)==0) {
+    $sql  = "UPDATE address SET ";
+    $sql .= "corp_name='".db_textsafe($corp_name)."',";
+    $sql .= "corp_kana='".db_textsafe($corp_kana)."',";
+    $sql .= "corp_email='".db_textsafe($corp_email)."',";
+    $sql .= "corp_url='".db_textsafe($corp_url)."',";
+    $sql .= "corp_zip='".db_textsafe($corp_zip)."',";
+    $sql .= "corp_state='".db_textsafe($corp_state)."',";
+    $sql .= "corp_city='".db_textsafe($corp_city)."',";
+    $sql .= "corp_street='".db_textsafe($corp_street)."',";
+    $sql .= "corp_build='".db_textsafe($corp_build)."',";
+    $sql .= "corp_tel='".db_textsafe($corp_tel)."',";
+    $sql .= "corp_fax='".db_textsafe($corp_fax)."',";
+    $sql .= "updatestamp='now' ";
+    $sql .= "WHERE seqno=".$seqno;
+
+    $res = pg_query($conn,$sql);
+    if ($res==false) {
+      $MES[] = "更新に失敗しました。";
+    }
+  }
+
+  if (sizeof($MES)==0) {
+    // 正常処理
+    $returl = "./?s=$seqno";
+    header("Location: ".$returl);
+  } else {
+    // エラーメッセージ出力
+    include "../../header.inc.php"; flush();
+
+    print "<BR>";
+    print "<CENTER><FONT COLOR=#FF0000>";
+    // エラーメッセージ出力
+    while (list($key,$val)=each($MES)) {
+      print $val."<BR>\n";
+    }
+    print "</FONT>\n";
+
+    print "<FORM NAME=\"error\" ACTION=\"./\" METHOD=POST>\n";
+
+    print "<INPUT TYPE=HIDDEN name=\"s\" value=\"".$seqno."\">\n";
+
+    print "<INPUT TYPE=HIDDEN name=\"corp_name\" value=\"".$corp_name."\">\n";
+    print "<INPUT TYPE=HIDDEN name=\"corp_kana\" value=\"".$corp_kana."\">\n";
+    print "<INPUT TYPE=HIDDEN name=\"corp_zip\" value=\"".$corp_zip."\">\n";
+    print "<INPUT TYPE=HIDDEN name=\"corp_state\" value=\"".$corp_state."\">\n";
+    print "<INPUT TYPE=HIDDEN name=\"corp_city\" value=\"".$corp_city."\">\n";
+    print "<INPUT TYPE=HIDDEN name=\"corp_street\" value=\"".$corp_street."\">\n";
+    print "<INPUT TYPE=HIDDEN name=\"corp_build\" value=\"".$corp_build."\">\n";
+    print "<INPUT TYPE=HIDDEN name=\"corp_tel\" value=\"".$corp_tel."\">\n";
+    print "<INPUT TYPE=HIDDEN name=\"corp_fax\" value=\"".$corp_fax."\">\n";
+    print "<INPUT TYPE=HIDDEN name=\"corp_url\" value=\"".$corp_url."\">\n";
+    print "<INPUT TYPE=HIDDEN name=\"corp_email\" value=\"".$corp_email."\">\n";
+
+    print "<INPUT TYPE=SUBMIT value=\"戻る\" style=\"width:120px\">\n";
+    print "</FORM>\n";
+    print "</CENTER>\n";
+
+    include "../../footer.inc.php";
+  }
+?>

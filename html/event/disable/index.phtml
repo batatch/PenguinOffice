@@ -1,0 +1,151 @@
+<?php
+include "../../config.inc.php"; include "../../lib.inc.php";
+
+$linktext  = "<A HREF=\"../../\" CLASS=\"BAR\">トップページ</A> &gt; ";
+$linktext .= "<A HREF=\"../../schedule/\" CLASS=\"BAR\">予定表</A> &gt; ";
+$linktext .= "<A HREF=\"../add/?s=$s\" CLASS=\"BAR\">イベントの確認</A> &gt; ";
+$linktext .= "<FONT COLOR=#FFFF00>辞退完了</FONT>";
+
+include "../../login_check.inc.php";
+
+if ($login && sizeof($MES)==0) {
+	if (empty($s) || !is_numeric($s)) $DMES[] = "正しいページからお入りください";
+	
+	$sql = "SELECT * FROM events WHERE seqno=".$s;
+	$res = pg_query($conn,$sql);
+	$cnt = pg_num_rows($res);
+	if ($cnt==0) {
+		$DMES[] = "指定されたイベントは既に削除されています";
+	} else {
+		$row = pg_fetch_array($res,0);
+		$shareflag = $row["shareflag"];
+		$sharelist = $row["sharelist"];
+		if ($sharelist=="" || $shareflag==0) {
+			$DMES[] = "指定されたイベントには参加者がいません";
+		} else {
+			if ($shareflag==1) {
+				$userid_to = $row["sharelist"];
+			} elseif ($shareflag==2) {
+				$groupid_to = $row["sharelist"];
+				if ($groupid_to != "") {
+					$arr_groups = split("(\t|,)",$groupid_to);
+					while(list($key,$val)=each($arr_groups)) {
+						$sql_entry = "select * from users_entry where group_id='".$val."'";
+						$res_entry = pg_query($conn, $sql_entry);
+						$cnt_entry = pg_num_rows($res_entry);
+						if ($cnt_entry>0) {
+							for ($i=0;$i<$cnt_entry;$i++) {
+								$row_entry = pg_fetch_array($res_entry,$i);
+								if (eregi("(^|,)".$row_entry["user_id"]."(,|$)",$userid_to)==false) {
+									if ($userid_to != "") { $userid_to .= ","; }
+									$userid_to .= $row_entry["user_id"];
+								}
+							}
+						}
+					}
+				}
+			}
+			
+			if ($userid_to == "") {
+				$DMES[] = "指定されたイベントの参加者は削除されたか存在していません";
+			} else {
+				if (!preg_match("/(^|,)".$login_id."(,|$)/i",$userid_to)) {
+					$DMES[] = "指定されたイベントには参加していません";
+				}
+			}
+		}
+	}
+	
+	if (sizeof($DMES)==0) {
+		// 更新
+		// UserIDの再整列と自身を除外
+		$userids = split("(\t|,)",$userid_to);
+		if (sizeof($userids)>0) {
+			while (list($key,$val)=each($userids)) {
+				$idfind = false;
+				if (sizeof($new_userids)>0) {
+					while (list($new_key,$new_val)=each($new_userids)) {
+						if ($new_val==$val) {
+							$idfind = true;
+							break;
+						}
+					}
+				}
+				if (!$idfind) {
+					$sql_user = "select * from users where id='".$val."'";
+					$res_user = pg_query($conn, $sql_user);
+					$cnt_user = pg_num_rows($res_user);
+					if ($cnt_user>0) {
+						$row_user = pg_fetch_array($res_user,0);
+						$new_userids[$row_user["seqno"]] = $val;
+					}
+				}
+			}
+		}
+		
+		if (sizeof($new_userids)>0) {
+			ksort($new_userids);
+			reset($new_userids);
+			$userid_to = "";
+			while (list($key,$val)=each($new_userids)) {
+				if ($val != $login_id) {
+					if ($userid_to != "") { $userid_to .= ","; }
+					$userid_to .= $val;
+				}
+			}
+		}
+		
+		// 更新処理
+		$sql  = "UPDATE events SET ";
+		//    $sql .= "user_id='".$login_id."',";
+		$sql .= "shareflag=1,";
+		$sql .= "sharelist='".$userid_to."',";
+		$sql .= "updatestamp='now' ";
+		$sql .= " where seqno=".$s;
+		$res = pg_query($conn,$sql);
+		if ($res != false) {
+			$cnt = pg_affected_rows($res);
+		} else {
+			$cnt = 0;
+		}
+		if ($cnt==0) $DMES[] = "イベントの解除に失敗しました";
+	}
+	
+	if (sizeof($DMES)>0) {
+		// エラーメッセージ出力
+		include "../../header.inc.php";
+		
+		print "<CENTER>\n";
+		print "<FORM NAME=\"\" ACTION=\"./\" METHOD=\"POST\">\n";
+		print "<BR>\n";
+		if (sizeof($MES)>0) {
+			print "<FONT COLOR=#FF0000>\n";
+			while (list($key,$val)=each($MES)) {
+				print $val."<BR>\n";
+			}
+			print "</FONT>\n";
+		}
+		print "<BR><BR>\n";
+		print "<INPUT TYPE=BUTTON VALUE=\"戻る\" ONCLICK=\"history.back()\">\n";
+		print "</FORM>\n";
+		print "</CENTER>\n";
+		
+		include "../../footer.inc.php";
+	} else {
+		// 正常処理
+		$returl = "../../schedule/";
+		if ($p=="top") {
+			$returl = "../../";
+		} elseif ($_COOKIE["sch_move"]=="daily") {
+			$returl = "../../schedule/daily.phtml";
+		} elseif ($_COOKIE["sch_move"]=="weekly") {
+			$returl = "../../schedule/";
+		} elseif ($_COOKIE["sch_move"]=="monthly") {
+			$returl = "../../schedule/monthly.phtml";
+		} elseif ($_COOKIE["sch_move"]=="yearly") {
+			$returl = "../../schedule/yearly.phtml";
+		}
+		header("Location: ".$returl);
+	}
+}
+?>

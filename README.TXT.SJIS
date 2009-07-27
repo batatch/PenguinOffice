@@ -1,0 +1,279 @@
+######################################################################
+#
+#   PenguinOffice2.0正式公開版 インストール解説
+#   2004/02/29
+#
+######################################################################
+
+動作環境確認
+------------
+
+  o はじめに
+    PenguinOffice2 をサーバーで運用するためには、以下のソフトウェアが
+    必要となります。
+    事前に各配布サイトよりダウンロードを行いPenguinOffice2 を稼動させ
+    るサーバーへインストールしてください。
+
+    Apache 1.3x または 2.0x
+    PHP 4.3以降
+    Perl 5以降
+    PostgreSQL 7.2.x以降 (要Perl用Pgモジュール)
+    
+    ご注意：
+    上記ソフトウェアはほとんどのLinuxディストリビューションのデフォル
+    ト環境で動作しますが、PHPについてはmbstringを使用するため別途イン
+    ストールする必要があります。後述のコンパイルオプションを参考にし
+    てインストールするようにしてください。
+    また、Ver2β版
+
+  o Apacheの設定
+    PenguinOffice2 では拡張子に「.phtml」および「.php」を利用していま
+    ます。インストールされているApache の設定ファイルにそれぞれ拡張子
+    を追加し、再起動してください。
+
+    # vi PREFIX/etc/httpd.conf
+    <IfModule mod_dir.c>
+        DirectoryIndex index.html index.php index.phtml
+    </IfModule>
+
+    <IfModule mod_mime.c>
+        AddType application/x-httpd-php .php .phtml
+    </IfModule>
+
+  o PHPの設定
+    1. phpインストールオプション
+      ./configure \
+      --with-apxs2filter \
+      --with-gd \
+      --with-freetype-dir \
+      --with-png-dir \
+      --with-zlib \
+      --with-jpeg-dir \
+      --with-pgsql \
+      --enable-gd-native-ttf \
+      --enable-exif \
+      --enable-mbstring \
+      --enable-mbregex \
+      --enable-zend-multibyte \
+
+    2. php.ini設定
+      # vi PREFIX/php.ini
+      engine = On
+      short_open_tag = On
+      precision =  14
+      y2k_compliance = Off
+      output_buffering = Off
+      output_handler =
+      unserialize_callback_func=
+      zlib.output_compression = Off
+      implicit_flush = Off
+      allow_call_time_pass_reference = On
+      safe_mode = Off
+      safe_mode_gid = Off
+      disable_functions =
+      highlight.string  = #CC0000
+      highlight.comment = #FF9900
+      highlight.keyword = #006600
+      highlight.bg      = #FFFFFF
+      highlight.default = #0000CC
+      highlight.html    = #000000
+      expose_php = On
+      max_execution_time = 60
+      memory_limit = 8M
+      error_reporting  =  E_ALL & ~E_NOTICE
+      display_errors = On
+      display_startup_errors = Off
+      log_errors = Off
+      track_errors = Off
+      warn_plus_overloading = Off
+      variables_order = "EGPCS"
+      register_globals = On
+      register_argc_argv = On
+      post_max_size = 200M
+      gpc_order = "GPC"
+      magic_quotes_gpc = On
+      magic_quotes_runtime = Off
+      magic_quotes_sybase = Off
+      auto_prepend_file =
+      auto_append_file =
+      default_mimetype = "text/html"
+      doc_root =
+      user_dir =
+      extension_dir = /usr/lib/php4
+      enable_dl = On
+      file_uploads = On
+      upload_max_filesize = 210M
+      allow_url_fopen = On
+      extension=pgsql.so
+      debugger.enabled = False
+      debugger.profiler_enabled = True
+      debugger.JIT_enabled = True
+      debugger.JIT_port = 7869
+      debugger.JIT_host = clienthost
+      debugger.JIT_level = 3
+      define_syslog_variables  = Off
+      SMTP = localhost
+      sendmail_from = me@localhost.com
+      sendmail_path = /usr/sbin/sendmail -t -i
+      sql.safe_mode = Off
+      pgsql.allow_persistent = On
+      pgsql.auto_reset_persistent = Off
+      pgsql.max_persistent = -1
+      pgsql.max_links = -1
+      session.save_handler = files
+      session.save_path = /tmp
+      session.use_cookies = 1
+      session.name = PHPSESSID
+      session.auto_start = 0
+      session.cookie_lifetime = 0
+      session.cookie_path = /
+      session.cookie_domain =
+      session.serialize_handler = php
+      session.gc_probability = 1
+      session.gc_maxlifetime = 1440
+      session.referer_check =
+      session.entropy_length = 0
+      session.entropy_file =
+      session.cache_limiter = nocache
+      session.cache_expire = 180
+      session.use_trans_sid = 1
+      url_rewriter.tags = "a=href,area=href,frame=src,input=src,form=fakeentry"
+      sockets.use_system_read = On
+      mbstring.internal_encoding = EUC-JP
+      mbstring.http_input = auto
+      mbstring.http_output = SJIS
+      mbstring.detect_order = auto
+      mbstring.substitute_character = none;
+      mbstring.script.encoding = auto;
+
+  o PostgfreSQLの設定
+    
+    デフォルトのpenguinoffice.dbでは、Apacheユーザーとして「apache」が
+    特権を与えられています。2.x以前の環境では主に「nobody」が利用されて
+    いるこのが多いためその場合 penguinoffice.db.13x をご利用ください。
+
+設置方法
+--------
+
+  o PenguinOffice_xxx.tar.gzの解凍
+    ダウンロードしたPenguinOffice_xxx.tar.gzを適当な場所に解凍します。
+    xxx はバージョンNoです。
+    # tar -xvfz PenguinOffice_xxx.tar.gz
+
+  o パーミッションの変更(タイマーメール送信機能の利用時)
+    解凍後、メール配信(Perl/CGI)を使う場合は以下のファイルのパーミッシ
+    ョンを適切に設定してください。
+
+    PREFIX/
+    |-- bin                    dr-xr-xr-x 755
+    |   |-- jcode.pl           -rw-r--r-- 644
+    |   |-- mimer.pl           -rw-r--r-- 644
+    |   |-- mimew.pl           -rw-r--r-- 644
+    |   `-- sendmail.pl        -rwxr-xr-x 755
+    `-- html                   drwxr-xr-x 755
+
+  o データベースの作成
+    次に、データベースを作成します。
+    # su -s /bin/bash - postgreSQLユーザー名
+    $ createuser Apacheユーザー名
+    $ createdb -E EUC-JP データベース名
+    $ psql データベース名
+    データベース名=# \i penguinoffice.db
+
+  o config.inc.php の設定
+    ご利用環境にあわせて config.inc.php 内の変数と、sendmail.pl内の
+    変数を適切に設定してください。主な設定箇所は以下のとおりです。
+
+    config.inc.php
+
+    1. // 設置パス
+       $basedir = "/var/www";
+       $basepath = $basedir."/html";
+    2. // ドメイン名
+       $domain = "groupware.hoge.com";
+    3. // PostgreSQLアクセス用
+       $server    = "127.0.0.1";
+       $port      = "5432"; 
+       $user      = "postgres";
+       $pg_passwd = "xxxxxxxx";
+       $db        = "penguinoffice";
+    4. // 管理者メールアドレス(エラーメール戻り先)
+       $webmaster = "fuga@hoge.com";
+
+    sendmail.pl
+
+    1. // Perlのパス
+       #!/usr/bin/perl
+    2. // ライブラリのパス(絶対パスで指定)
+       require '/home/gw/penguin/bin/mimer.pl';
+       require '/home/gw/penguin/bin/mimew.pl';
+       require '/home/gw/penguin/bin/jcode.pl';
+    3. // sendmailコマンド(絶対パスで指定)
+       $sendmail = "/usr/sbin/sendmail";
+    4. // 管理者メールアドレス(エラーメール戻り先)
+       $webmaster = "fuga@hoge.com";
+    5. // DB接続用パラメータ
+       $dbconnect = "dbname=penguinoffice";
+
+    なお、システム名やコピー表記は変更しないようにしてください。
+
+  o ファイル保管場所の作成
+    回覧板、ワークフローで添付ファイルを送受信することができます。
+    設置パス $basedir で設定したディレクトリの直下に以下の2つのディレ
+    クトリを設置してください。
+
+    PREFIX/
+    |-- html         drwxr-xr-x 755
+    |-- circular     drwxrwxrwx 777
+    `-- workflow     drwxrwxrwx 777
+
+    以下のように設定を行うか、WWWサーバーの動作時の実行権限で読み書
+    き可能に設定しておきます。安全のために通常はアクセスできない一段
+    上のディレクトリがデフォルトですが、共有のサーバを使っている場合
+    や本体そのものをサブディレクトリに設置した場合は、config.inc.php
+    内の設定を変更してご利用ください。
+
+  o CRONの設定(タイマーメール送信機能の利用時)
+    # crontab -e -u Apacheユーザー
+      0-59 * * * * PREFIX/bin/sendmail.pl
+
+  o httpd.confの設定
+    PenguinOffice2を設置したディレクトリーを対象に、Apacheの設定を行っ
+    てください。
+
+  o ご利用開始
+    以上でインストールは完了です。正常にインストールが完了している場合
+    Webページが指定されたドメイン(またはIPアドレス)にて表示されている
+    でしょう。
+    デフォルトの管理者IDにてログインしメニュー下段の「管理者ページ」に
+    てユーザーやグループなどの各種設定を行ってください。
+    ID : admin
+    PW : admin
+
+免責事項
+--------
+  o 本ソフトウェアをご利用について開発元および配布サイトやその運営者な
+    どは本ソフトウェアに関して如何なる保証をするものではなく、その内容
+    に瑕疵や過誤または本ソフトウェアの利用に際して被った損害、本ソフト
+    ウェアなを利用した二次サービスどについて一切の責任を負わないものと
+    します。
+    利用者は本ソフトウェアの活用法や使用されるソフトウェアについて十分
+    調査しその動作などを習得した上でご利用ください。
+
+謝辞
+----
+  o PenguinOffice2には数多くのオープンソース技術が生かされています。
+    敬意を込めてここに改めて感謝いたします(^^;
+
+その他
+------
+
+    PenguinOffice2 のインストールサポートをご希望の場合は開発元である
+    有限会社ペンギンファクトリーにて有償で行っております。
+    なお、オープンソース版のインストールサポートおよびお問い合わせへの
+    対応は行っておりませんので事前にご了承ください。
+
+  o 開発元
+    有限会社 ペンギンファクトリー
+    URL  : http://www.penguin.co.jp/
+    Mail : support@penguin.ne.jp

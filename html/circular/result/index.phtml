@@ -1,0 +1,292 @@
+<?
+  include ("../../config.inc.php");
+  include ("../../lib.inc.php");
+
+  $kwd = stripslashes(urldecode($_COOKIE["circular_kwd"]));
+
+  $no  = $_GET["no"];
+
+  // リンク用テキストの設定
+  $linktext  = "<A HREF=\"../../\" CLASS=\"BAR\">トップページ</A> &gt; ";
+  $linktext .= "<A HREF=\"../\" CLASS=\"BAR\">回覧板</A> &gt; ";
+  $linktext .= "<FONT COLOR=#FFFF00>回覧の表示</FONT> ";
+
+  // 検索機能の使用?
+  $search = true;
+  $searchuri = "/circular/";
+
+  include ("../../header.inc.php");
+
+  if ($login && sizeof($MES)==0) {
+    echo "<!--";
+    // エラーチェック
+    if (empty($no)) {
+      $DMES[] = "回覧が選択されていません";
+    } else {
+      $sql = "SELECT * FROM circulas WHERE (user_id='$login_id' or user_id_to~*'(^|,)$login_id(,|$)') AND seqno=$no";
+      $res = pg_query($conn,$sql);
+      $cnt = pg_num_rows($res);
+      if ($cnt==0) {
+        // 回覧なし
+        $DMES[] = "指定された回覧は登録されていないか既に削除されています";
+      } else {
+        // 既読チェック処理
+        if (get_count("circulas_res","seqno=$no AND user_id='$login_id'")==0) {
+          $sql  = "INSERT INTO circulas_res (seqno,user_id,createstamp) VALUES ";
+          $sql .= "($no,'$login_id','now()')";
+        } else {
+          $sql  = "UPDATE circulas_res SET createstamp='now()' ";
+          $sql .= "WHERE seqno=$no AND user_id='$login_id'";
+        }
+        pg_query($conn,$sql);
+
+        // 回覧の取得
+        $row = pg_fetch_array($res,0);
+
+        $seqno   = $row["seqno"];
+        $dirno   = strval($seqno); if (strlen($dirno)<8) $dirno = str_repeat("0",8-strlen($dirno)).$dirno;
+
+        $user_id = $row["user_id"];
+        $user_id_to = $row["user_id_to"];
+
+        $subject = str_highlight($kwd,$row["subject"]);
+
+        $body = str_wiki($row["body"]);
+
+        $create_datetime = date("Y年n月j日 H:i",datetime2timestamp($row["createstamp"]));
+      }
+    }
+
+    // ページ内容作成
+    $pagetext  = "";
+    if (sizeof($DMES)==0) {
+      $pagetext .= "
+<BR>
+<CENTER>
+<TABLE WIDTH=480><TR><TD><FONT COLOR=#555555>作成者 : <A HREF=\"../../member/?id=$user_id\">".get_first("users","name_ryaku","id='$user_id'","不明")."<IMG SRC=\"../../image/clip.gif\" BORDER=0 WIDTH=10 HEIGHT=11 ALIGN=ABSMIDDLE></A></TD></TR></TABLE>
+
+<TABLE BORDER=0 CELLPADDING=4 CELLSPACING=1 width=480 BGCOLOR=#999999>
+<INPUT TYPE=HIDDEN NAME=\"no\" VALUE=\"$no\">
+<INPUT TYPE=HIDDEN NAME=\"p\" VALUE=\"$p\">
+</TD>
+<TR>
+<TD ALIGN=RIGHT WIDTH=90 NOWRAP VALIGN=TOP BGCOLOR=$td_back_left>タイトル</TD>
+<TD ALIGN=LEFT BGCOLOR=$td_back>
+$subject
+</TR>
+
+<TR>
+<TD ALIGN=RIGHT WIDTH=90 NOWRAP VALIGN=TOP BGCOLOR=$td_back_left>本文</TD>
+<TD ALIGN=LEFT BGCOLOR=$td_back NOWRAP><FONT STYLE=\"font-family:'MS ゴシック','Osaka等幅',monospace\">
+$body
+</TD></TR>
+";
+      // 添付ファイル情報
+      if (file_exists($circularspath."/".$dirno)) {
+        $handle = opendir($circularspath."/".$dirno);
+        while(false !== ($file = readdir($handle))){
+          if(!preg_match("/^\./", $file)){
+            if(is_dir($file)){
+              $dirs[]  = $file;
+            } else {
+              $files[] = $file;
+            }
+          }
+        }
+
+        if (sizeof($files)>0) {
+          // ファイルあり
+          $pagetext .= "<TR>\n";
+          $pagetext .= "<TD ALIGN=RIGHT WIDTH=90 NOWRAP VALIGN=TOP BGCOLOR=$td_back_left>添付ファイル</TD>\n";
+          $pagetext .= "<TD ALIGN=LEFT BGCOLOR=$td_back>\n";
+
+          $pagetext .= "<TABLE BORDER=0><TR>\n";
+          for ($i=0;$i<sizeof($files);$i++) {
+            $pagetext .= "<TD ALIGN=CENTER>";
+            $imageicon = ext_check($files[$i]);
+            $tmpsize   = filesize($circularspath."/".$dirno."/".$files[$i]);
+            if ($tmpsize<1024) {
+              $filesize = number_format($tmpsize)."Byte";
+            } elseif ($tmpsize<1024000) {
+              $filesize = number_format(ceil($tmpsize/1024))."KB";
+            } else {
+              if ($tmpsize % 1024000 == 0) {
+                $filesize = number_format(floor($tmpsize/1024000))."MB";
+              } else {
+                $filesize = number_format(floor($tmpsize/1024000)).".".str_pad(floor(($tmpsize % 1024000)/10000),2,"00",STR_PAD_LEFT)."MB";
+              }
+            }
+            $pagetext .= "<A HREF=\"../download/?no=$seqno&file=".urlencode($files[$i])."\">";
+            $pagetext .= "<IMG SRC=\"".$imageicon."\" BORDER=0 ALT=\"".$files[$i]."\nサイズ:".$filesize."\" WIDTH=32 HEIGHT=32 VSPACE=2 HSPACE=2>";
+
+            $pagetext .= "<BR>";
+            $pagetext .= "<FONT STYLE=\"font-size:8pt\">".$files[$i];
+            $pagetext .= "</FONT></A></TD>\n";
+          }
+          $pagetext .= "</TR></TABLE>\n";
+
+          $pagetext .= "</TD></TR>\n";
+        }
+      }
+
+      // 返信・結果確認
+      $pagetext .= "<TR>\n";
+      $pagetext .= "<TD ALIGN=RIGHT WIDTH=90 NOWRAP VALIGN=TOP BGCOLOR=$td_back_left>回覧状況</TD>\n";
+      $pagetext .= "<TD ALIGN=LEFT BGCOLOR=$td_back>\n";
+
+      $user_ids_to = split(",",$user_id_to);
+      if (sizeof($user_ids_to)>0) {
+        $pagetext .= "<TABLE BORDER=0 CELLPADDING=3 CELLSPACING=1 BGCOLOR=#666666>\n";
+        $pagetext .= "<TR BGCOLOR=#999999>";
+        $pagetext .= "<TD ALIGN=CENTER><FONT COLOR=#FFFFFF><B>回覧先</TD>";
+        $pagetext .= "<TD ALIGN=CENTER><FONT COLOR=#FFFFFF><B>回答日時</TD>";
+        $pagetext .= "<TD ALIGN=CENTER><FONT COLOR=#FFFFFF><B>コメント</TD>";
+        $pagetext .= "</TR>\n";
+        for($i=0;$i<sizeof($user_ids_to);$i++){
+
+          if ($i % 2 == 0) {
+            $pagetext .= "<TR BGCOLOR=$bg_light>";
+          } else {
+            $pagetext .= "<TR BGCOLOR=$bg_dark>";
+          }
+          $user_id_to = $user_ids_to[$i];
+
+          $sql_res = "SELECT * FROM circulas_ret WHERE refno=$seqno AND user_id='$user_id_to' AND result_sign='t'";
+          $res_res = pg_query($conn,$sql_res);
+          $cnt_res = pg_num_rows($res_res);
+          if ($cnt_res==0) {
+            $note = "";
+            $stamp = null;
+            $result = "f";
+          } else {
+            $row_res = pg_fetch_array($res_res,0);
+            $note = $row_res["note"];
+            $stamp = $row_res["createstamp"];
+            $result = $row_res["result_sign"];
+          }
+          
+          if ($user_id_to == $login_id) {
+            // 自身
+            $pagetext .= "<TD ALIGN=LEFT NOWRAP VALIGN=TOP>"; // 名前
+            $pagetext .= "<A HREF=\"../../member/?id=$user_id_to\">";
+            $pagetext .= get_first("users","name_ryaku","id='$user_id_to'","不明");
+            $pagetext .= "</A>";
+            $pagetext .= "</TD>\n";
+
+            $pagetext .= "<FORM ACTION=\"./post.phtml\" METHOD=POST>\n";
+            $pagetext .= "<INPUT TYPE=HIDDEN NAME=\"no\" VALUE=\"$seqno\">\n";
+            $pagetext .= "<INPUT TYPE=HIDDEN NAME=\"p\" VALUE=\"$p\">\n";
+            $pagetext .= "<TD ALIGN=LEFT NOWRAP VALIGN=TOP>"; // 回答日時
+
+            if ($result=="f") {
+              $pagetext .= "<INPUT TYPE=SUBMIT VALUE=\"回答する\" STYLE=\"width:63px\">";
+            } else {
+#              $pagetext .= "回答済";
+              $pagetext .= date("n/j",datetime2timestamp($stamp));
+              $pagetext .= "(";
+              $pagetext .= $wname[date("w",datetime2timestamp($stamp))];
+              $pagetext .= ") ";
+              $pagetext .= date("H:i",datetime2timestamp($stamp));
+            }
+            $pagetext .= "</TD>\n";
+
+            $pagetext .= "<TD ALIGN=LEFT VALIGN=TOP STYLE=\"width:165px\">"; // コメント
+            if ($result=="f") {
+              $pagetext .= "<TEXTAREA NAME=\"note\" STYLE=\"width:162px\">$note</TEXTAREA>";
+            } else {
+              $pagetext .= $note;
+            }
+            $pagetext .= "</TD>\n";
+            $pagetext .= "</FORM>\n";
+
+          } else {
+            // 以外
+            $pagetext .= "<TD ALIGN=LEFT NOWRAP VALIGN=TOP>"; // 名前
+            $pagetext .= "<A HREF=\"../../member/?id=$user_id_to\">";
+            $pagetext .= get_first("users","name_ryaku","id='$user_id_to'","不明");
+            $pagetext .= "</A></TD>\n";
+            $pagetext .= "<TD ALIGN=LEFT NOWRAP VALIGN=TOP>"; // 回答日時
+
+            if ($cnt_res==0) {
+              $pagetext .= "<FONT COLOR=#FF33333>未読</FONT>";
+            } else {
+              $pagetext .= date("n/j",datetime2timestamp($stamp));
+              $pagetext .= "(";
+              $pagetext .= $wname[date("w",datetime2timestamp($stamp))];
+              $pagetext .= ") ";
+              $pagetext .= date("H:i",datetime2timestamp($stamp));
+            }
+
+            $pagetext .= "</TD>\n";
+
+            $pagetext .= "<TD ALIGN=LEFT STYLE=\"width:165px\" VALIGN=TOP>"; // コメント
+            $pagetext .= $note;
+            $pagetext .= "</TD>\n";
+          }
+
+          $pagetext .= "</TR>\n";
+        }
+        $pagetext .= "</TABLE>";
+      }
+
+      $pagetext .= "</TD>\n";
+      $pagetext .= "</TR>\n";
+
+      $pagetext .= "
+</TABLE>
+
+<TABLE WIDTH=480><TR><TD ALIGN=RIGHT><FONT COLOR=#555555>作成日時 : $create_datetime</TD></TR></TABLE>
+
+<TABLE><FORM><TR>
+";
+#      if ($user_id != $login_id) {
+#        $pagetext .= "<TD>";
+#        $pagetext .= "<INPUT TYPE=SUBMIT VALUE=\"回覧に返信する\" STYLE=\"width:140px\">";
+#        $pagetext .= "</TD>";
+#      }
+
+#      if ($row["user_id"]==$login_id) {
+      if ($row["user_id"]==$login_id || $admin_sign=="t") {
+        $pagetext .= "<SCRIPT language=\"JavaScript\">\n";
+        $pagetext .= "<!--\n";
+        $pagetext .= "function remove(no) {\n";
+        $pagetext .= "  if (confirm(\"回覧を削除しますか？\\n注:削除された回覧を元に戻すことはできません\")) {\n";
+        $pagetext .= "    location.href = '../remove/?p=$p&no='+no;\n";
+        $pagetext .= "  }\n";
+        $pagetext .= "}\n";
+        $pagetext .= "//-->\n";
+        $pagetext .= "</SCRIPT>\n";
+        $pagetext .= "<TD><INPUT TYPE=BUTTON VALUE=\"コピー\" ONCLICK=\"location.href='../regist/?n=".$no."'\" STYLE=\"width:95px\"></TD>\n";
+        $pagetext .= "<TD><INPUT TYPE=BUTTON VALUE=\"削除\" ONCLICK=\"remove(".$no.")\" STYLE=\"width:60px;background-color:#FFCCCC\"></TD>\n";
+      }
+
+      $pagetext .= "
+</TR></FORM></TABLE>
+</CENTER>
+";
+    } else {
+      // エラー時
+      $pagetext .= "<BR><BR>\n";
+      $pagetext .= "<CENTER>\n";
+      $pagetext .= "<FONT COLOR=#FF0000>\n";
+      while (list($key,$val)=each($DMES)) {
+        $pagetext .= $val."<BR>\n";
+      }
+      $pagetext .= "</FONT>\n";
+
+      $pagetext .= "<BR><FORM>\n";
+      $pagetext .= "<INPUT TYPE=BUTTON VALUE=\"戻る\" ONCLICK=\"history.back()\">\n";
+
+      $pagetext .= "</FORM>\n";
+      $pagetext .= "</CENTER>\n";
+    }
+    echo "-->";
+  }
+  
+  // 明細表示
+  $menutext = $menutext;
+  include "../../detail.inc.php";
+
+  // フッタ表示
+  include "../../footer.inc.php";
+?>

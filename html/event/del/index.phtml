@@ -1,0 +1,57 @@
+<?php
+include "../../config.inc.php"; include "../../lib.inc.php";
+
+$linktext  = "<A HREF=\"../../\" CLASS=\"BAR\">トップページ</A> &gt; ";
+$linktext .= "<A HREF=\"../../schedule/\" CLASS=\"BAR\">予定表</A> &gt; ";
+$linktext .= "<A HREF=\"../add/?s=$seqno\" CLASS=\"BAR\">イベントの確認</A> &gt; ";
+$linktext .= "<FONT COLOR=#FFFF00>イベントの削除</FONT> ";
+
+include "../../login_check.inc.php";
+
+// エラー判定
+if ($login && sizeof($MES)==0) {
+	// 削除処理
+	$sql = "SELECT * FROM events WHERE seqno=".$seqno;
+	$res = pg_query($conn,$sql);
+	if(pg_num_rows($res)==0){
+		$DMES[] = "指定された情報は既に削除されています";
+	} else {
+		$sql = "DELETE FROM events WHERE seqno=".$seqno;
+		$res = pg_query($conn,$sql);
+		if($res==false){
+			$DMES[] = "削除に失敗しました";
+		}
+	}
+	
+	if (sizeof($DMES)>0) {
+		// エラーメッセージ出力
+		include "../../header.inc.php";
+		
+		print "<CENTER>\n";
+		print "<FONT COLOR=#FF0000>\n";
+		while (list($key,$val)=each($DMES)) {
+			print $val."<BR>";
+		}
+		print "</FONT><BR><BR>\n";
+		print "<INPUT TYPE=BUTTON VALUE=\"戻る\" onClick=\"history.back()\">";
+		print "</CENTER>\n";
+		
+		include "../../footer.inc.php";
+	} else {
+		// 正常処理
+		$returl = "../../schedule/";
+		if ($p=="top") {
+			$returl = "../../";
+		} elseif ($_COOKIE["sch_move"]=="daily") {
+			$returl = "../../schedule/daily.phtml";
+		} elseif ($_COOKIE["sch_move"]=="weekly") {
+			$returl = "../../schedule/";
+		} elseif ($_COOKIE["sch_move"]=="monthly") {
+			$returl = "../../schedule/monthly.phtml";
+		} elseif ($_COOKIE["sch_move"]=="yearly") {
+			$returl = "../../schedule/yearly.phtml";
+		}
+		Header("Location: ".$returl);
+	}
+}
+?>

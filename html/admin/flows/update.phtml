@@ -1,0 +1,175 @@
+<?
+  include "../../config.inc.php";
+  include "../../lib.inc.php";
+
+  $linktext  = "<A HREF=\"../../\" CLASS=\"BAR\">トップページ</A> &gt; ";
+  $linktext .= "<A HREF=\"../\" CLASS=\"BAR\">管理者メニュー</A> &gt; ";
+  $linktext .= "<FONT COLOR=#FFFF00>ワークフロー設定</FONT> ";
+
+  include ("../../login_check.inc.php");
+
+  $pagetext = "";
+
+  if ($login && $admin_sign=="t") {
+    if (!empty($_POST["p"]))      $p      = $_POST["p"];
+    if (!empty($_POST["seqno"]))  $seqno  = $_POST["seqno"];
+    if (!empty($_POST["id"]))     $id     = $_POST["id"];
+    if (!empty($_POST["name"]))   $name   = $_POST["name"];
+    if (!empty($_POST["flows"]))  $flows  = $_POST["flows"];
+
+    // 事前整形
+    $seqno  = mb_convert_kana(textsafe($seqno),"a");
+    $id    = $id;
+    $name   = textsafe($name);
+
+    $flow = "";
+    if (sizeof($flows)>0) {
+      for ($i=0;$i<sizeof($flows);$i++) {
+        if ($flows[$i]<>"") {
+          if ($i>0) {
+            for ($j=0;$j<$i;$j++) {
+              if ($flows[$j]==$flows[$i]) {
+                $DMES[] = "フローの違う個所に同一人物が指定されています";
+                break;
+              }
+            }
+          }
+          if (sizeof($DMES)>0) break;
+          if ($flow!="") $flow .= ",";
+          $times++;
+          $flow .= $flows[$i];
+        }
+      }
+    }
+
+    // エラーチェック
+    if(!empty($seqno) && !is_numeric($seqno)){
+      $DMES[] = "連番の指定が正しくありません";
+    }
+#    if(!empty($id) && !is_ascii($id)){
+#      $DMES[] = "コードの指定が正しくありません";
+#    }
+
+    // フロー名
+    if($name==""){
+      $DMES[] = "フロー名が入力されていません";
+    }
+
+    if (sizeof($flows)==0) {
+      $DMES[] = "フローの指定が正しくありません";
+    } else {
+      $times = 0;
+      if ($flow=="") {
+        $DMES[] = "フローの対象者が指定されていません";
+      }
+    }
+
+    // 重複チェック
+    if (sizeof($DMES)==0) {
+      $sql = "SELECT * FROM flows WHERE name='".$name."'";
+      if (!empty($seqno)) {
+        $sql.= " AND seqno!=$seqno AND id!=$id";
+      }
+      $res = pg_query($conn,$sql);
+      $cnt = pg_num_rows($res);
+      if ($cnt>0) {
+        $DMES[] = "既にこのフロー名は登録されています";
+      }
+    }
+
+    // 変更時処理
+    if (sizeof($DMES)==0 && !empty($seqno)) {
+      // 確認処理
+      if (get_first("flows","seqno","seqno=$seqno AND id='$id'",0)==0) {
+        $DMES[] = "ワークフローの確認に失敗しました";
+      }
+    }
+
+    if (sizeof($DMES)==0) {
+      if ($seqno != "") {
+        // 更新
+        $sql  = "UPDATE flows SET ";
+        $sql .= "name ='".db_textsafe($name)."',";
+        $sql .= "user_ids ='".$flow."',";
+        $sql .= "times=$times,";
+        $sql .= "updatestamp ='now'";
+        $sql .= " WHERE seqno=".$seqno;
+
+        // SQL実行
+        $res = pg_exec($conn, $sql);
+        if ($res==false) {
+          $DMES[] = "ワークフロー情報の更新に失敗しました";
+        }
+      } else {
+        // 追加
+        $seqno = get_last("flows","seqno","",0)+1; // seqno採番
+
+        // id 採番
+        $sql  = "SELECT int4(id) as num_id FROM flows ORDER BY num_id DESC";
+        $res = pg_query($conn, $sql);
+        $cnt = pg_num_rows($res);
+        if ($cnt==0) {
+          $id = '1';
+        } else {
+          $row = pg_fetch_array($res,0);
+          $id = $row[0]+1;
+        }
+
+        $sql  = "INSERT INTO flows ( ";
+        $sql .= "seqno, name, user_ids, times, createstamp, updatestamp ,id";
+        $sql .= ") VALUES (";
+        $sql .= $seqno.",";
+        $sql .= "'".db_textsafe($name)."',";
+        $sql .= "'".$flow."',";
+        $sql .= "'".$times."',";
+        $sql .= "'now',";
+        $sql .= "'now',";
+        $sql .= "'".$id."'";
+        $sql .= ")";
+
+        // SQL実行
+        $res = pg_query($conn, $sql);
+        if ($res == false) {
+          $DMES[] = "ワークフロー情報の追加に失敗しました";
+        }
+      }
+    }
+
+    // エラー処理
+    if (sizeof($DMES)>0) {
+		  include "../../header.inc.php"; flush();
+		  include "../menu.inc.php";
+
+      $pagetext .= "<BR><CENTER>";
+      $pagetext .= "<TABLE>";
+      $pagetext .= "<FORM ACTION=\"./edit.phtml\" METHOD=POST>\n";
+      $pagetext .= "<INPUT TYPE=HIDDEN NAME=\"back\" VALUE=\"t\">\n";
+      $pagetext .= "<INPUT TYPE=HIDDEN NAME=\"p\" VALUE=\"$p\">\n";
+      $pagetext .= "<INPUT TYPE=HIDDEN NAME=\"id\" VALUE=\"$id\">\n";
+      if (!$seqno=="") {
+        $pagetext .= "<INPUT TYPE=HIDDEN NAME=\"seqno\" VALUE=\"$seqno\">\n";
+      }
+      $pagetext .= "<INPUT TYPE=HIDDEN NAME=\"name\" VALUE=\"$name\">\n";
+      $pagetext .= "<INPUT TYPE=HIDDEN NAME=\"user_ids\" VALUE=\"$flow\">\n";
+      $pagetext .= "<TR><TD>";
+      $pagetext .= "<FONT COLOR=#FF0000>";
+      for ($i=0;$i<sizeof($DMES);$i++){
+        $pagetext .= $DMES[$i]."<BR>";
+      }
+      $pagetext .= "</TD></TR>";
+      $pagetext .= "</TABLE>";
+      $pagetext .= "<BR>";
+      $pagetext .= "<INPUT TYPE=SUBMIT VALUE=\"戻る\" STYLE=\"width:80px\">\n";
+      $pagetext .= "</FORM>";
+      $pagetext .= "</CENTER>\n";
+
+		  include "../../detail.inc.php";
+		  include "../../footer.inc.php";
+    } else {
+      // 正常終了時
+     	$returl = "./?p=$p";
+      Header("Location: ".$returl);
+    }
+  }
+
+?>

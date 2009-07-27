@@ -1,0 +1,219 @@
+<?
+  include "../../config.inc.php";
+  include "../../lib.inc.php";
+
+  $linktext  = "<A HREF=\"/\" CLASS=\"BAR\">トップページ</A> &gt; ";
+  $linktext .= "<A HREF=\"/member/\" CLASS=\"BAR\">メンバー一覧</A> &gt; ";
+  $linktext .= "<FONT COLOR=#FFFF00>行き先登録</FONT>";
+
+  include "../../header.inc.php";
+
+  if ($login) {
+    // 登録ページからの戻り判定
+    if (eregi("update\.phtml",$referer)){
+      $y = $_POST["y"];
+      $m = $_POST["m"];
+      $d = $_POST["d"];
+    }
+    if (is_numeric($y) && is_numeric($m) && is_numeric($d) && checkdate($m,$d,$y)) {
+      $workstamp = mktime(0, 0, 0, $m, $d, $y);
+    } else {
+      $workstamp = date2timestamp(timestamp2datetime(time()));
+    }
+
+    // データの取り込み
+    $sql = "SELECT * FROM users_duty WHERE user_id='".$login_id."' AND workdate='".date("Y-m-d",$workstamp)."'";
+    $res = pg_query($conn,$sql);
+    $cnt = pg_num_rows($res);
+
+    $startstamp = false;
+    $endstamp   = false;
+    $goesstamp  = false;
+    $backstamp  = false;
+
+    if ($cnt==0) {
+      $note = "";
+    } else {
+      $row = pg_fetch_array($res,0);
+
+      $note = $row["note"];
+
+      if ($row["startstamp"]!="") $startstamp = datetime2timestamp($row["startstamp"]);
+      if ($row["endstamp"]!="")   $endstamp   = datetime2timestamp($row["endstamp"]);
+      if ($row["goesstamp"]!="")  $goesstamp  = datetime2timestamp($row["goesstamp"]);
+      if ($row["backstamp"]!="")  $backstamp  = datetime2timestamp($row["backstamp"]);
+    }
+    if (sizeof($DMES)>0) {
+      // エラーメッセージ出力
+      $pagetext .= "<TABLE WIDTH=100% HEIGHT=350 BORDER=0><TR><TD ALIGN=CENTER VALIGN=TOP>\n";
+      $pagetext .= "<FORM>\n";
+      $pagetext .= "<INPUT TYPE=HIDDEN NAME=\"p\" VALUE=\"$p\">\n";
+      $pagetext .= "<FONT COLOR=#FF0000>\n";
+      while (list($key,$val)=each($DMES)) {
+        $pagetext .= $val."<BR>\n";
+      }
+      $pagetext .= "</FONT><BR><BR>\n";
+      $pagetext .= "<INPUT TYPE=BUTTON VALUE=\"戻る\" onClick=\"history.back()\">\n";
+      $pagetext .= "</FORM>\n";
+      $pagetext .= "</TD></TR></TABLE>\n";
+    } else {
+      // 正常処理
+      $pagetext .= "
+<script language=\"JavaScript\">
+<!--
+function selectstarthour(t) {
+  if (t.start_hour[0].selected) {
+    t.start_minuts.value = '';
+  }
+}
+function selectendhour(t) {
+  if (t.end_hour[0].selected) {
+    t.end_minuts.value = '';
+  }
+}
+function selectgoeshour(t) {
+  if (t.goes_hour[0].selected) {
+    t.goes_minuts.value = '';
+  }
+}
+function selectbackhour(t) {
+  if (t.back_hour[0].selected) {
+    t.back_minuts.value = '';
+  }
+}
+//-->
+</script>
+";
+      $pagetext .= "<BR>";
+      $pagetext .= "<TABLE BORDER=0 CELLPADDING=2 CELLSPACING=0 ALIGN=CENTER WIDTH=420>";
+      $pagetext .= "<FORM ACTION=\"./update.phtml\" METHOD=POST>";
+      $pagetext .= "<INPUT TYPE=HIDDEN NAME=\"p\" VALUE=\"$p\">\n";
+      $pagetext .= "<INPUT TYPE=HIDDEN NAME=\"y\" VALUE=\"".date("Y",$workstamp)."\">\n";
+      $pagetext .= "<INPUT TYPE=HIDDEN NAME=\"m\" VALUE=\"".date("n",$workstamp)."\">\n";
+      $pagetext .= "<INPUT TYPE=HIDDEN NAME=\"d\" VALUE=\"".date("j",$workstamp)."\">\n";
+      $pagetext .= "<TR><TD COLSPAN=2 ALIGN=CENTER>";
+      $pagetext .= "各項目を変更して更新ボタンを押してください";
+      $pagetext .= "</TD></TR>\n";
+      $pagetext .= "<TR><TD ALIGN=RIGHT ALIGN=RIGHT>\n";
+      $pagetext .= "</TD></TR>\n";
+
+      $pagetext .= "<TR><TD VALIGN=TOP ALIGN=CENTER COLSPAN=2>\n";
+      $pagetext .= "<TABLE BORDER=0 CELLPADDING=4 CELLSPACING=1 WIDTH=100% BGCOLOR=#999999>\n";
+
+      ## 日付
+      $pagetext .= "<TR>\n";
+      $pagetext .= "<TD ALIGN=RIGHT WIDTH=80 NOWRAP VALIGN=TOP BGCOLOR=$td_back_left>日付</TD>\n";
+      $pagetext .= "<TD ALIGN=LEFT BGCOLOR=$td_back>";
+
+      $fontcolor = $wcolor[date("w",$workstamp)];
+      if (get_count("holiday","holiday='".date("Y-m-d",$workstamp)."'")>0) $fontcolor = $wcolor[7];
+
+      $pagetext .= "<FONT COLOR=".$fontcolor.">";
+      $pagetext .= date("Y年n月j日",$workstamp);
+      $pagetext .= "(";
+      $pagetext .= $wname[date("w",$workstamp)];
+      $pagetext .= ")";
+      $pagetext .= "</TD></TR>\n";
+
+      ## 出社時刻
+      $pagetext .= "<TR>\n";
+      $pagetext .= "<TD ALIGN=RIGHT WIDTH=80 NOWRAP VALIGN=TOP BGCOLOR=$td_back_left>出社時刻</TD>\n";
+      $pagetext .= "<TD ALIGN=LEFT BGCOLOR=$td_back>\n";
+      $pagetext .= "<SELECT NAME=\"start_hour\" ONCHANGE=\"selectstarthour(this.form)\" STYLE=\"ime-mode:disabled\">\n";
+      $pagetext .= "<OPTION VALUE=\"-1\"";
+      if ($startstamp==false){ $pagetext .= " SELECTED"; }
+      $pagetext .= ">--</OPTION>\n";
+      for ($i=0;$i<=23;$i++){
+        $pagetext .= "<OPTION VALUE=\"$i\"";
+        if ($startstamp!=false && $i == date("H",$startstamp)){ $pagetext .= " SELECTED"; }
+        $pagetext .= ">";
+        if (strlen($i)==1) $pagetext .= "0";
+        $pagetext .= $i."</OPTION>\n";
+      }
+      $pagetext .= "</SELECT>：";
+      $pagetext .= "<INPUT NAME=\"start_minuts\" MAXLENGTH=2 SIZE=3 STYLE=\"ime-mode:disabled\" VALUE=\"";
+      if ($startstamp!=false) $pagetext .= date("i",$startstamp);
+      $pagetext .= "\">";
+      $pagetext .= "</TD></TR>\n";
+
+      ## 退社時刻
+      $pagetext .= "<TR>\n";
+      $pagetext .= "<TD ALIGN=RIGHT WIDTH=80 NOWRAP VALIGN=TOP BGCOLOR=$td_back_left>退社時刻</TD>\n";
+      $pagetext .= "<TD ALIGN=LEFT BGCOLOR=$td_back>\n";
+      $pagetext .= "<SELECT NAME=\"end_hour\" ONCHANGE=\"selectendhour(this.form)\" STYLE=\"ime-mode:disabled\">\n";
+      $pagetext .= "<OPTION VALUE=\"-1\"";
+      if ($endstamp==false){ $pagetext .= " SELECTED"; }
+      $pagetext .= ">--</OPTION>\n";
+      for ($i=0;$i<=23;$i++){
+        $pagetext .= "<OPTION VALUE=\"$i\"";
+        if ($endstamp!=false && $i == date("H",$endstamp)){ $pagetext .= " SELECTED"; }
+        $pagetext .= ">";
+        if (strlen($i)==1) $pagetext .= "0";
+        $pagetext .= $i."</OPTION>\n";
+      }
+      $pagetext .= "</SELECT>：";
+      $pagetext .= "<INPUT NAME=\"end_minuts\" MAXLENGTH=2 SIZE=3 STYLE=\"ime-mode:disabled\" VALUE=\"";
+      if ($endstamp!=false) $pagetext .= date("i",$endstamp);
+      $pagetext .= "\">";
+      $pagetext .= "</TD></TR>\n";
+
+      ## 外出時刻
+      $pagetext .= "<TR>\n";
+      $pagetext .= "<TD ALIGN=RIGHT WIDTH=80 NOWRAP VALIGN=TOP BGCOLOR=$td_back_left>外出時刻</TD>\n";
+      $pagetext .= "<TD ALIGN=LEFT BGCOLOR=$td_back>\n";
+      $pagetext .= "<SELECT NAME=\"goes_hour\" ONCHANGE=\"selectgoeshour(this.form)\" STYLE=\"ime-mode:disabled\">\n";
+      $pagetext .= "<OPTION VALUE=\"-1\"";
+      if ($goesstamp==false){ $pagetext .= " SELECTED"; }
+      $pagetext .= ">--</OPTION>\n";
+      for ($i=0;$i<=23;$i++){
+        $pagetext .= "<OPTION VALUE=\"$i\"";
+        if ($goesstamp!=false && $i == date("H",$goesstamp)){ $pagetext .= " SELECTED"; }
+        $pagetext .= ">";
+        if (strlen($i)==1) $pagetext .= "0";
+        $pagetext .= $i."</OPTION>\n";
+      }
+      $pagetext .= "</SELECT>：";
+      $pagetext .= "<INPUT NAME=\"goes_minuts\" MAXLENGTH=2 SIZE=3 STYLE=\"ime-mode:disabled\" VALUE=\"";
+      if ($goesstamp!=false) $pagetext .= date("i",$goesstamp);
+      $pagetext .= "\">";
+      $pagetext .= "</TD></TR>\n";
+
+      ## 戻り時刻
+      $pagetext .= "<TR>\n";
+      $pagetext .= "<TD ALIGN=RIGHT WIDTH=80 NOWRAP VALIGN=TOP BGCOLOR=$td_back_left>戻り時刻</TD>\n";
+      $pagetext .= "<TD ALIGN=LEFT BGCOLOR=$td_back>\n";
+      $pagetext .= "<SELECT NAME=\"back_hour\" ONCHANGE=\"selectbackhour(this.form)\" STYLE=\"ime-mode:disabled\">\n";
+      $pagetext .= "<OPTION VALUE=\"-1\"";
+      if ($backstamp==false){ $pagetext .= " SELECTED"; }
+      $pagetext .= ">--</OPTION>\n";
+      for ($i=0;$i<=23;$i++){
+        $pagetext .= "<OPTION VALUE=\"$i\"";
+        if ($backstamp!=false && $i == date("H",$backstamp)){ $pagetext .= " SELECTED"; }
+        $pagetext .= ">";
+        if (strlen($i)==1) $pagetext .= "0";
+        $pagetext .= $i."</OPTION>\n";
+      }
+      $pagetext .= "</SELECT>：";
+      $pagetext .= "<INPUT NAME=\"back_minuts\" MAXLENGTH=2 SIZE=3 STYLE=\"ime-mode:disabled\" VALUE=\"";
+      if ($backstamp!=false) $pagetext .= date("i",$backstamp);
+      $pagetext .= "\">";
+      $pagetext .= "</TD></TR>\n";
+
+      ## コメント
+      $pagetext .= "<TR>\n";
+      $pagetext .= "<TD ALIGN=RIGHT WIDTH=80 NOWRAP VALIGN=TOP BGCOLOR=$td_back_left>コメント</TD>\n";
+      $pagetext .= "<TD ALIGN=LEFT BGCOLOR=$td_back>\n";
+      $pagetext .= "<INPUT NAME=\"note\" SIZE=34 style=\"ime-mode:active\" VALUE=\"".$note."\">";
+      $pagetext .= "</TD></TR>\n";
+
+      ## ボタン関連
+      $pagetext .= "<TABLE BORDER=0 CELLPADDING=5 CELLSPACING=0 ALIGN=CENTER><TR>\n";
+      $pagetext .= "<TD><INPUT TYPE=SUBMIT VALUE=\"更新\" STYLE=\"WIDTH:140px\"></TD>\n";
+    }
+    $pagetext .= "</TR></TABLE>\n";
+    $pagetext .= "</FORM>\n";
+  }
+
+  include "../../detail.inc.php";
+  include "../../footer.inc.php";
+?>

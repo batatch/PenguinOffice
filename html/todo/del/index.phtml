@@ -1,0 +1,54 @@
+<?
+include "../../config.inc.php"; include "../../lib.inc.php";
+
+$linktext  = "<A HREF=\"../../\" CLASS=\"BAR\">トップページ</A> &gt; ";
+$linktext .= "<A HREF=\"../\" CLASS=\"BAR\">備忘録</A> &gt; ";
+$linktext .= "<A HREF=\"../add/?seqno=$n\" CLASS=\"BAR\">メモの確認</A> &gt; ";
+$linktext .= "<FONT COLOR=#FFFF00>メモの削除</FONT>";
+
+include "../../login_check.inc.php";
+
+if ($login && sizeof($MES)==0) {
+	// 削除処理
+	if ($type == "all"){
+		$sql = "DELETE FROM todos WHERE user_id='".$login_id."'";
+		$res = pg_query($conn, $sql);
+		if ($res == false || pg_affected_rows($res)<1) {
+			$DMES[] = "全件削除に失敗しました";
+		}
+	} else {
+		$sql = "DELETE FROM todos where seqno=".$seqno." and user_id='".$login_id."'";
+		$res = pg_query($conn, $sql);
+		if ($res == false || pg_affected_rows($res)<1) {
+			$DMES[] = "削除に失敗しました";
+		}
+	}
+	
+	if (sizeof($DMES)>0) {
+		include "../../header.inc.php";
+		
+		// エラー時
+		$pagetext .= "<BR>\n";
+		$pagetext .= "<table BORDER=0 WIDTH=100%><FORM>";
+		$pagetext .= "<tr><td align=center><font color=#FF0000>\n";
+		while (list($key,$val)=each($DMES)) {
+			$pagetext .= $val."<BR>\n";
+		}
+		$pagetext .= "<BR>\n";
+		$pagetext .= "<input TYPE=button VALUE=\"戻る\" onClick=\"history.back()\">\n";
+		
+		$pagetext .= "</TD></TR></FORM></TABLE>\n";
+		
+		include "../../detail.inc.php";
+		include "../../footer.inc.php";
+		
+	} else {
+		// 正常処理
+		$returl = "../";
+		if ($p=="top") {
+			$returl = "../../";
+		}
+		Header("Location: ".$returl);
+	}
+}
+?>

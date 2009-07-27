@@ -1,0 +1,441 @@
+<?
+  include "../../config.inc.php";
+  include "../../lib.inc.php";
+  include "../../language.inc.php";
+
+  $linktext  = "<A HREF=\"../../\" CLASS=\"BAR\">トップページ</A> &gt; ";
+  $linktext .= "<A HREF=\"../\" CLASS=\"BAR\">住所録</A> &gt; ";
+  $linktext .= "<FONT COLOR=#FFFF00>住所の登録</FONT>";
+  include "../../header.inc.php";
+  flush();
+
+  // 初期値
+  if ($person_email == "") {
+    if ($corp_email != "" && $corp_email != "@") {
+      $sep_email = split("@",trim($corp_email));
+      $person_email = "@".$sep_email[1];
+    } else {
+      $person_email = "@";
+    }
+  }
+  if ($person_email2 == "") { $person_email2 = "@"; }
+
+  // エラー判定
+  if ($login==false) {
+    $MES[] = "先に、ログインしてください ⇒ <A HREF=\"$toppath/\">ログインページへ</A>";
+  } else {
+    if (trim($login_id) == "") {
+      $MES[] = "ユーザーＩＤが正しくありません";
+    } else {
+      $sql = "select * from users where id='".$login_id."'";
+      print "<!--";
+      $res = pg_query($conn, $sql);
+
+      if (pg_num_rows($res)<1) {
+        $MES[] = "ユーザーＩＤが正しくありません";
+      } else {
+        $row = pg_fetch_array($res,0);
+
+        $sql_secret = "select * from users where secretary_id='".$login_id."'";
+        $res_secret = pg_query($conn, $sql_secret);
+        $cnt_secret = pg_num_rows($res_secret);
+        if ($cnt_secret>0) {
+          for ($i=0;$i<$cnt_secret;$i++) {
+            $row_secret = pg_fetch_array($res_secret,$i);
+            $master_ids[] = $row_secret["id"];
+            if ($master_checkid != "") { $master_checkid .= "|"; }
+            $master_checkid .= $row_secret["id"];
+          }
+        }
+      }
+      print "-->\n";
+    }
+  }
+
+  // 前処理
+  if (!empty($q) && is_numeric($q)) {
+    // 選択ページから
+    $sql_select = "SELECT * FROM address WHERE seqno=".$q;
+    $res_select = pg_query($conn,$sql_select);
+    $cnt_select = pg_num_rows($res_select);
+    if ($cnt_select>0) {
+      $row_select = pg_fetch_array($res_select,0);
+      $corp_name   = trim($row_select["corp_name"]);
+      $corp_kana   = trim($row_select["corp_kana"]);
+      $corp_zip    = trim($row_select["corp_zip"]);
+      $corp_city   = trim($row_select["corp_city"]);
+      $corp_street = trim($row_select["corp_street"]);
+      $corp_build  = trim($row_select["corp_build"]);
+      $corp_tel    = trim($row_select["corp_tel"]);
+      $corp_fax    = trim($row_select["corp_fax"]);
+      $corp_url    = trim($row_select["corp_url"]);
+      $corp_email  = trim($row_select["corp_email"]);
+    } else {
+      $MES[] = "コピー元情報が確認できませんでした";
+    }
+  } else {
+    // 入力ページから
+    $corp_name   = textsafe(urldecode($corp_name));
+    $corp_kana   = mb_convert_kana(textsafe($corp_kana),"CKV");
+    $corp_zip    = mb_convert_kana(textsafe($corp_zip),"a");
+    $corp_city   = textsafe($corp_city);
+    $corp_street = textsafe($corp_street);
+    $corp_build  = textsafe($corp_build);
+    $corp_tel    = mb_convert_kana(textsafe($corp_tel),"a");
+    $corp_fax    = mb_convert_kana(textsafe($corp_fax),"a");
+    $corp_url    = mb_convert_kana(textsafe($corp_url),"a");
+    $corp_email  = mb_convert_kana(textsafe($corp_email),"a");
+  }
+
+  if ($corp_url == "http://") {
+    $corp_url = "";
+  }
+
+  if ($corp_email == "@") {
+    $corp_email = "";
+  }
+
+  // エラーチェック
+  if ($corp_name != "") {
+    if (strlen($corp_name)>80) {
+      $MES[]="会社名が長すぎます。40文字以内(半角80文字)で指定してください";
+    }
+  }
+
+  if ($corp_kana != "") {
+    if (strlen($corp_kana)>80) {
+      $MES[]="会社名のカナヨミが長すぎます。40文字以内(半角80文字)で指定してください";
+    }
+  }
+
+  if ($corp_zip != "") {
+    if (strlen($corp_zip)>8) {
+      $MES[]="郵便番号が長すぎます。8文字以内で指定してください";
+    }
+  }
+
+  if ($corp_city != "") {
+    if (strlen($corp_city)>100) {
+      $MES[]="住所(市区郡)が長すぎます。50文字以内(半角100文字)で指定してください";
+    }
+  }
+
+  if ($corp_street != "") {
+    if (strlen($corp_street)>100) {
+      $MES[]="住所(町村・番地)が長すぎます。50文字以内(半角100文字)で指定してください";
+    }
+  }
+
+  if ($corp_build != "") {
+    if (strlen($corp_build)>100) {
+      $MES[]="住所(ビル・マンション)が長すぎます。50文字以内(半角100文字)で指定してください";
+    }
+  }
+
+  if ($corp_tel != "") {
+    if (strlen($corp_tel)>20) {
+      $MES[]="電話番号が長すぎます。20文字以内で指定してください";
+    } else {
+      if (!is_tel($corp_tel)) {
+        $MES[]="電話番号は半角数字とハイフン[-]で指定してください";
+      }
+    }
+  }
+
+  if ($corp_fax != "") {
+    if (strlen($corp_fax)>20) {
+      $MES[]="FAX番号が長すぎます。20文字以内で指定してください";
+    } else {
+      if (!is_tel($corp_fax)) {
+        $MES[]="FAX番号は半角数字とハイフン[-]で指定してください";
+      }
+    }
+  }
+
+  if ($corp_url != "") {
+    if (strlen($corp_url)>200) {
+      $MES[]="ホームページアドレス(URL)が長すぎます。200文字以内で指定してください";
+    }
+  }
+
+  if ($corp_email != "") {
+    if (strlen($corp_email)>100) {
+      $MES[]="メールアドレスが長すぎます。100文字以内で指定してください";
+    } else {
+      if (!is_email($corp_email)) {
+        $MES[]="メールアドレスの指定が正しくありません";
+      }
+    }
+  }
+
+?>
+<BR>
+
+<CENTER>
+<TABLE HEIGHT=445><TR><TD VALIGN=TOP ALIGN=CENTER>
+<?
+  if (sizeof($MES)>0) {
+    // エラーメッセージ出力
+    print "<BR>";
+    print "<CENTER><DIV ALIGN=CENTER><FONT COLOR=#FF0000><B>";
+    // エラーメッセージ出力
+    while (list($key,$val)=each($MES)) {
+      print $val."<BR>\n";
+    }
+    print "</FONT></DIV></CENTER>\n";
+
+    print "<FORM NAME=\"error\" ACTION=\"./\" METHOD=POST>\n";
+    if (!empty($q) && is_numeric($q)) {
+      print "<INPUT TYPE=BUTTON value=\"戻る\" ONCLICK=\"history.back()\" style=\"width:120px\">";
+    } else {
+      print "<INPUT TYPE=HIDDEN name=\"corp_name\" value=\"".$corp_name."\">";
+      print "<INPUT TYPE=HIDDEN name=\"corp_kana\" value=\"".$corp_kana."\">";
+      print "<INPUT TYPE=HIDDEN name=\"corp_zip\" value=\"".$corp_zip."\">";
+      print "<INPUT TYPE=HIDDEN name=\"corp_state\" value=\"".$corp_state."\">";
+      print "<INPUT TYPE=HIDDEN name=\"corp_city\" value=\"".$corp_city."\">";
+      print "<INPUT TYPE=HIDDEN name=\"corp_street\" value=\"".$corp_street."\">";
+      print "<INPUT TYPE=HIDDEN name=\"corp_build\" value=\"".$corp_build."\">";
+      print "<INPUT TYPE=HIDDEN name=\"corp_tel\" value=\"".$corp_tel."\">";
+      print "<INPUT TYPE=HIDDEN name=\"corp_fax\" value=\"".$corp_fax."\">";
+      print "<INPUT TYPE=HIDDEN name=\"corp_url\" value=\"".$corp_url."\">";
+      print "<INPUT TYPE=HIDDEN name=\"corp_email\" value=\"".$corp_email."\">";
+
+      print "<INPUT TYPE=SUBMIT value=\"戻る\" style=\"width:120px\">";
+    }
+    print "</FORM>\n";
+  } else {
+?>
+<FORM NAME="person" ACTION="./other.phtml" METHOD=POST>
+<TABLE BORDER=0 CELLPADDING=2 CELLSPACING=0 ALIGN=CENTER><TR><TD VALIGN=TOP ALIGN=CENTER>
+<?
+    // 正常処理
+    print "<TABLE BORDER=0 CELLPADDING=4 CELLSPACING=1 BGCOLOR=#999999>\n";
+?>
+<INPUT TYPE=HIDDEN name="corp_name" value="<? echo $corp_name; ?>">
+<INPUT TYPE=HIDDEN name="corp_kana" value="<? echo $corp_kana; ?>">
+<INPUT TYPE=HIDDEN name="corp_zip" value="<? echo $corp_zip; ?>">
+<INPUT TYPE=HIDDEN name="corp_state" value="<? echo $corp_state; ?>">
+<INPUT TYPE=HIDDEN name="corp_city" value="<? echo $corp_city; ?>">
+<INPUT TYPE=HIDDEN name="corp_street" value="<? echo $corp_street; ?>">
+<INPUT TYPE=HIDDEN name="corp_build" value="<? echo $corp_build; ?>">
+<INPUT TYPE=HIDDEN name="corp_tel" value="<? echo $corp_tel; ?>">
+<INPUT TYPE=HIDDEN name="corp_fax" value="<? echo $corp_fax; ?>">
+<INPUT TYPE=HIDDEN name="corp_url" value="<? echo $corp_url; ?>">
+<INPUT TYPE=HIDDEN name="corp_email" value="<? echo $corp_email; ?>">
+
+<?
+    if (!empty($q) && is_numeric($q)) {
+      print "<TR>\n";
+      print "<TD ALIGN=RIGHT WIDTH=90 NOWRAP VALIGN=TOP BGCOLOR=$td_back_left>&nbsp;会社名&nbsp;</TD>\n";
+      print "<TD ALIGN=LEFT BGCOLOR=$td_back>";
+      print $corp_name;
+      print "</TR>";
+    }
+
+    print "<TR>\n";
+    print "<TD ALIGN=RIGHT WIDTH=90 NOWRAP VALIGN=TOP BGCOLOR=$td_back_left>&nbsp;氏名&nbsp;</TD>\n";
+    print "<TD ALIGN=LEFT BGCOLOR=$td_back>";
+?>
+<INPUT TYPE=TEXT NAME="person_name" MAXLENGTH=80 SIZE=38 VALUE="<? echo $person_name ?>" style="ime-mode:active">&nbsp;<FONT COLOR=#555555>漢字</FONT><BR>
+<INPUT TYPE=TEXT NAME="person_kana" MAXLENGTH=80 SIZE=38 VALUE="<? echo $person_kana ?>" style="ime-mode:active">&nbsp;<FONT COLOR=#555555>カナヨミ</FONT></TD>
+</TR>
+
+<?
+    print "<TR>\n";
+    print "<TD ALIGN=RIGHT WIDTH=90 NOWRAP VALIGN=TOP BGCOLOR=$td_back_left>&nbsp;性別&nbsp;</TD>\n";
+    print "<TD ALIGN=LEFT BGCOLOR=$td_back>";
+    if ($person_sex == "man"){
+      print "<INPUT TYPE=RADIO NAME=\"person_sex\" VALUE=\"man\" CHECKED><FONT COLOR=#0000CC>男性&nbsp;";
+      print "<INPUT TYPE=RADIO NAME=\"person_sex\" VALUE=\"woman\"><FONT COLOR=#CC0000>女性&nbsp;";
+      print "<INPUT TYPE=RADIO NAME=\"person_sex\" VALUE=\"\"><FONT COLOR=#666666>設定しない\n";
+    } elseif ($person_sex == "woman"){
+      print "<INPUT TYPE=RADIO NAME=\"person_sex\" VALUE=\"man\"><FONT COLOR=#0000CC>男性&nbsp;";
+      print "<INPUT TYPE=RADIO NAME=\"person_sex\" VALUE=\"woman\" CHECKED><FONT COLOR=#CC0000>女性&nbsp;";
+      print "<INPUT TYPE=RADIO NAME=\"person_sex\" VALUE=\"\"><FONT COLOR=#666666>設定しない\n";
+    } else {
+      print "<INPUT TYPE=RADIO NAME=\"person_sex\" VALUE=\"man\"><FONT COLOR=#0000CC>男性&nbsp;";
+      print "<INPUT TYPE=RADIO NAME=\"person_sex\" VALUE=\"woman\"><FONT COLOR=#CC0000>女性&nbsp;";
+      print "<INPUT TYPE=RADIO NAME=\"person_sex\" VALUE=\"\" CHECKED><FONT COLOR=#666666>設定しない\n";
+    }
+?>
+</TD></TR>
+
+<?
+    print "<TR>\n";
+    print "<TD ALIGN=RIGHT WIDTH=90 NOWRAP VALIGN=TOP BGCOLOR=$td_back_left>&nbsp;部署・役職&nbsp;</TD>\n";
+    print "<TD ALIGN=LEFT BGCOLOR=$td_back>";
+?>
+<INPUT TYPE=TEXT NAME="person_depa" MAXLENGTH=80 SIZE=46 VALUE="<? echo $person_depa ?>" style="background-color:#EEEEEE;ime-mode:active">&nbsp;<FONT COLOR=#555555>所属部署</FONT><BR>
+<INPUT TYPE=TEXT NAME="person_post" MAXLENGTH=80 SIZE=46 VALUE="<? echo $person_post ?>" style="background-color:#EEEEEE;ime-mode:active">&nbsp;<FONT COLOR=#555555>肩書・役職</FONT></TD>
+</TR>
+
+<?
+    print "<TR>\n";
+    print "<TD ALIGN=RIGHT WIDTH=90 NOWRAP VALIGN=TOP BGCOLOR=$td_back_left>&nbsp;内線&nbsp;</TD>\n";
+    print "<TD ALIGN=LEFT BGCOLOR=$td_back>";
+    print "<input MAXLENGTH=15 NAME=\"person_dialin\" value=\"".$person_dialin."\" STYLE=\"background-color:#EEEEEE;ime-mode:disabled\">&nbsp;<font color=#555555>内線・ダイアルイン</font><BR>\n";
+?>
+</TD></TR>
+
+<?
+    print "<TR>\n";
+    print "<TD ALIGN=RIGHT WIDTH=90 NOWRAP VALIGN=TOP BGCOLOR=$td_back_left>&nbsp;EMAIL&nbsp;</TD>\n";
+    print "<TD ALIGN=LEFT BGCOLOR=$td_back>";
+    print "<INPUT TYPE=TEXT NAME=\"person_email\" MAXLENGTH=80 SIZE=46 VALUE=\"".$person_email."\" STYLE=\"background-color:#EEEEEE;ime-mode:disabled\">";
+?>
+&nbsp;<FONT COLOR=#555555>通常</FONT><BR>
+<?
+    print "<INPUT TYPE=TEXT NAME=\"person_email2\" MAXLENGTH=80 SIZE=46 VALUE=\"".$person_email2."\" STYLE=\"background-color:#EEEEEE;ime-mode:disabled\">";
+?>
+&nbsp;<FONT COLOR=#555555>携帯アドレス</FONT><BR>
+</TD></TR>
+
+<?
+    print "<TR>\n";
+    print "<TD ALIGN=RIGHT WIDTH=90 NOWRAP VALIGN=TOP BGCOLOR=$td_back_left>&nbsp;生年月日&nbsp;</TD>\n";
+    print "<TD ALIGN=LEFT BGCOLOR=$td_back>";
+    print "<SELECT NAME=\"person_birthday_Y\" STYLE=\"background-color:#EEEEEE\">\n";
+    print "<OPTION VALUE=\"\"";
+    if ($person_birthday_Y == 0) print " SELECTED";
+    print ">----</OPTION>\n";
+    $today = getdate();
+    $now_y = $today["year"];
+
+    $min_y = ($now_y-90);
+    if ($person_birthday_Y !=0 && $min_y > $person_birthday_Y) { $min_Y = $person_birthday_Y; }
+    for ($i=$min_y;$i<=$now_y;$i++) {
+      if ($person_birthday_Y == $i) {
+        print "<OPTION VALUE=\"".$i."\" SELECTED>".$i."</OPTION>\n";
+      } else {
+        print "<OPTION VALUE=\"".$i."\">".$i."</OPTION>\n";
+      }
+    }
+    print "</SELECT>年\n";
+
+    print "<SELECT NAME=\"person_birthday_M\" STYLE=\"background-color:#EEEEEE\">\n";
+    print "<OPTION VALUE=\"\"";
+    if ($person_birthday_M == 0) print " SELECTED";
+    print ">--</OPTION>\n";
+    for ($i=1;$i<=12;$i++) {
+      if ($person_birthday_M == $i) {
+        print "<OPTION VALUE=\"".$i."\" SELECTED>".$i."</OPTION>\n";
+      } else {
+        print "<OPTION VALUE=\"".$i."\">".$i."</OPTION>\n";
+      }
+    }
+    print "</SELECT>月\n";
+
+    print "<SELECT NAME=\"person_birthday_D\" STYLE=\"background-color:#EEEEEE\">\n";
+    print "<OPTION VALUE=\"\"";
+    if ($person_birthday_D == 0) print " SELECTED";
+    print ">--</OPTION>\n";
+    for ($i=1;$i<=31;$i++) {
+      if ($person_birthday_D == $i) {
+        print "<OPTION VALUE=\"".$i."\" SELECTED>".$i."</OPTION>\n";
+      } else {
+        print "<OPTION VALUE=\"".$i."\">".$i."</OPTION>\n";
+      }
+    }
+    print "</SELECT>日";
+?>
+</TD></TR>
+
+<?
+    print "<TR>\n";
+    print "<TD ALIGN=RIGHT WIDTH=90 NOWRAP VALIGN=TOP BGCOLOR=$td_back_left>&nbsp;携帯電話&nbsp;</TD>\n";
+    print "<TD ALIGN=LEFT BGCOLOR=$td_back>";
+?>
+<INPUT TYPE=TEXT NAME="person_handy" MAXLENGTH=25 SIZE=20 VALUE="<? echo $person_handy ?>" style="background-color:#EEEEEE;ime-mode:disabled">
+</TD></TR>
+
+<?
+    print "<TR>\n";
+    print "<TD ALIGN=RIGHT WIDTH=90 NOWRAP VALIGN=TOP BGCOLOR=$td_back_left>&nbsp;自宅住所&nbsp;</TD>\n";
+    print "<TD ALIGN=LEFT BGCOLOR=$td_back>";
+?>
+〒<input TYPE=TEXT NAME=person_zip MAXLENGTH=8 SIZE=9 value="<? echo $person_zip ?>" STYLE="background-color:#EEEEEE" style="ime-mode:disabled"><BR>
+<?
+    print "<SELECT NAME=\"person_state\" STYLE=\"background-color:#EEEEEE\">\n";
+    if ($row["state"]=="") {
+      print "<option value=\"\" selected>--------</option>\n";
+    } else {
+      print "<option value=\"\">--------</option>\n";
+    }
+    reset($STATE_ARR);
+    for ($i=0;$i<sizeof($STATE_ARR);$i++){
+      if ($person_state == $STATE_ARR[$i]){
+        print "<option value = \"".$STATE_ARR[$i]."\" selected>".$STATE_ARR[$i]."</option>\n";
+#      } elseif ($person_state == "" && $admin_state == $STATE_ARR[$i]){
+#        print "<option value = \"".$STATE_ARR[$i]."\" selected>".$STATE_ARR[$i]."</option>\n";
+      } else {
+        print "<option value = \"".$STATE_ARR[$i]."\">".$STATE_ARR[$i]."</option>\n";
+      }
+    }
+
+    print "</SELECT>";
+
+    print "<input MAXLENGTH=80 NAME=\"person_city\" SIZE=34 value=\"".$person_city."\" STYLE=\"background-color:#EEEEEE\" style=\"ime-mode:active\">";
+    print "&nbsp;<font color=#555555>市区郡</font><BR>\n";
+
+    print "<input MAXLENGTH=80 NAME=\"person_street\" SIZE=50 value=\"".$person_street."\" STYLE=\"background-color:#EEEEEE\" style=\"ime-mode:active\">";
+    print "&nbsp;<font color=#555555>町村・番地</font><BR>\n";
+
+    print "<input MAXLENGTH=80 NAME=\"person_build\" SIZE=50 value=\"".$person_build."\" STYLE=\"background-color:#EEEEEE\" style=\"ime-mode:active\">";
+    print "&nbsp;<font color=#555555>ビル名</font><BR>\n";
+?>
+</TD></TR>
+
+<?
+    print "<TR>\n";
+    print "<TD ALIGN=RIGHT WIDTH=90 NOWRAP VALIGN=TOP BGCOLOR=$td_back_left>&nbsp;自宅連絡先&nbsp;</TD>\n";
+    print "<TD ALIGN=LEFT BGCOLOR=$td_back>";
+    print "<input MAXLENGTH=15 NAME=\"person_tel\" value=\"".$person_tel."\" STYLE=\"background-color:#EEEEEE\">&nbsp;<font color=#555555>電話番号</font>\n";
+    print "<input MAXLENGTH=15 NAME=\"person_fax\" value=\"".$person_fax."\" STYLE=\"background-color:#EEEEEE\">&nbsp;<font color=#555555>FAX番号</font>\n";
+?>
+</TD></TR></TABLE>
+
+</TD></TR></TABLE>
+
+<CENTER><DIV ALIGN=CENTER>
+<TABLE BORDER=0 CELLPADDING=5 CELLSPACING=0 ALIGN=CENTER><TR>
+<?php
+  print "<TD><INPUT TYPE=SUBMIT VALUE=\"次へ\" style=\"width:120px\"></TD>\n";
+
+  print "</FORM>\n";
+
+  print "<FORM NAME=\"back\" ACTION=\"./\" METHOD=POST>\n";
+  print "<TD>";
+  if (!empty($q) && is_numeric($q)) {
+    print "<INPUT TYPE=BUTTON value=\"戻る\" ONCLICK=\"history.back()\" style=\"width:120px\">";
+  } else {
+    print "<INPUT TYPE=HIDDEN name=\"corp_name\" value=\"".$corp_name."\">\n";
+    print "<INPUT TYPE=HIDDEN name=\"corp_kana\" value=\"".$corp_kana."\">\n";
+    print "<INPUT TYPE=HIDDEN name=\"corp_zip\" value=\"".$corp_zip."\">\n";
+    print "<INPUT TYPE=HIDDEN name=\"corp_state\" value=\"".$corp_state."\">\n";
+    print "<INPUT TYPE=HIDDEN name=\"corp_city\" value=\"".$corp_city."\">\n";
+    print "<INPUT TYPE=HIDDEN name=\"corp_street\" value=\"".$corp_street."\">\n";
+    print "<INPUT TYPE=HIDDEN name=\"corp_build\" value=\"".$corp_build."\">\n";
+    print "<INPUT TYPE=HIDDEN name=\"corp_tel\" value=\"".$corp_tel."\">\n";
+    print "<INPUT TYPE=HIDDEN name=\"corp_fax\" value=\"".$corp_fax."\">\n";
+    print "<INPUT TYPE=HIDDEN name=\"corp_url\" value=\"".$corp_url."\">\n";
+    print "<INPUT TYPE=HIDDEN name=\"corp_email\" value=\"".$corp_email."\">\n";
+
+    print "<INPUT TYPE=SUBMIT value=\"戻る\" style=\"width:120px\">\n";
+  }
+  print "</TD>\n";
+  print "</FORM>\n";
+?>
+</TR></TABLE>
+
+<TABLE ALIGN=CENTER><TR><TD>
+住所録に登録したい方の「個人情報」を入力してください。<BR>
+</TD></TR></TABLE>
+
+</DIV></CENTER>
+
+</TD></TR></TABLE>
+</CENTER>
+<?
+  }
+  include "../../footer.inc.php";
+?>

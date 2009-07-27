@@ -1,0 +1,318 @@
+<?php
+  include "../config.inc.php";
+  include "../lib.inc.php";
+  include "../language.inc.php";
+
+  if (!empty($new_path)) {
+    $linkpath = urldecode($new_path);
+  } else {
+    $linkpath = $_COOKIE["link_path"];
+  }
+  if (substr($linkpath,-4)=="/../") $linkpath = dirname(substr($linkpath,0,strlen($linkpath)-4))."/";
+  if ($linkpath=="//") $linkpath="/";
+  if (substr($linkpath,-1)!="/") { $linkpath .= "/"; }
+  if (empty($linkpath) or $linkpath=="") $linkpath = "/";
+  if ($_COOKIE["link_path"]!=$linkpath) {
+    $headertext .= "Set-Cookie: link_path=".urlencode($linkpath)."; path=/;\n";
+  }
+
+  if (!empty($new_seq)) {
+    $headertext .= "Set-Cookie: link_seq=".$new_seq."; path=/; expires=".gmdate("l, d-M-Y H:i:s",time()+15552000)." GMT;\n";
+    $link_seq = $new_seq;
+  } else { if (empty($link_seq) or $link_seq=="") { $link_seq = "stamp"; } }
+
+  if (!empty($new_sort)) {
+    $headertext .= "Set-Cookie: link_sort=".$new_sort."; path=/; expires=".gmdate("l, d-M-Y H:i:s",time()+15552000)." GMT;\n";
+    $link_sort = $new_sort;
+  } else { if (empty($link_sort) or $link_sort=="") { $link_sort = "desc"; } }
+
+  $linktext  = "<A HREF=\"../\" CLASS=\"BAR\">トップページ</A> &gt; ";
+  $linktext .= "<FONT COLOR=#FFFF00>リンク集</FONT>";
+  include "../header.inc.php";
+  flush();
+
+  // 所属グループの獲得
+  if ($login) {
+    $sql_entry = "SELECT * FROM users_entry WHERE user_id='$login_id'";
+    $res_entry = pg_query($conn,$sql_entry);
+    $cnt_entry = pg_num_rows($res_entry);
+    if ($cnt_entry>0) {
+      for ($i=0;$i<$cnt_entry;$i++) {
+        $row_entry = pg_fetch_array($res_entry,$i);
+        $groups[] = $row_entry["group_id"];
+      }
+    }
+  }
+
+  include "./menu.inc.php";
+
+  // 出力用関数
+  // ディレクトリ一覧表示
+  function dirlist($linkpath,$openlist) {
+    global $conn,$dirtext,$link_seq,$link_sort,$login_id,$colorflag,$bg_dark,$bg_light,$admin_sign,$groups;
+    if ($linkpath != "/") {
+      if ($colorflag != true) { $bgcolor = $bg_dark;  $colorflag = true;
+      } else { $bgcolor = $bg_light; $colorflag = false; }
+      $path_pos = mbstrrpos($linkpath,"/");
+      $path = mbsubstr($linkpath,0,$path_pos+1);
+
+      $linkstr = "./?new_path=".urlencode($linkpath."/../");
+      $dirtext .= "<TR BGCOLOR=\"$bgcolor\">";
+      $dirtext .= "<TD VALIGN=MIDDLE ALIGN=CENTER>";
+      $dirtext .= "<A HREF=\"./".$linkstr."\"><IMG SRC=\"../image/icon/folder.up.gif\" BORDER=0></A>";
+      $dirtext .= "</TD>\n";
+      $dirtext .= "<TD VALIGN=MIDDLE ALIGN=LEFT>";
+      $dirtext .= "<A HREF=\"./".$linkstr."\">..</A>";
+
+      $checkpath = dirname($path);
+      if (substr($checkpath,-1,1)!="/") $checkpath .= "/";
+      $checkname = basename($path);
+
+      $linkseqno = get_first("links","seqno","type='dir' AND path='".db_textsafe($checkpath)."' AND title='".db_textsafe($checkname)."'",0);
+      if ($linkseqno>0) {
+        $dirtext .= " <A HREF=\"./add/?path=".urlencode($checkpath)."&seqno=".$linkseqno."&type=dir\" STYLE=\"color:#666699\">(info)</A>";
+      }
+      $dirtext .= "</TD>\n";
+      $dirtext .= "<TD VALIGN=MIDDLE ALIGN=CENTER NOWRAP>&nbsp;</TD>\n";
+#      $dirtext .= "<TD VALIGN=MIDDLE ALIGN=CENTER NOWRAP>&nbsp;</TD>\n";
+      $dirtext .= "</TR>\n";
+    }
+
+    $sql = "SELECT * FROM links WHERE type='dir' AND path='".$linkpath."'";
+    $sql .= " ORDER BY ";
+    if ($link_seq=="title") {
+      if ($link_sort=="asc") {
+        $sql .= "title,modifystamp DESC,createstamp DESC";
+      } else {
+        $sql .= "title DESC,modifystamp DESC,createstamp DESC";
+      }
+    } elseif ($link_seq=="stamp") {
+      if ($link_sort=="asc") {
+        $sql .= "modifystamp,createstamp";
+      } else {
+        $sql .= "modifystamp DESC,createstamp DESC";
+      }
+    }
+    $res = pg_query($conn,$sql);
+    $cnt = pg_num_rows($res);
+
+    for($i=0;$i<$cnt;$i++){
+      $row = pg_fetch_array($res,$i);
+
+      $group_ids = $row["view_group_ids"];
+      $user_ids  = $row["view_user_ids"];
+
+      $view = false;
+      if ($admin_sign=="t" || ($group_ids=="" && $user_ids=="")) {
+        $view = true;
+      } else {
+        if ($group_ids!="") {
+          $view_group_id = split(",",$group_ids);
+          if (sizeof($view_group_id)>0) while (list($seq,$id)=each($view_group_id)) {
+            if (sizeof($groups)>0) {
+              reset($groups);
+              while (list($gseq,$gid)=each($groups)) {
+                if ($gid==$id) { $view = true; break; }
+              }
+            }
+          }
+        }
+        if ($user_ids!="") {
+          $view_user_id = split(",",$user_ids);
+          if (sizeof($view_user_id)>0) while (list($seq,$id)=each($view_user_id)) {
+            if ($login_id==$id) { $view = true; break; }
+          }
+        }
+      }
+      if ($view) {
+        if ($colorflag != true) { $bgcolor = $bg_dark;  $colorflag = true; 
+        } else { $bgcolor = $bg_light; $colorflag = false; }
+        $linkstr = "./?new_path=".urlencode($row["path"].$row["title"]."/");
+        $dirtext .= "<TR BGCOLOR=\"".$bgcolor."\">";
+        $dirtext .= "<TD VALIGN=MIDDLE ALIGN=CENTER width=40>";
+        $dirtext .= "<A HREF=\"./".$linkstr."\"><IMG SRC=\"../image/icon/folder.gif\" BORDER=0></A>";
+        $dirtext .= "</TD>\n";
+        $dirtext .= "<TD VALIGN=MIDDLE ALIGN=LEFT>";
+        $dirtext .= "<A HREF=\"./".$linkstr."\">".$row["title"]."</A>";
+        $dirtext .= " <A HREF=\"./add/?path=".urlencode($linkpath)."&seqno=".$row["seqno"]."&type=dir\" STYLE=\"color:#666699\">(info)</A>";
+        $dirtext .= "</TD>\n";
+        $dirtext .= "<TD VALIGN=MIDDLE ALIGN=CENTER NOWRAP><font style=\"font-size:80%\">\n";
+        $timestamp = datetime2timestamp($row["updatestamp"]);
+        if (date("Y",$timestamp)<>date("Y")) {
+          $dirtext .= date("Y/m/d",$timestamp);
+        } else {
+          $dirtext .= date("m/d",$timestamp);
+          $dirtext .= " ";
+          $dirtext .= date("H:i",$timestamp);
+        }
+        $dirtext .= "</TD>\n";
+        $dirtext .= "</TR>\n";
+      }
+    }
+    if ($linkpath != "/") $cnt++;
+    return $dirtext;
+  }
+
+  // リンク一覧表示
+  function linklist($linkpath) {
+    global $conn,$link_seq,$link_sort,$login_id,$colorflag,$bg_dark,$bg_light;
+    $sql = "SELECT * FROM links WHERE type='link' AND path='$linkpath' ORDER BY ";
+    if ($link_seq=="title") {
+      if ($link_sort=="asc") {
+        $sql .= "title,modifystamp DESC,createstamp DESC";
+      } else {
+        $sql .= "title DESC,modifystamp DESC,createstamp DESC";
+      }
+    } elseif ($link_seq=="stamp") {
+      if ($link_sort=="asc") {
+        $sql .= "modifystamp,createstamp";
+      } else {
+        $sql .= "modifystamp DESC,createstamp DESC";
+      }
+    }
+    $res = pg_query($conn,$sql);
+    $cnt = pg_num_rows($res);
+    for($i=0;$i<$cnt;$i++){
+      $row = pg_fetch_array($res,$i);
+      if ($colorflag != true) { $bgcolor = $bg_dark;  $colorflag = true;
+      } else { $bgcolor = $bg_light; $colorflag = false; }
+      $linktext .= "<TR BGCOLOR=\"".$bgcolor."\">";
+      $linktext .= "<TD VALIGN=MIDDLE ALIGN=CENTER width=40>";
+      $linktext .= "<A HREF=\"".$row["url"]."\" target=\"_blank\">";
+      $linktext .= "<IMG SRC=\"../image/link.gif\" BORDER=0 WIDTH=32 HEIGHT=32>";
+      $linktext .= "</A>";
+      $linktext .= "</TD>\n";
+      $linktext .= "<TD ALIGN=LEFT>";
+      $linktext .= "<A HREF=\"".$row["url"]."\" target=\"_blank\">".$row["title"]."</A>";
+      $linktext .= " <A HREF=\"./add/?path=".urlencode($linkpath)."&seqno=".$row["seqno"]."&type=link\" STYLE=\"color:#666699\">(info)</A>\n";
+      $linktext .= "</TD>\n";
+      $linktext .= "<TD VALIGN=MIDDLE ALIGN=CENTER NOWRAP><font style=\"font-size:80%\">";
+
+      if ($row["updatestamp"]!="") {
+        $timestamp = datetime2timestamp($row["updatestamp"]);
+        if (date("Y",$timestamp)<>date("Y")) {
+          $linktext .= date("Y/m/d",$timestamp);
+        } else {
+          $linktext .= date("m/d",$timestamp);
+          $linktext .= " ";
+          $linktext .= date("H:i",$timestamp);
+        }
+      } else {
+        $linktext .= "-";
+      }
+      $linktext .= "</TD>\n";
+      $linktext .= "</TR>\n";
+    }
+    return $linktext;
+  }
+
+  // エラーチェック
+  if ($login==false) {
+    $MES[] = "先に、ログインしてください ⇒ <A HREF=\"$toppath/\">ログインページへ</A>";
+  } else {
+    if (trim($login_id) == "") {
+      $MES[] = "ユーザーＩＤが正しくありません";
+    } else {
+      $sql = "select * from users where id='".$login_id."'";
+      $pagetext .= "<!--";
+      $res = pg_query($conn, $sql);
+
+      if (pg_num_rows($res)<1) {
+        $MES[] = "ユーザーＩＤが正しくありません";
+      } else {
+        $row = pg_fetch_array($res,0);
+      }
+      $pagetext .= "-->\n";
+    }
+  }
+
+  // 初期値のセット
+  if (sizeof($MES)>0) {
+    // エラー時
+    $pagetext .= "<CENTER><TABLE BORDER=0><TR><TD ALIGN=CENTER><FONT COLOR=#FF0000>\n";
+    // エラーメッセージ出力
+    while (list($key,$val)=each($MES)) {
+      $pagetext .= $val."<BR>\n";
+    }
+    $pagetext .= "</TD></TR></TABLE></CENTER>\n";
+  } else {
+    // 通常
+    $pagetext .= "<TABLE BORDER=0 CELLPADDING=0 CELLSPACING=0 WIDTH=100%>\n";
+
+    $pagetext .= "<TR WIDTH=100%><TD COLSPAN=3 ALIGN=RIGHT>";
+    $checkpath = $linkpath;
+    if ($checkpath=="") { $checkpath = "/"; }
+    $count_dir = substr_count($checkpath,"/");
+    $pagetext .= "<A HREF=\"./add/?type=link&path=".urlencode($checkpath)."\">";
+    $pagetext .= "<IMG SRC=\"../image/linksadd.gif\" ALIGN=ABSMIDDLE BORDER=0 ALT=\"リンク作成\"> リンク作成";
+    $pagetext .= "</A>&nbsp;";
+    if ($count_dir<4) {
+      $pagetext .= "<A HREF=\"./add/?type=dir&path=".urlencode($checkpath)."\">";
+      $pagetext .= "<IMG SRC=\"../image/foldersadd.gif\" ALIGN=ABSMIDDLE BORDER=0 ALT=\"フォルダ作成\"> フォルダ作成";
+      $pagetext .= "</A>";
+    }
+    $pagetext .= "</TD></TR>\n";
+
+    $pagetext .= "<TR WIDTH=100%><TD ALIGN=LEFT NOWRAP STYLE=\"LINE-HEIGHT:21pt\">\n";
+    $pagetext .= "&nbsp;現在のパス:";
+    $paths = split("/",urldecode($linkpath));
+    $pagetext .= "<A HREF=\"./?new_path=".urlencode("/")."\">/</A>"; // Root
+    while (list($key,$val)=each($paths)) {
+      $linkstr = "/";
+      if ($val != "") {
+        for ($i=0;$i<$key;$i++) if ($paths[$i] != "") $linkstr .= $paths[$i]."/";
+        $linkstr .= $val."/";
+        $pagetext .= "<A HREF=\"./?new_path=".urlencode($linkstr)."\">";
+        $pagetext .= $val."/";
+        $pagetext .= "</A>";
+      }
+    }
+    $pagetext .= "</TD>\n";
+
+    $pagetext .= "<FORM>\n";
+    $pagetext .= "<TD ALIGN=RIGHT NOWRAP>\n";
+    $pagetext .= "<INPUT TYPE=RADIO NAME=\"seq\" VALUE=\"title\"";
+    if ($link_seq=="title") { $pagetext .= " CHECKED"; }
+    $pagetext .= " onclick=\"location.href='./?new_seq=title'\">名称順";
+    $pagetext .= "<INPUT TYPE=RADIO NAME=\"seq\" VALUE=\"stamp\"";
+    if ($link_seq=="stamp") { $pagetext .= " CHECKED";}
+    $pagetext .= " onclick=\"location.href='./?new_seq=stamp'\">日付順";
+    $pagetext .= "&nbsp;<B>|</B>\n";
+    $pagetext .= "<INPUT TYPE=RADIO NAME=\"sort\" VALUE=\"asc\"";
+    if ($link_sort=="asc") { $pagetext .= " CHECKED";}
+    $pagetext .= " onclick=\"location.href='./?new_sort=asc'\">昇順";
+    $pagetext .= "<INPUT TYPE=RADIO NAME=\"sort\" VALUE=\"desc\" ";
+    if ($link_sort=="desc") { $pagetext .= " CHECKED";}
+    $pagetext .= " onclick=\"location.href='./?new_sort=desc'\">降順";
+    $pagetext .= "</TD>\n";
+    $pagetext .= "</TR></FORM></TABLE>\n";
+
+    $pagetext .= "<TABLE BORDER=0 CELLPADDING=0 CELLSPACING=0 WIDTH=100%><TR><TD>\n";
+    // 表示
+    $pagetext .= "<TABLE BORDER=0 CELLSPACING=0 CELLPADDING=3 WIDTH=100%>\n";
+    $pagetext .= "<TR BGCOLOR=#999999 WIDTH=100%>\n";
+    $pagetext .= "<TH VALIGN=MIDDLE NOWRAP WIDTH=40><FONT COLOR=#FFFFFF>Icon</th>\n";
+    $pagetext .= "<TH VALIGN=MIDDLE NOWRAP ALIGN=LEFT><FONT COLOR=#FFFFFF>&nbsp;リンク名</TH>\n";
+    $pagetext .= "<TH VALIGN=MIDDLE NOWRAP WIDTH=100><font color=#FFFFFF>更新日時</TH>\n";
+#    $pagetext .= "<th valign=middle nowrap align=center width=60><font color=#FFFFFF>編集</th>\n";
+    $pagetext .= "</TR>\n";
+
+    $colorflag = false; // 表示替用フラグ
+    $dirtext = dirlist($linkpath,$openlist);
+    
+    $linktext = linklist($linkpath);
+    $pagetext .= $dirtext;
+    $pagetext .= $linktext;
+
+    // 何もなかった
+    if (empty($linktext)) {
+      if ($colorflag != true) { $bgcolor = $bg_dark; } else { $bgcolor = $bg_light; }
+      $pagetext .= "<TR BGCOLOR=$bgcolor HEIGHT=30><TD VALIGN=MIDDLE ALIGN=CENTER COLSPAN=4>未登録</TD></TR>\n";
+    }
+    $pagetext .= "</TABLE>\n";
+    $pagetext .= "</TD></TR></TABLE>";
+
+  }
+  include "../detail.inc.php";
+  include "../footer.inc.php";
+?>

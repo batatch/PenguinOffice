@@ -1,0 +1,87 @@
+<?
+  include "../../config.inc.php"; include "../../lib.inc.php";
+
+  $linktext  = "<A HREF=\"../../\" CLASS=\"BAR\">トップページ</A> &gt; ";
+  $linktext .= "<A HREF=\"../\" CLASS=\"BAR\">伝言メモ</A> &gt; ";
+  $linktext .= "<FONT COLOR=#FFFF00>メモの削除</FONT>";
+
+  include "../../login_check.inc.php";
+
+  if ($login && sizeof($MES)==0) {
+    ## 削除処理
+    if ($mode=="all") {
+      if (empty($type)) {
+        $DMES[] = "操作手順が正しくありません";
+      } elseif ($type=="from") {
+        ## 送信状況確認
+        $sql_chk = "SELECT seqno FROM mail WHERE \"from\"='".$login_id."' AND user_id='".$login_id."'";
+        $res_chk = pg_query($conn, $sql_chk);
+        $cnt_chk = pg_num_rows($res_chk);
+        if ($cnt_chk>0) {
+          $sql = "DELETE FROM mail WHERE \"from\"='".$login_id."' AND user_id='".$login_id."'";
+        } else {
+          $DMES[] = "現在送信メモは登録されていません";
+        }
+      } else {
+        ## 受信状況確認
+        $sql_chk = "SELECT seqno FROM mail WHERE \"to\"~*'(^|,)".$login_id."(,|$)' AND user_id='".$login_id."'";
+        $res_chk = pg_query($conn, $sql_chk);
+        $cnt_chk = pg_num_rows($res_chk);
+        if ($cnt_chk>0) {
+          $sql = "DELETE FROM mail WHERE \"to\"~*'(^|,)".$login_id."(,|$)' AND user_id='".$login_id."'";
+        } else {
+          $DMES[] = "現在受信メモは登録されていません";
+        }
+      }
+    } else {
+      if (empty($n) || !is_numeric($n)) {
+        $DMES[] = "操作手順が正しくありません";
+      } else {
+        ## 存在確認
+        $sql_chk = "SELECT seqno FROM mail WHERE user_id='".$login_id."' AND seqno=".db_textsafe($n);
+        $res_chk = pg_query($conn, $sql_chk);
+        $cnt_chk = pg_num_rows($res_chk);
+        if ($cnt_chk>0) {
+          $sql = "DELETE FROM mail WHERE user_id='".$login_id."' AND seqno=".db_textsafe($n);
+        } else {
+          $DMES[] = "伝言メモの確認に失敗しました";
+        }
+      }
+    }
+    ## データ削除処理
+    if (sizeof($DMES)<1) {
+      $res = pg_query($conn, $sql);
+      $cnt = pg_affected_rows($res);
+      if ($cnt==0) {
+        $DMES[] = "伝言メモの削除に失敗しました";
+      }
+    }
+
+    if (sizeof($DMES)>0) {
+      // 入力エラー時
+      include "../../header.inc.php";
+
+      $pagetext .= "<BR><BR><CENTER>";
+      $pagetext .= "<FONT COLOR=#FF0000>";
+      while (list($key,$val)=each($DMES)) {
+        $pagetext .= $val."<BR>";
+      }
+      $pagetext .= "</FONT>";
+      $pagetext .= "<BR><FORM ACTION=\"./\">";
+      $pagetext .= "<INPUT TYPE=BUTTON VALUE=\"戻る\" ONCLICK=\"history.back()\">";
+      $pagetext .= "</FORM>";
+      $pagetext .= "</CENTER>";
+
+      include "../../detail.inc.php";
+      include "../../footer.inc.php";
+
+    } else {
+      // 正常時
+      $returl = "../";
+      if ($p=="top") {
+        $returl = "../../";
+      }
+      Header("Location: ".$returl);
+    }
+  }
+?>

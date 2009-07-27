@@ -1,0 +1,295 @@
+<?php
+  include "../../config.inc.php";
+  include "../../lib.inc.php";
+
+  // 表示行数の調整
+  if (empty($rows)) $rows= 15;
+  if ($rows<10) $rows = 10;
+  if ($rows>50) $rows = 50;
+
+  // 変数処理
+  if (!empty($_REQUEST["p"]))  { $p = $_REQUEST["p"]; } else { $p = 1; }
+  if (!is_numeric($p)) $p = 1;
+  if (!empty($_REQUEST["group"]))   $to = $_REQUEST["group"];
+  if (!empty($_REQUEST["mode"])) $mode = $_REQUEST["mode"];
+  if (!empty($_REQUEST["from"])) $from = $_REQUEST["from"];
+  if (!empty($_REQUEST["to"]))   $to = $_REQUEST["to"];
+ 
+  $linktext  = "<A HREF=\"../../\" CLASS=\"BAR\">トップページ</A> &gt; ";
+  $linktext .= "<A HREF=\"../\" CLASS=\"BAR\">管理者メニュー</A> &gt; ";
+  $linktext .= "<FONT COLOR=#FFFF00>ユーザー設定</FONT> ";
+
+  include "../../header.inc.php";
+  flush();
+
+  include "../menu.inc.php";
+
+  if ($login && $admin_sign=="t") {
+    print "<!--";
+    // ページ準備
+    $pagetext  = "";
+    $pagetext .= "<SCRIPT Language=\"JavaScript\">\n";
+    $pagetext .= "<!--\n";
+    $pagetext .= "function reload(obj) {\n";
+    $pagetext .= "  var val = obj.options[obj.selectedIndex].value;\n";
+    $pagetext .= "  obj.selectedIndex = 0;\n";
+    $pagetext .= "  if (val!=\"\" && val!=\"null\") {\n";
+    $pagetext .= "    location.href='./?group='+val;\n";
+    $pagetext .= "  }\n";
+    $pagetext .= "}\n";
+    $pagetext .= "function sequence(from,to,p) {\n";
+    $pagetext .= "  window.location.href = './?group=".$group."&mode=seq&from='+from+'&to='+to+'&p='+p+'';\n";
+    $pagetext .= "}\n";
+    $pagetext .= "// -->\n";
+    $pagetext .= "</SCRIPT>\n";
+
+    // 順序の入れ替え処理
+    if ($mode=="seq") {
+      // seqno_work
+      $sql = "SELECT seqno FROM users ORDER BY seqno DESC";
+      $res = pg_query($conn,$sql);
+      $cnt = pg_num_rows($res);
+
+      if ($cnt > 1) {
+        $row = pg_fetch_array($res,0);
+        $seqno_work = $row["seqno"]+1;
+
+        // ※ seqnoの変更時に、関連データがある場合、忘れずに必ず動かすようにすること
+        // from -> work
+        $sql = "UPDATE users SET seqno=".$seqno_work." WHERE seqno=".$from;
+        $res = pg_query($conn,$sql);
+
+        // to -> from
+        $sql = "UPDATE users SET seqno=".$from." WHERE seqno=".$to;
+        $res = pg_query($conn,$sql);
+
+        // work -> to
+        $sql = "UPDATE users SET seqno=".$to." WHERE seqno=".$seqno_work;
+        $res = pg_query($conn,$sql);
+      }
+    }
+
+    // 検索条件の指定
+    if ($group=="" || $group=="all") {
+      $sql = "SELECT * FROM users ORDER BY seqno";
+    } elseif ($group=="none") {
+      $sql = "SELECT * FROM users LEFT JOIN users_entry ON users.id=users_entry.user_id WHERE users_entry.group_id is null OR users_entry.group_id='' ORDER BY seqno";
+    } else {
+      $sql = "SELECT * FROM users RIGHT JOIN users_entry ON users.id=users_entry.user_id WHERE users_entry.group_id='".$group."' ORDER BY seqno";
+    }
+
+    $res = pg_query($conn, $sql);
+    $cnt = pg_num_rows($res);
+
+    if ($cnt>0) {  
+      $allpages = floor(($cnt-1)/$rows)+1;
+      if ($p>$allpages) $p = 1;
+
+      $s_row = ($p-1) * $rows;
+      $e_row = $p * $rows - 1;
+      if ($e_row>$cnt-1) {$e_row = $cnt-1;}
+      if ($cnt-1>$e_row) {$nextpage = true;}
+    } else {
+      $allpages = 1;
+    }
+
+    //テーブル出力
+    $pagetext .= "<CENTER>
+<TABLE BORDER=0>
+";
+    $sql_group = "SELECT * FROM groups ORDER BY seqno";
+    $res_group = pg_query($conn,$sql_group);
+    $cnt_group = pg_num_rows($res_group);
+
+    $pagetext .= "<TR><FORM><TD>";
+
+    $pagetext .= "<SELECT NAME=\"group\" ONCHANGE=\"reload(this)\">";
+    $pagetext .= "<OPTION VALUE=\"all\"";
+    if ($group==""||$group=="all") { $pagetext .= " SELECTED"; }
+    $pagetext .= ">全ユーザー";
+    if ($cnt_group>=0) {
+      for ($i=0;$i<$cnt_group;$i++){
+        $row_group = pg_fetch_array($res_group,$i);
+        $pagetext .= "<OPTION VALUE=\"".$row_group["id"]."\"";
+        if ($row_group["id"]==$group) { $pagetext .= " SELECTED"; }
+        $pagetext .= ">".mb_convert_kana($row_group["name"],"ak","EUC-JP")."";
+        $c++;
+      }
+    }
+    $pagetext .= "<OPTION VALUE=\"none\"";
+    if ($group=="none") { $pagetext .= " SELECTED"; }
+    $pagetext .= ">所属なし";
+
+    $pagetext .= "</SELECT>";
+    $pagetext .= "</TD></FORM></TR>";
+
+    $pagetext .= "<TR><TD>";
+
+    $pagetext .= "<TABLE WIDTH=100% CEKKPADDING=0 CELLSPACING=0><TR>";
+    $pagetext .= "<TD>".$cnt."件中 ".($s_row+1)."〜".($e_row+1)."件目の表示</TD>";
+    if ($admin_sign){
+      $pagetext .= "<TD ALIGN=RIGHT><A HREF=\"./edit.phtml?group=$group&p=$p\">追加する <IMG SRC=\"../../image/entrysadd.gif\" BORDER=0 ALT=\"追加する\"></A></TD>";
+    }
+    $pagetext .= "</TD></TR></TABLE>";
+
+    $pagetext .= "</TD></TR>\n";
+
+    $pagetext .= "
+<TR><TD>
+<TABLE BORDER=0 CELLPADDING=3 CELLSPACING=1 BGCOLOR=#666666>
+<TR BGCOLOR=#999999>
+<TH><FONT COLOR=#FFFFFF>順序</TH>
+<TH><FONT COLOR=#FFFFFF>管理ID</TH>
+<TH><FONT COLOR=#FFFFFF>氏名</TH>
+<TH><FONT COLOR=#FFFFFF>管理者?</TH>
+<TH><FONT COLOR=#FFFFFF>Event?</TH>
+<TH><FONT COLOR=#FFFFFF>Download?</TH>
+</TR>
+";
+    if ($cnt<1) {  
+      $pagetext .= "<TR BGCOLOR=#FFFFFF><TD ALIGN=CENTER COLSPAN=6>データ未登録</TD></TR>";
+    } else {
+      for ($i=$s_row;$i<=$e_row;$i++) {
+        $row = pg_fetch_array($res, $i);  
+
+        //前レコードseqno取得
+        if ($i>0) {
+          $row_s_prev = pg_fetch_array($res,($i-1));
+          $seqno_prev = $row_s_prev["seqno"];
+        } else {
+          $seqno_prev = 0;
+        }
+
+        //次レコードseqno取得
+        if ($i<$cnt - 1) {
+          $row_s_next = pg_fetch_array($res,($i+1));
+          $seqno_next = $row_s_next["seqno"];
+        } else {
+          $seqno_next = 0;
+        }
+
+
+        if ($i % 2 == 0){
+          $tdcolor = "$bg_dark";
+        } else {
+          $tdcolor = "$bg_light";
+        }
+        $pagetext .= "<TR BGCOLOR=".$tdcolor.">\n";
+
+        // 表示順
+        $pagetext .= "<TD VALIGN=MIDDLE ALIGN=CENTER>\n";
+        $pagetext .= "<TABLE BORDER=0><TR>\n";
+        $pagetext .= "<TD><FONT STYLE=\"font-size:80%\">";
+        if ($seqno_prev>0) {
+          $pagetext .= "<A HREF=\"javascript:sequence('".$row["seqno"]."','".$seqno_prev."','".$p."')\">▲</A>\n";
+        } else {
+          $pagetext .= "▲";
+        }
+        $pagetext .= "</TD>\n";
+        $pagetext .= "<TD><FONT STYLE=\"font-size:80%\">";
+        if ($seqno_next>0) {
+          $pagetext .= "<A href=\"javascript:sequence('".$row["seqno"]."','".$seqno_next."','".$p."')\">▼</A>\n";
+        } else {
+          $pagetext .= "▼";
+        }
+        $pagetext .= "</TD></TR></TABLE>\n";
+        $pagetext .= "</TD>\n";
+
+        // データ
+        $pagetext .= "<TD nowrap ALIGN=LEFT>&nbsp;<A HREF=\"./edit.phtml?group=".$group."&seqno=".$row["seqno"]."&id=".$row["id"]."&p=$p\">".$row["id"]." <IMG SRC=\"../../image/entrysadd.gif\" BORDER=0 ALT=\"編集する\"></A>&nbsp;</TD>\n";
+        $pagetext .= "<TD nowrap ALIGN=LEFT>&nbsp;".$row["name"]."&nbsp;</TD>\n";
+        $pagetext .= "<TD nowrap ALIGN=CENTER>&nbsp;";
+        if ($row["admin_sign"]=="t") {
+          $pagetext .= "<FONT COLOR=#3333FF>●";
+        }
+        $pagetext .= "&nbsp;</TD>\n";
+        $pagetext .= "<TD nowrap ALIGN=CENTER>&nbsp;";
+        if ($row["eventsign"]=="t") {
+          $pagetext .= "<FONT COLOR=#3333FF>●";
+        }
+        $pagetext .= "&nbsp;</TD>\n";
+        $pagetext .= "<TD nowrap ALIGN=CENTER>&nbsp;";
+        if ($row["download_sign"]=="t") {
+          $pagetext .= "<FONT COLOR=#3333FF>●";
+        }
+        $pagetext .= "&nbsp;</TD>\n";
+
+        $pagetext .= "</TR>\n";
+      }
+    }
+
+    $pagetext .= "</TABLE>\n";
+    $pagetext .= "</CENTER>\n";
+
+    // ページ情報の表示
+    if ($allpages>1) {
+      $pagetext .= "<BR>";
+      $pagetext .= "<CENTER>";
+
+      $r = 0;
+      $s_p = $p - 4;
+      $e_p = $p + 4;
+      if ($s_p<1) {
+        $r = 1-$s_p;
+        $s_p = $s_p + $r;
+        $e_p = $e_p + $r;
+      } elseif ($e_p>$allpages) {
+        $r = $e_p - $allpages;
+        $s_p = $s_p - $r;
+        $e_p = $e_p - $r;
+      }
+      if ($s_p < 1) $s_p = 1;
+      if ($e_p > $allpages) $e_p = $allpages;
+
+      if ($p>1) {
+        $pagetext .= "<A HREF=\"./?group=".$group."&p=".($p-1)."\">";
+        $pagetext .= "前のページ";
+        $pagetext .= "</A>";
+      } else {
+        $pagetext .= "<FONT COLOR=#999999>前のページ</FONT>";
+      }
+
+      $pagetext .= "&nbsp;&nbsp;";
+
+      if ($s_p != 1) {
+        $pagetext .= "<A HREF=\"./?group=".$group."&p=".($s_p-1)."\">&lt;</A>&nbsp;";
+      }
+
+      for ($i=$s_p;$i<=$e_p;$i++){
+        if ($p!=$i) {
+          $pagetext .= "[<A HREF=\"./?group=".$group."&p=".$i."\">".$i."</A>]";
+        } else {
+          $pagetext .= "[".$i."]";
+        }
+        $pagetext .= "&nbsp;";
+      }
+
+      if ($e_p != $allpages) {
+        $pagetext .= "<A HREF=\"./?group=".$group."&p=".($e_p+1)."\">&gt;</A>";
+      }
+
+      $pagetext .= "&nbsp;";
+
+      if ($nextpage) {
+        $pagetext .= "<A HREF=\"./?group=".$group."&p=".($p+1)."\">";
+        $pagetext .= "次のページ";
+        $pagetext .= "</A>";
+      } else {
+        $pagetext .= "<FONT COLOR=#999999>次のページ</FONT>";
+      }
+
+      $pagetext .= "&nbsp;";
+      $pagetext .= "</CENTER>\n";
+    }
+
+    $pagetext .= "</TD></TR></TABLE>\n";
+
+    print "-->\n";
+  }
+
+  // 明細表示
+  include "../../detail.inc.php";
+
+  // フッタ表示
+  include "../../footer.inc.php";
+?>

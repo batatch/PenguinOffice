@@ -1,0 +1,80 @@
+<?php
+  include ("./config.inc.php");
+  include ("./lib.inc.php");
+
+  // 前処理
+  $note = trim($note);
+  $note = mbereg_replace("'","’",$note);
+  $note = mbereg_replace('"',"”",$note);
+  $note = strip_tags($note);
+
+
+  // エラーチェック
+  if ($keyword == ""){
+    $MES[] = "検索語句を入力して下さい";
+  }
+
+  if (sizeof($MES)>0) {
+    include "header.inc.php";
+
+    // エラー時
+    print "  <TABLE WIDTH=100% BORDER=0 HEIGHT=260 ALIGN=CENTER><FORM NAME=\"error\">\n";
+    // エラーメッセージ出力
+    while (list($key,$val)=each($MES)) {
+      print "  <TR><TD ALIGN=CENTER>\n";
+      print "  <FONT COLOR=\"#FF0000\"><B>".$val."</B></FONT>&nbsp;&nbsp;\n";
+      print "  </TD></TR>\n";
+    }
+    print "  </FORM>\n";
+
+    print "  <TR>\n";
+    print "  <FORM NAME=Search METHOD=post ACTION=\"./search.phtml\">\n";
+    print "  <TD VALIGN=TOP ALIGN=CENTER NOWRAP STYLE=\"white-space:nowrap\">\n";
+    print "    <TABLE><TR>";
+    print "    <TD>検索語:</TD>\n";
+    print "    <TD><INPUT TYPE=TEXT NAME=\"keyword\" SIZE=40 MAXLENGTH=255></TD></TR>\n";
+    print "    <TR><TD>サーチエンジン:</TD>\n";
+    print "    <TD><SELECT NAME=\"searchengine\">\n";
+    print "      <OPTION VALUE=\"google\">Googleで</OPTION>\n";
+    print "      <OPTION VALUE=\"yahoo\">Yahoo!で</OPTION>\n";
+    print "      <OPTION VALUE=\"infoseek\">Infoseekで</OPTION>\n";
+    print "      <OPTION VALUE=\"goo\">gooで</OPTION>\n";
+    print "      <OPTION VALUE=\"lycos\">Lycosで</OPTION>\n";
+    print "      <OPTION VALUE=\"excite\">Exciteで</OPTION>\n";
+    print "      <OPTION VALUE=\"fresheye\">フレッシュアイで</OPTION>\n";
+    print "    </SELECT></TD></TR>\n";
+    print "    <TR><TD>&nbsp;</TD><TD><INPUT TYPE=SUBMIT NAME=search VALUE=\"再検索\">\n";
+    print "    <INPUT TYPE=\"button\" VALUE=\"閉じる\" ONCLICK=\"window.close()\"></TD></TR></TABLE>\n";
+    print "  </TD></FORM>\n";
+
+
+    print "  </TABLE>\n";
+
+    // フッタ表示
+    include "footer.inc.php";
+  } else {
+    // 正常処理
+    if ($searchengine == "yahoo"){
+      header("Location: http://search.yahoo.co.jp/bin/search?p=".urlencode(euc2sjis($keyword))."");
+    } elseif ($searchengine == "google") {
+      header("Location: http://www.google.com/search?q=".urlencode(euc2sjis($keyword))."");
+    } elseif ($searchengine == "infoseek") {
+      header("Location: http://www.infoseek.co.jp/Titles?qt=".urlencode(euc2sjis($keyword))."");
+    } elseif ($searchengine == "goo") {
+      header("Location: http://www.goo.ne.jp/default.asp?MT=".urlencode(euc2sjis($keyword))."");
+    } elseif ($searchengine == "lycos") {
+      header("Location: http://www.lycos.co.jp/cgi-bin/pursuit?query=".urlencode(euc2sjis($keyword))."");
+    } elseif ($searchengine == "excite") {
+      header("Location: http://www.excite.co.jp/search.gw?target=combined&lk=excite_jp&lang=jp&c=web&search=".urlencode(euc2sjis($keyword))."");
+    } elseif ($searchengine == "fresheye") {
+      header("Location: http://search.fresheye.com/?kw=".urlencode(euc2sjis($keyword))."");
+    } elseif ($searchengine == "hatena") {
+      header("Location: http://www.hatena.ne.jp/search?wd=".urlencode(euc2sjis($keyword))."");
+    } elseif ($searchengine == "alltheweb") {
+      header("Location: http://www.alltheweb.com/search?cat=web&cs=utf-8&l=ja&q=".urlencode(euc2utf($keyword))."");
+#      header("Location: http://www.alltheweb.com/search?cat=web&cs=utf-8&l=ja&q=".urlencode(euc2sjis($keyword))."");
+    } elseif ($searchengine == "allabout") {
+      header("Location: http://allabout.co.jp/sitesearch.htm?start=1&count=50&log=1&current=http://www.penguin.ne.jp%2F&rg=fl&qs=".urlencode(euc2sjis($keyword))."");
+    }
+  }
+?>

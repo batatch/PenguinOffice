@@ -1,0 +1,293 @@
+<?php
+include ("../../config.inc.php"); include ("../../lib.inc.php");
+
+$linktext  = "<A HREF=\"../../\" CLASS=\"BAR\">トップページ</A> &gt; ";
+$linktext .= "<A HREF=\"../\" CLASS=\"BAR\">掲示板</A> &gt; ";
+$linktext .= "<FONT COLOR=#FFFF00>発言の表示</FONT> ";
+
+if (!empty($_GET["board"])) {
+	$board = $_GET["board"];
+} else {
+	$board = $_COOKIE["board_id"];
+}
+$no = $_GET["no"];
+
+// ヘッダ表示
+include ("../../header.inc.php");
+
+if ($login && sizeof($MES)==0) {
+	include ("../menu.inc.php");
+	// エラーチェック
+	if (empty($no)) {
+		$DMES[] = "発言が選択されていません";
+	} else {
+		$sql = "SELECT * FROM boards_post WHERE board_id='$board' AND seqno=$no";
+		$res = pg_query($conn,$sql);
+		$cnt = pg_num_rows($res);
+		if ($cnt==0) {
+			// 発言なし
+			$DMES[] = "指定された発言は登録されていないか既に削除されています";
+		} else {
+			// 発言の取得
+			$row = pg_fetch_array($res,0);
+			$subject = view_textsafe($row["subject"]);
+			if ($kwd!="") {
+				$subject = str_highlight($kwd,$subject);
+			}
+			$serial  = $row["serial"];
+			
+			$resubject = "Re:".preg_replace("/Re:/i","",$subject);
+			
+			$body = preg_replace("/<BR>|\r\n|\r|\n/i","<BR>",$row["body"]);
+#			$body = view_textsafe($body);
+#			if ($kwd!="") {
+#				$body = str_highlight($kwd,$body);
+#			}
+#			$body = str_link(preg_replace("/\s\s/i"," &nbsp;",$body));
+			$body = str_wiki($body);
+			
+			$user_id = $row["user_id"];
+			if ($row["user_id"]==$login_id) {
+				$user_name = $login_name;
+			} else {
+				$user_name = get_first("users","name_ryaku","id='".$row["user_id"]."'","不明");
+			}
+			
+			$create_datetime = date("Y年n月j日 H:i",datetime2timestamp($row["stamp"]));
+			
+			/* リファレンスを獲得 */
+			if ($row["parent"]!="") {
+				$sql = "SELECT seqno,subject FROM boards_post WHERE board_id='".$board."' AND serial='".$row["parent"]."' ORDER BY stamp;";
+				$res_ref = pg_query($conn,$sql);
+				$cnt_ref = pg_num_rows($res_ref);
+				
+				if ($cnt_ref > 0) {
+					$row_ref = pg_fetch_array($res_ref, 0);
+					$refer_seqno   = $row_ref["seqno"];
+					$refer_subject = str_highlight($kwd,mb_strcut($row_ref["subject"],0,60));
+					if ($refer_subject=="") {$refer_subject = "(no subject)";}
+				}
+			}
+			
+			/* フォロー発言を獲得 */
+			if ($row["serial"]!="") {
+				$sql = "SELECT seqno,subject FROM boards_post WHERE board_id = '".$board."' and parent='".$row["serial"]."' ORDER BY stamp;";
+				$res_follow = pg_query($conn,$sql);
+				$cnt_follow = pg_num_rows($res_follow);
+				if ($cnt_follow > 0) {
+					for ($i=0; $i<$cnt_follow; $i++) {
+						$row_follow = pg_fetch_array($res_follow, $i);
+						$follow_seqno[]   = $row_follow["seqno"];
+						$follow_subject[] = str_highlight($kwd,mb_strcut($row_follow["subject"],0,60));
+						if ($follow_subject[sizeof($follow_subject)-1]=="") { $follow_subject[sizeof($follow_subject)-1]="(no subject)";}
+						
+					}
+				}
+			}
+			
+			/* 前後のスレッドを獲得(遅くなる...) */
+			$sql = "SELECT seqno FROM boards_post WHERE board_id = '".$board."' AND parent='' ORDER BY stamp;";
+			$res_seq = pg_query($conn,$sql);
+			$cnt_seq = pg_num_rows($res_seq);
+			
+			$seqno_find = false;
+			for ($i=0; $i<$cnt_seq; $i++) {
+				$r = pg_fetch_row($res_seq, $i);
+				if ($r[0]==$no) {
+					$seqno_find = true;
+				} elseif ($seqno_find) {
+					$next_thread_seqno = $r[0];
+					break;
+				} else {
+					$prev_thread_seqno = $r[0];
+				}
+			}
+			
+			if ($prev_thread_seqno!="") {
+				$sql = "SELECT subject from boards_post WHERE board_id='".$board."' AND seqno=".$prev_thread_seqno.";";
+				$res_prev_thread = pg_query($conn,$sql);
+				if (pg_num_rows($res_prev_thread) > 0) {
+					$row_prev_thread = pg_fetch_array($res_prev_thread,0);
+					$prev_thread_subject = str_highlight($kwd,mb_strcut($row_prev_thread["subject"],0,58));
+					if ($prev_thread_subject=="") {$prev_thread_subject = "(no subject)";}
+				}
+			} else {
+				$prev_thread_subject = "";
+			}
+			
+			if ($next_thread_seqno!="") {
+				$sql = "SELECT subject FROM boards_post WHERE board_id='".$board."' AND seqno=".$next_thread_seqno.";";
+				$res_next_thread = pg_query($conn,$sql);
+				if (pg_num_rows($res_next_thread) > 0) {
+					$row_next_thread = pg_fetch_array($res_next_thread,0);
+					$next_thread_subject = str_highlight($kwd,mb_strcut($row_next_thread["subject"],0,58));
+					if ($next_thread_subject=="") {$next_thread_subject = "(no subject)";}
+				}
+			} else {
+				$next_thread_subject = "";
+			}
+			
+			/* 前の発言を獲得 */
+			$sql = "SELECT seqno,subject FROM boards_post WHERE board_id='".$board."' AND seqno<".$no." ORDER BY stamp DESC";
+			$res_prev = pg_query($conn,$sql);
+			if (pg_num_rows($res_prev) > 0) {
+				$row_prev = pg_fetch_array($res_prev,0);
+				$prev_seqno   = $row_prev["seqno"];
+				$prev_subject = str_highlight($kwd,mb_strcut($row_prev["subject"],0,60));
+				if ($prev_subject=="") {$prev_subject = "(no subject)";}
+			} else {
+				$prev_seqno   = null;
+				$prev_subject = "";
+			}
+			
+			/* 後の発言を獲得 */
+			$sql = "SELECT seqno,subject FROM boards_post WHERE board_id='".$board."' AND seqno>".$no." ORDER BY stamp";
+			$res_next = pg_query($conn,$sql);
+			if (pg_num_rows($res_next) > 0) {
+				$row_next = pg_fetch_array($res_next,0);
+				$next_seqno   = $row_next["seqno"];
+				$next_subject = str_highlight($kwd,mb_strcut($row_next["subject"],0,60));
+				if ($next_subject=="") {$next_subject = "(no subject)";}
+			} else {
+				$next_seqno   = null;
+				$next_subject = "";
+			}
+			
+			// 既読チェック処理
+			$sql = "SELECT * FROM boards_res WHERE board_id='$board' AND seqno=$no AND user_id='$login_id'";
+			$res = pg_query($conn,$sql);
+			$cnt = pg_num_rows($res);
+			if ($cnt==0) {
+				$sql  = "INSERT INTO boards_res (board_id,seqno,user_id,createstamp) VALUES ";
+				$sql .= "('$board',$no,'$login_id','now()')";
+			} else {
+				$sql  = "UPDATE boards_res SET ";
+				$sql .= "createstamp='now()' ";
+				$sql .= "WHERE board_id='$board' AND seqno=$no AND user_id='$login_id'";
+			}
+			$res = pg_query($conn,$sql);
+		}
+	}
+	
+	// ページ内容作成
+	if (sizeof($DMES)==0) {
+		$pagetext .= "
+&lt;<A HREF=\"../?board=$board&p=$p\">一覧表示へ</A>&gt;<BR>
+<CENTER>
+<TABLE WIDTH=480><TR><TD ALIGN=CENTER>
+<DIV ALIGN=LEFT><FONT COLOR=#555555>投稿者 : <A HREF=\"../../member/?id=$user_id\">$user_name<IMG SRC=\"../../image/clip.gif\" BORDER=0 WIDTH=10 HEIGHT=11 ALIGN=ABSMIDDLE></A></FONT></DIV>
+
+<TABLE BORDER=0 CELLPADDING=4 CELLSPACING=1 width=480 BGCOLOR=#999999>
+<FORM ACTION=\"../post/\" METHOD=POST>
+<INPUT TYPE=HIDDEN NAME=\"p\" VALUE=\"$p\">
+<INPUT TYPE=HIDDEN NAME=\"no\" VALUE=\"$no\">
+<INPUT TYPE=HIDDEN NAME=\"subject\" VALUE=\"$resubject\">
+<INPUT TYPE=HIDDEN NAME=\"body\" VALUE=\"$rebody\">
+<INPUT TYPE=HIDDEN NAME=\"parent\" VALUE=\"$serial\">
+</TD>
+<TR>
+<TD ALIGN=LEFT BGCOLOR=$bg_dark>
+".$subject."
+</TR>
+
+<!--<TR><TD NOWRAP VALIGN=TOP BGCOLOR=$td_back_left HEIGHT=1></TD></TR>-->
+
+<TR>
+<TD ALIGN=LEFT BGCOLOR=$td_back>".$body."</TD></TR>
+</TABLE>
+
+<DIV ALIGN=RIGHT><FONT COLOR=#555555>投稿日時 : $create_datetime</DIV>
+
+</TD></TR></TABLE>
+
+<TABLE><TR><TD>
+<INPUT TYPE=SUBMIT VALUE=\"発言に返信する\" STYLE=\"width:140px\">
+</TD>";
+		
+		if ($admin_sign=="t" || $board_admin_id==$login_id) {
+			$pagetext .= "
+<SCRIPT language=\"JavaScript\">
+<!--
+function remove(no) {
+  if (confirm(\"この発言を削除しますか？\\n\\n注)一度削除された発言を元に戻すことはできません\\n　 また、下位スレッドがある場合、一緒に削除されます\")) {
+    location.href = '../remove/?p=$p&board=".$board."&no='+no;
+  }
+}
+//-->
+</SCRIPT>
+
+<TD>
+<INPUT TYPE=BUTTON VALUE=\"削除\" ONCLICK=\"remove(".$no.")\" STYLE=\"width:60px;background-color:#FFCCCC\">
+</TD>
+";
+		}
+		$pagetext .= "
+</TR></TABLE>
+<TABLE WIDTH=480><TR><TD NOWRAP>
+";
+		if ($refer_seqno!="") {
+			$pagetext .= "<ul><li>元の発言:\n";
+			$pagetext .= "<ul>";
+			$pagetext .= "<li><a href=\"./?p=$p&no=".$refer_seqno."\">".view_textsafe($refer_subject)."</a>\n";
+			$pagetext .= "</ul>\n";
+			$pagetext .= "</ul>\n";
+		}
+		
+		if (sizeof($follow_seqno)>0) {
+			$pagetext .= "<ul><li>フォロー発言:\n";
+			$pagetext .= "<ul>";
+			for ($i=0;$i<sizeof($follow_seqno);$i++) {
+				$pagetext .= "<li><a href=\"./?p=$p&no=".$follow_seqno[$i]."\">".view_textsafe($follow_subject[$i])."</a>\n";
+				$pagetext .= "</li>\n";
+			}
+			$pagetext .= "</ul>\n";
+			$pagetext .= "</ul>\n";
+		}
+		
+		$pagetext .= "<ul>";
+		if (!empty($prev_thread_seqno)) {
+			$pagetext .= "<li>前のスレッド:<A HREF=\"./?p=$p&no=".$prev_thread_seqno."\">".view_textsafe($prev_thread_subject)."</a>\n";
+			$pagetext .= "</li>\n";
+		}
+		
+		if (!empty($next_thread_seqno)) {
+			$pagetext .= "<li>次のスレッド:<A HREF=\"./?p=$p&no=".$next_thread_seqno."\">".view_textsafe($next_thread_subject)."</a>\n";
+			$pagetext .= "</li>\n";
+		}
+		$pagetext .= "</ul>";
+		
+		$pagetext .= "<ul>";
+		if (!empty($prev_seqno)) {
+			$pagetext .= "<li>前の発言:<A HREF=\"./?p=$p&no=".$prev_seqno."\">".view_textsafe($prev_subject)."</a>\n";
+			$pagetext .= "</li>\n";
+		}
+		
+		if (!empty($next_seqno)) {
+			$pagetext .= "<li>次の発言:<A HREF=\"./?p=$p&no=".$next_seqno."\">".view_textsafe($next_subject)."</a>\n";
+			$pagetext .= "</li>\n";
+		}
+		$pagetext .= "</ul>";
+		
+		$pagetext .= "
+</TD></TR></FORM></TABLE>
+</CENTER>
+";
+	} else {
+		// エラー時
+		$pagetext .= "<BR><BR>\n";
+		$pagetext .= "<CENTER>\n";
+		$pagetext .= "<FONT COLOR=#FF0000>\n";
+		while (list($key,$val)=each($DMES)) {
+			$pagetext .= $val."<BR>\n";
+		}
+		$pagetext .= "</FONT>\n";
+		
+		$pagetext .= "<BR><FORM ACTION=\"./\" METHOD=POST>\n";
+		$pagetext .= "<INPUT TYPE=BUTTON VALUE=\"戻る\" ONCLICK=\"history.back()\">\n";
+		$pagetext .= "</FORM>\n";
+		$pagetext .= "</CENTER>\n";
+	}
+}
+include "../../detail.inc.php";
+include "../../footer.inc.php";
+?>

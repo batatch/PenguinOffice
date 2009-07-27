@@ -1,0 +1,222 @@
+<?php
+  include "../../config.inc.php";
+  include "../../lib.inc.php";
+
+  $linktext  = "<A HREF=\"/\" CLASS=\"BAR\">トップページ</A> &gt; ";
+  $linktext .= "<A HREF=\"/member/\" CLASS=\"BAR\">メンバー一覧</A> &gt; ";
+  $linktext .= "<FONT COLOR=#FFFF00>タイムカード</FONT>";
+
+  include "../../header.inc.php";
+
+  if ($login) {
+    // 勤務情報の更新
+    if (isset($_GET["duty_start"])) {
+      if (get_count("users_duty","user_id='".$login_id."' AND workdate='".date("Y-m-d")."'")==0) {
+        $sql = "INSERT INTO users_duty (workdate,user_id,startstamp,createstamp,updatestamp) VALUES ('".date("Y-m-d")."','".$login_id."','now','now','now')";
+      } else {
+        $sql = "UPDATE users_duty SET startstamp='now',updatestamp='now' WHERE workdate='".date("Y-m-d")."' AND user_id='".$login_id."'";
+      }
+      $res = pg_query($conn,$sql);
+    }
+    if (isset($_GET["duty_end"])) {
+      if (get_count("users_duty","user_id='".$login_id."' AND workdate='".date("Y-m-d")."'")==0) {
+        $sql = "INSERT INTO users_duty (workdate,user_id,endstamp,createstamp,updatestamp) VALUES ('".date("Y-m-d")."','".$login_id."','now','now','now')";
+      } else {
+        $sql = "UPDATE users_duty SET endstamp='now',updatestamp='now' WHERE workdate='".date("Y-m-d")."' AND user_id='".$login_id."'";
+      }
+      $res = pg_query($conn,$sql);
+    }
+    if (isset($_GET["duty_goes"])) {
+      if (get_count("users_duty","user_id='".$login_id."' AND workdate='".date("Y-m-d")."'")==0) {
+        $sql = "INSERT INTO users_duty (workdate,user_id,goesstamp,createstamp,updatestamp) VALUES ('".date("Y-m-d")."','".$login_id."','now','now','now')";
+      } else {
+        $sql = "UPDATE users_duty SET goesstamp='now',updatestamp='now' WHERE workdate='".date("Y-m-d")."' AND user_id='".$login_id."'";
+      }
+      $res = pg_query($conn,$sql);
+    }
+    if (isset($_GET["duty_back"])) {
+      if (get_count("users_duty","user_id='".$login_id."' AND workdate='".date("Y-m-d")."'")==0) {
+        $sql = "INSERT INTO users_duty (workdate,user_id,backstamp,createstamp,updatestamp) VALUES ('".date("Y-m-d")."','".$login_id."','now','now','now')";
+      } else {
+        $sql = "UPDATE users_duty SET backstamp='now',updatestamp='now' WHERE workdate='".date("Y-m-d")."' AND user_id='".$login_id."'";
+      }
+      $res = pg_query($conn,$sql);
+    }
+
+    // データ準備
+    if (is_numeric($y) && is_numeric($m) && checkdate($m,1,$y)) {
+      $firststamp = mktime(0, 0, 0, $m, 1, $y);
+    } else {
+      $m = date("m",time()+86400*6);
+      $y = date("Y",time()+86400*6);
+      $firststamp = mktime(0, 0, 0, $m, 1, $y);
+    }
+
+    $next_y = $y; $next_m = $m + 1;
+    if ($next_m>12) {
+      $next_y = $y + 1; $next_m = 1;
+    }
+    $prev_y = $y; $prev_m = $m - 1;
+    if ($prev_m<1) {
+      $prev_y = $y- 1; $prev_m = 12;
+    }
+
+    $laststamp = mktime(0, 0, 0, $next_m, 1, $next_y)-86400;
+
+    $prevmonthstamp = $firststamp-86400;
+    $nextmonthstamp = $laststamp+86400;
+
+    // 年月表示
+    print "<TABLE BORDER=0 CELLSPACING=0 CELLPADDING=2 WIDTH=100%>";
+    print "<TR><TD ALIGN=CENTER>";
+
+    print "<BR>";
+    print "タイムカード情報です。編集は各行右側のペン画像をクリックしてください。";
+    print "<BR><BR>";
+
+    print "<A HREF=\"./?y=".date("Y",$prevmonthstamp)."&m=".date("n",$prevmonthstamp)."\"><IMG SRC=\"../../image/right1.gif\" BORDER=0 ALIGN=ABSMIDDLE ALT=\"前の月\"></A>";
+
+    print "&nbsp;";
+    print $y."年".$m."月";
+    print "&nbsp;";
+
+    print "<A HREF=\"./?y=".date("Y",$nextmonthstamp)."&m=".date("n",$nextmonthstamp)."\"><IMG SRC=\"../../image/left1.gif\" BORDER=0 ALIGN=ABSMIDDLE ALT=\"次の月\"></A>";
+
+    print "<BR>";
+
+    print "<TABLE BORDER=$borderwidth CELLSPACING=1 CELLPADDING=2 WIDTH=420><TR><TD>";
+
+    print "<DIV ALIGN=RIGHT><A HREF=\"./csvout.phtml?y=".$y."&m=".$m."\"><IMG SRC=\"../../image/filesadd.gif\" BORDER=0 ALIGN=ABSMIDDLE ALT=\"CSVファイルのダウンロード\">CSVダウンロード</A></DIV>";
+
+    print "<TABLE BORDER=$borderwidth CELLSPACING=1 CELLPADDING=2 BGCOLOR=#999999 WIDTH=100%>";
+
+    $todaystamp = mktime(0,0,0,date("m"),date("d"),date("Y"));
+
+    print "<TR BGCOLOR=#CCCCCC>";
+    print "<TD ALIGN=CENTER NOWRAP>日付</TD>";
+    print "<TD ALIGN=CENTER NOWRAP>出社</TD>";
+    print "<TD ALIGN=CENTER NOWRAP>退社</TD>";
+    print "<TD ALIGN=CENTER NOWRAP>外出</TD>";
+    print "<TD ALIGN=CENTER NOWRAP>戻り</TD>";
+    print "<TD ALIGN=CENTER NOWRAP WIDTH=40%>コメント</TD>";
+    print "</TR>";
+
+    // カレンダー(縦)表示
+    for($viewstamp=$firststamp;$viewstamp<=$laststamp;$viewstamp=$viewstamp+86400) {
+      // フォント色調整
+      if ($viewstamp==$todaystamp) {
+        $forecolor = "#FFFFFF";
+        $backcolor = $wcolor[date("w",$viewstamp)];
+      } elseif ($viewstamp<$firststamp || $viewstamp>$laststamp) {
+        // 当月以外
+        $forecolor = "#999999";
+        $backcolor = $wcolor_back[date("w",$viewstamp)];
+        if (get_count("holiday","holiday='".date("Y-m-d",$viewstamp)."'")>0) {
+          $backcolor = $wcolor_back[7];
+        }
+      } else {
+        $forecolor = $wcolor[date("w",$viewstamp)];
+        $backcolor = $wcolor_back[date("w",$viewstamp)];
+        if (get_count("holiday","holiday='".date("Y-m-d",$viewstamp)."'")>0) {
+          $forecolor = $wcolor[7];
+          $backcolor = $wcolor_back[7];
+        }
+      }
+      print "<TR BGCOLOR=".$backcolor.">";
+      print "<TD ALIGN=CENTER NOWRAP>";
+
+      print "<FONT COLOR=".$forecolor.">";
+      print date("j",$viewstamp);
+
+      print "(";
+      print $wname[date("w",$viewstamp)];
+      print ")";
+
+      print "</FONT>";
+      print "</TD>";
+
+      $sql_duty = "SELECT * FROM users_duty WHERE user_id='".$login_id."' AND workdate='".date("Y-m-d",$viewstamp)."'";
+      $res_duty = pg_query($conn,$sql_duty);
+      $cnt_duty = pg_num_rows($res_duty);
+
+      $startstamp = false;
+      $endstamp   = false;
+      $goesstamp  = false;
+      $backstamp  = false;
+      $note = "";
+      if ($cnt_duty>0) {
+        $row_duty = pg_fetch_array($res_duty,0);
+        if ($row_duty["startstamp"]!="") $startstamp = datetime2timestamp($row_duty["startstamp"]);
+        if ($row_duty["endstamp"]!="")   $endstamp   = datetime2timestamp($row_duty["endstamp"]);
+        if ($row_duty["goesstamp"]!="")  $goesstamp  = datetime2timestamp($row_duty["goesstamp"]);
+        if ($row_duty["backstamp"]!="")  $backstamp  = datetime2timestamp($row_duty["backstamp"]);
+        $note = $row_duty["note"];
+      }
+
+      print "<TD ALIGN=CENTER NOWRAP>";
+      if ($startstamp == false) {
+        if ($viewstamp==$todaystamp) {
+          print "<INPUT TYPE=BUTTON VALUE=\"出社\" ONCLICK=\"location.href='./?duty_start'\">";
+        } else {
+          print "&nbsp;";
+        }
+      } else {
+        print "<FONT COLOR=".$forecolor.">";
+        print date("H:i",$startstamp);
+      }
+      print "</TD>";
+      print "<TD ALIGN=CENTER NOWRAP>";
+      if ($endstamp == false) {
+        if ($viewstamp==$todaystamp) {
+          print "<INPUT TYPE=BUTTON VALUE=\"退社\" ONCLICK=\"location.href='./?duty_end'\">";
+        } else {
+          print "&nbsp;";
+        }
+      } else {
+        print "<FONT COLOR=".$forecolor.">";
+        print date("H:i",$endstamp);
+      }
+      print "</TD>";
+      print "<TD ALIGN=CENTER NOWRAP>";
+      if ($goesstamp == false) {
+        if ($viewstamp==$todaystamp) {
+          print "<INPUT TYPE=BUTTON VALUE=\"外出\" ONCLICK=\"location.href='./?duty_goes'\">";
+        } else {
+          print "&nbsp;";
+        }
+      } else {
+        print "<FONT COLOR=".$forecolor.">";
+        print date("H:i",$goesstamp);
+      }
+      print "</TD>";
+      print "<TD ALIGN=CENTER NOWRAP>";
+      if ($backstamp == false) {
+        if ($viewstamp==$todaystamp) {
+          print "<INPUT TYPE=BUTTON VALUE=\"戻り\" ONCLICK=\"location.href='./?duty_back'\">";
+        } else {
+          print "&nbsp;";
+        }
+      } else {
+        print "<FONT COLOR=".$forecolor.">";
+        print date("H:i",$backstamp);
+      }
+      print "</TD>";
+
+      print "<TD>";
+      print $note;
+      if ($viewstamp<=$todaystamp) {
+        print "<A HREF=\"./edit.phtml?y=".date("Y",$viewstamp)."&m=".date("n",$viewstamp)."&d=".date("j",$viewstamp)."\">";
+        print "<IMG SRC=\"../../image/entrysadd.gif\" WIDTH=10 HEIGHT=9 BORDER=0 ALIGN=ABSMIDDLE ALT=\"時刻の変更\">";
+        print "&nbsp;";
+      }
+      print "</TD>";
+
+      print "</TR>";
+    }
+    print "</TABLE>\n";
+    print "</TD></TR></TABLE>\n";
+    print "</TD></TR></TABLE>\n";
+  }
+#  include "../../detail.inc.php";
+  include "../../footer.inc.php";
+?>

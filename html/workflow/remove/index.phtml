@@ -1,0 +1,81 @@
+<?php
+  include ("../../config.inc.php"); include ("../../lib.inc.php");
+
+  $linktext  = "<A HREF=\"../../\" CLASS=\"BAR\">トップページ</A> &gt; ";
+  $linktext .= "<A HREF=\"../\" CLASS=\"BAR\">ワークフロー</A> &gt; ";
+  $linktext .= "<FONT COLOR=#FFFF00>案件の削除</FONT> ";
+
+  include ("../../login_check.inc.php");
+
+  if ($login && sizeof($MES)==0) {
+	  $no  = $_GET["no"];
+
+    // エラーチェック
+    if (empty($no)) {
+      $DMES[] = "案件が選択されていません";
+    } else {
+      $sql = "SELECT * FROM workflow WHERE seqno=$no";
+      if (!$admin_sign=="t") $sql .= " AND user_id='$login_id'";
+
+      $res = pg_query($conn,$sql);
+      $cnt = pg_num_rows($res);
+      if ($cnt==0) {
+        // 案件なし
+        $DMES[] = "指定された案件は登録されていないか既に削除されています";
+      } else {
+        // 案件の削除
+        $sql = "DELETE FROM workflow WHERE seqno=$no";
+        $res = pg_query($conn,$sql);
+        if ($res != false) {
+          $cnt = pg_affected_rows($res);
+        } else {
+          $cnt = 0;
+        }
+        if ($cnt==0) {
+          $DMES[] = "案件の削除処理に失敗しました";
+        } else {
+          // 既読情報の削除
+          $sql = "DELETE FROM workflow_res WHERE seqno=$no";
+          $res = pg_query($conn,$sql);
+
+          // 案件の回答を削除
+          $sql = "DELETE FROM workflow_ret WHERE refno=$no";
+          $res = pg_query($conn,$sql);
+
+          // 案件の添付ファイル/ディレクトリ削除
+          $dirno = strval($no); if (strlen($dirno)<8) $dirno = str_repeat("0",8-strlen($dirno)).$dirno;
+          if (file_exists($workflowpath."/".$dirno."/")) {
+            exec($cmd_rm." ".$workflowpath."/".$dirno."/*");
+            exec($cmd_rm." -rf ".$workflowpath."/".$dirno."");
+          }
+        }
+      }
+    }
+
+    if (sizeof($DMES)==0) {
+      // 正常時
+      $returl = "../";
+      Header("Location: ".$returl);
+    } else {
+      // エラー時
+		  include "../../header.inc.php";
+
+      $pagetext .= "<BR><BR>\n";
+      $pagetext .= "<CENTER>\n";
+      $pagetext .= "<FONT COLOR=#FF0000>\n";
+      while (list($key,$val)=each($DMES)) {
+        $pagetext .= $val."<BR>\n";
+      }
+      $pagetext .= "</FONT>\n";
+
+      $pagetext .= "<BR><FORM ACTION=\"../\" METHOD=POST>\n";
+      $pagetext .= "<INPUT TYPE=BUTTON VALUE=\"戻る\" ONCLICK=\"history.back()\">\n";
+
+      $pagetext .= "</FORM>\n";
+      $pagetext .= "</CENTER>\n";
+
+		  include "../../detail.inc.php";
+		  include "../../footer.inc.php";
+    }
+  }
+?>

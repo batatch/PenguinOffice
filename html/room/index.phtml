@@ -1,0 +1,334 @@
+<?
+  include "../config.inc.php";
+  include "../lib.inc.php";
+  include "../language.inc.php";
+
+  // 動作保存用Cookie
+  $headertext .= "Set-Cookie: room_move=weekly; path=/;\n";
+  if (!empty($y)) $headertext .= "Set-Cookie: room_y=$y; path=/;\n";
+  if (!empty($m)) $headertext .= "Set-Cookie: room_m=$m; path=/;\n";
+  if (!empty($d)) $headertext .= "Set-Cookie: room_d=$d; path=/;\n";
+  if (empty($y)) $y = $_COOKIE["room_y"];
+  if (empty($m)) $m = $_COOKIE["room_m"];
+  if (empty($d)) $d = $_COOKIE["room_d"];
+
+  if (!empty($new_target)) {
+    $headertext .= "Set-Cookie: room_target=".$new_target."; path=/;\n";
+    $room_target = $new_target;
+  } elseif (empty($room_target) or $room_target=="") {
+    $room_target="all";
+    $headertext .= "Set-Cookie: room_target=".$room_target."; path=/;\n";
+  }
+
+
+  // リンク用テキストの設定
+  $linktext  = "<A HREF=\"../\" ALT=\"トップページ\" CLASS=\"BAR\">トップページ</A> &gt; ";
+  $linktext .= "<FONT COLOR=#FFFF00>施設・設備予約:週表示</FONT> ";
+
+  include ("../header.inc.php");
+  flush();
+
+  if ($login && sizeof($MES)==0) {
+    //現在日の設定
+    $todaystamp = mktime(0, 0, 0, date("m"), date("d"), date("Y"));
+    if (is_numeric($y) && is_numeric($m) && is_numeric($d) && checkdate($m,$d,$y)) {
+      $firststamp = mktime(0, 0, 0, $m, $d, $y);
+    } else {
+      $firststamp = date2timestamp(timestamp2datetime(time()));
+    }
+    $laststamp  = $firststamp+86400*7-1;
+    $prevweekstamp = $firststamp-86400*7;
+    $nextweekstamp = $laststamp+1;
+    $prevdaystamp = $firststamp-86400;
+    $nextdaystamp = $firststamp+86400;
+
+    $ym = date("ym",timestamp2datetime($firststamp));
+
+    $prevmonthstamp = $firststamp-86400*30;
+    $nextmonthstamp = $firststamp+86400*30;
+?>
+
+<script language="JavaScript">
+<!--
+function reload(o) {
+  var v = o.options[o.selectedIndex].value;
+  o.selectedIndex = 0;
+  if (v!="null") {
+    location.href='./?new_target='+v;
+  }
+}
+function selectmonth(f) {
+  var v = f.options[f.selectedIndex].value;
+  var sp = "-"
+  var spv = v.split(sp);
+  if (v!="" && v!="null") {
+    location.href='./?y='+spv[0]+'&m='+spv[1]+'&d='+spv[2]+'';
+  }
+}
+//-->
+</script>
+
+<TABLE BORDER=0 CELLSPACING=0 CELLPADDING=0 WIDTH=100%><TR>
+<TH ALIGN=LEFT WIDTH=8% NOWRAP>表示範囲:</TH>
+<FORM>
+<TD ALIGN=LEFT WIDTH=50% NOWRAP>
+<?
+    // 設備タイプの獲得
+    $sql_roomtype = "SELECT * FROM rooms_type ORDER BY seqno";
+    $res_roomtype = pg_query($conn,$sql_roomtype);
+    $cnt_roomtype = pg_num_rows($res_roomtype);
+    if ($cnt_roomtype>0) {
+      for ($i=0;$i<$cnt_roomtype;$i++) {
+        $row_roomtype = pg_fetch_array($res_roomtype,$i);
+        $types[($row_roomtype["seqno"])] = $row_roomtype["name"];
+      }
+    }
+
+    print "<SELECT NAME=\"new_target\" onChange=\"reload(this)\">\n";
+
+    if ($room_target=="all") {
+      print "<OPTION VALUE=\"all\" selected>全ての施設</OPTION>\n";
+    } else {
+      print "<OPTION VALUE=\"all\">全ての施設</OPTION>\n";
+    }
+    print "<OPTION VALUE=\"\">--------------------</OPTION>\n";
+
+    $b_type = "";
+    $sql_room = "SELECT * FROM rooms ORDER BY type,id";
+    $res_room = pg_query($conn,$sql_room);
+    $cnt_room = pg_num_rows($res_room);
+
+    if ($cnt_room>0) {
+      for ($i=0;$i<$cnt_room;$i++) {
+        $row_room = pg_fetch_array($res_room,$i);
+        $rooms[$i] = array($row_room["id"],$row_room["type"],$row_room["name"]);
+        if ($b_type != $row_room["type"]) {
+          if (substr($room_target,0,1)=="t" and substr($room_target,1)==$row_room["type"]) {
+            print "<OPTION VALUE=\"t".$row_room["type"]."\" selected>【".$types[$row_room["type"]]."】</OPTION>\n";
+          } else {
+            print "<OPTION VALUE=\"t".$row_room["type"]."\">【".$types[$row_room["type"]]."】</OPTION>\n";
+          }
+        }
+        $b_type = $row_room["type"];
+        if (substr($room_target,0,1)=="r" and substr($room_target,1)==$row_room["id"]) {
+          print "<OPTION VALUE=\"r".$row_room["id"]."\" selected>・".$row_room["name"]."</OPTION>\n";
+        } else {
+          print "<OPTION VALUE=\"r".$row_room["id"]."\">・".$row_room["name"]."</OPTION>\n";
+        }
+      }
+    }
+
+    print "</SELECT>\n";
+?>
+</TD>
+</FORM>
+<TD ALIGN=RIGHT WIDTH=42% NOWRAP>&nbsp;<A HREF="./add/"><IMG SRC="../image/roomsadd.gif" BORDER=0 WIDTH=10 HEIGHT=9 ALT="予約の追加">新しい予約</A>&nbsp;</TD>
+</TD>
+</TR></TABLE>
+
+<?
+    $today = getdate();
+
+    // 週表示
+    print "<TABLE BORDER=0 CELLSPACING=0 CELLPADDING=2 WIDTH=100%><TR>\n";
+    print "<TD ALIGN=RIGHT NOWRAP WIDTH=3%>";
+    print "<A HREF=\"./?y=".date("Y",$prevmonthstamp)."&m=".date("n",$prevmonthstamp)."&d=".date("j",$prevmonthstamp)."\"><IMG SRC=\"../image/right1.gif\" BORDER=0 WIDTH=16 HEIGHT=16 ALT=\"前の月\"></A>";
+    print "</TD>\n";
+
+    print "<TD ALIGN=CENTER NOWRAP WIDTH=10%>";
+    print "<A HREF=\"./monthly.phtml?y=".date("Y",$firststamp)."&m=".date("n",$firststamp)."&d=".date("j",$firststamp)."\">";
+    print "".date("Y",$firststamp)."年".date("n",$firststamp)."月";
+    print "</A>";
+    print "</TD>";
+
+    print "<TD ALIGN=LEFT NOWRAP WIDTH=5%><A HREF=\"./?y=".date("Y",$nextmonthstamp)."&m=".date("n",$nextmonthstamp)."&d=".date("j",$nextmonthstamp)."\"><IMG SRC=\"../image/left1.gif\" BORDER=0 WIDTH=16 HEIGHT=16 ALT=\"次の月\"></A>";
+    print "</TD>\n";
+
+    print "<TD ALIGN=RIGHT WIDTH=20% NOWRAP>";
+    print "<A HREF=\"./?y=".date("Y",$prevweekstamp)."&m=".date("n",$prevweekstamp)."&d=".date("j",$prevweekstamp)."\"><IMG SRC=\"../image/right2.gif\" BORDER=0 ALT=\"前週\"></A>";
+    print "<A HREF=\"./?y=".date("Y",$prevdaystamp)."&m=".date("n",$prevdaystamp)."&d=".date("j",$prevdaystamp)."\"><IMG SRC=\"../image/right1.gif\" BORDER=0 ALT=\"前日\"></A>";
+    print "</A>";
+    print "</TD>\n";
+
+    // 期間表示
+    print "<FORM>";
+		print "<TD ALIGN=CENTER VALIGN=MIDDLE WIDTH=15% NOWRAP>\n";
+    print "<SELECT NAME=\"week\" onChange=\"selectmonth(this)\">\n";
+    ## 今週から6週前
+    for ($ii=6;$ii>=1;$ii--){
+      $prevstamp = $firststamp - 86400 * 7 * $ii;
+      print "<OPTION value=\"".date("Y",$prevstamp)."-".date("n",$prevstamp)."-".date("j",$prevstamp)."\">　".date("m",$prevstamp)."月".date("d",$prevstamp)."日〜".date("m",$prevstamp+86400*6)."月".date("d",$prevstamp+86400*6)."日</OPTION>\n";
+    }
+    ## 今週
+      print "<OPTION value=\"".date("Y",$firststamp)."-".date("n",$firststamp)."-".date("j",$firststamp)."\" selected>【".date("m",$firststamp)."月".date("d",$firststamp)."日〜".date("m",$laststamp)."月".date("d",$laststamp)."日】</OPTION>\n";
+    ## 今週から6週後
+    for ($ii=1;$ii<=6;$ii++){
+      $nextstamp = $firststamp + 86400 * 7 * $ii;
+      print "<OPTION value=\"".date("Y",$nextstamp)."-".date("n",$nextstamp)."-".date("j",$nextstamp)."\">　".date("m",$nextstamp)."月".date("d",$nextstamp)."日〜".date("m",$nextstamp+86400*6)."月".date("d",$nextstamp+86400*6)."日</OPTION>\n";
+    }
+    print "</SELECT>\n";
+    print "</TD>\n";
+    print "</FORM>\n";
+
+    print "<TD ALIGN=LEFT WIDTH=10% NOWRAP>";
+    print "<A HREF=\"./?y=".date("Y",$nextdaystamp)."&m=".date("n",$nextdaystamp)."&d=".date("j",$nextdaystamp)."\"><IMG SRC=\"../image/left1.gif\" BORDER=0 ALT=\"翌日\"></A>";
+    print "<A HREF=\"./?y=".date("Y",$nextweekstamp)."&m=".date("n",$nextweekstamp)."&d=".date("j",$nextweekstamp)."\"><IMG SRC=\"../image/left2.gif\" BORDER=0 ALT=\"翌週\"></A>";
+    print "</TD>\n";
+
+    print "<TD ALIGN=RIGHT NOWRAP>";
+    print "<A HREF=\"./daily.phtml?y=".date("Y",$todaystamp)."&m=".date("n",$todaystamp)."&d=".date("j",$todaystamp)."\"><IMG SRC=\"./image/today.gif\" BORDER=0 ALT=\"今日\"></A>";
+    print "<A HREF=\"./?y=".date("Y",$todaystamp)."&m=".date("n",$todaystamp)."&d=".date("j",$todaystamp)."\"><IMG SRC=\"./image/toweek.gif\" BORDER=0 ALT=\"今週\"></A>";
+    print "<A HREF=\"./monthly.phtml?y=".date("Y",$firststamp)."&m=".date("n",$firststamp)."\"><IMG SRC=\"./image/monthly.gif\" BORDER=0 ALT=\"月表示\"></A>";
+    print "<A HREF=\"./yearly.phtml?y=".date("Y",$firststamp)."&m=".date("n",$firststamp)."\"><IMG SRC=\"./image/yearly.gif\" BORDER=0 ALT=\"年表示\"></A>";
+    print "</TD>\n";
+
+    print "</TR></TABLE>\n";
+
+    // 該当スケジュールの表示
+    print "<TABLE BORDER=$borderwidth CELLSPACING=1 CELLPADDING=2 WIDTH=100% BGCOLOR=#999999>";
+    print "<TR BGCOLOR=#CCCCCC><TD>&nbsp;</TD>";
+    for($viewstamp=$firststamp;$viewstamp<=$laststamp;$viewstamp=$viewstamp+86400) {
+      $bgcolor = $wcolor_titleback[date("w",$viewstamp)];
+      if (get_count("holiday","holiday='".date("Y-m-d",$viewstamp)."'")>0) $bgcolor = $wcolor_titleback[7];
+      print "<TD WIDTH=12% BGCOLOR=".$bgcolor." ALIGN=CENTER>";
+      $nowym = date("ym",$viewstamp);
+      $fontcolor = $wcolor[date("w",$viewstamp)];
+      if (get_count("holiday","holiday='".date("Y-m-d",$viewstamp)."'")>0) $fontcolor = $wcolor[7];
+      print "<A HREF=\"./daily.phtml?y=".date("Y",$viewstamp)."&m=".date("n",$viewstamp)."&d=".date("j",$viewstamp)."\" STYLE=\"color:".$fontcolor."\">";
+      if ($ym!=$nowym) {
+        print date("n/j",$viewstamp)."(".$wname[date("w",$viewstamp)].")";
+      } else {
+        print date("j",$viewstamp)."(".$wname[date("w",$viewstamp)].")";
+      }
+      print "</A>";
+      $ym = $nowym;
+      print "</TD>";
+    }
+    print "</TR>";
+
+    $b_type = "";
+
+    if ($cnt_room>0) {
+      for ($i=0;$i<$cnt_room;$i++) {
+        $room_id   = $rooms[$i][0];
+        $room_type = $rooms[$i][1];
+        $room_name = $rooms[$i][2];
+
+        // 表示対象判定
+        $draw = false;
+        if ($room_target=="" || $room_target=="all") {
+          $draw = true;
+        } elseif(substr($room_target,0,1)=="t") {
+          if ($room_type==substr($room_target,1)) {
+            $draw = true;
+          }
+        } elseif(substr($room_target,0,1)=="r") {
+          if ($room_id==substr($room_target,1)) {
+            $draw = true;
+          }
+        }
+
+        if ($draw) {
+          if ($b_type != $room_type) {
+            print "<TR><TD WIDTH=17% COLSPAN=8 BGCOLOR=#DADADA><B>".$types[$room_type]."</B></TD></TR>\n";
+          }
+          $b_type = $room_type;
+
+          $sql  = "SELECT * FROM rooms_reserve WHERE room_id='".$room_id."' AND ";
+          $sql .= "(date>='".date("Y-m-d",$firststamp)."' AND date<='".date("Y-m-d",$laststamp)."') ORDER BY date,timefrom,timeto";
+          $res = pg_query($conn,$sql);
+          $cnt = pg_num_rows($res);
+
+          $column="";
+          for ($j=0;$j<$cnt;$j++) {
+            $row = pg_fetch_array($res,$j);
+            // 時刻値計算
+            if ($row["timefrom"]!="") {
+              $timevalue = date("Hi",datetime2timestamp($row["timefrom"]));
+            } elseif ($row["timeto"]!="") {
+              $timevalue = date("Hi",datetime2timestamp($row["timefrom"])-3600);
+            } else {
+              $timevalue = 0;
+            }
+            $daynumber = floor(date2timestamp($row["date"])/86400) - floor($firststamp/86400);
+            $column[$daynumber][$row["seqno"]] = $timevalue;
+          }
+
+          print "<TR BGCOLOR=#CCCCCC>";
+          print "<TD WIDTH=15% VALIGN=TOP BGCOLOR=".$bodyBackColor.">";
+          print "<TABLE BORDER=0 CELLPADDING=0 CELLSPACING=0 WIDTH=100%><TR><TD VALIGN=TOP NOWRAP>";
+          print $room_name;
+          print "</TD><TD ALIGN=RIGHT>";
+          print "<A HREF=\"./add/?id=".$room_id."\"><IMG SRC=\"../image/roomsadd2.gif\" BORDER=0 WIDTH=10 HEIGHT=9 ALT=\"予約の追加\"></A>";
+          print "</TD></TR></TABLE>\n";
+          print "</TD>\n";
+          $c = 0;
+          for ($viewstamp=$firststamp;$viewstamp<=$laststamp;$viewstamp=$viewstamp+86400) {
+            // 予約表示開始
+            if ($todaystamp==$viewstamp) {
+              $bgcolor = "#AAAAFF";
+            } else {
+              $bgcolor = $wcolor_back[date("w",$viewstamp)];
+              if (get_count("holiday","holiday='".date("Y-m-d",$viewstamp)."'")>0) $bgcolor = $wcolor_back[7];
+            }
+            print "<TD WIDTH=12% VALIGN=TOP BGCOLOR=".$bgcolor.">";
+
+            $columns = $column[$c];
+            if (sizeof($columns)>0 && is_array($columns)) {
+              if (sizeof($columns)>1) asort($columns);
+              print "<TABLE BORDER=0 CELLSPACING=0 CELLPADDING=0 WIDTH=100%>";
+
+              $r = 0;
+              while (list($seqno,$val)=each($columns)) {
+                $sql = "SELECT * FROM rooms_reserve WHERE seqno=".$seqno;
+                $res = pg_query($conn,$sql);
+                $cnt = pg_num_rows($res);
+
+                print "<TR>";
+                if ($r<sizeof($columns)-1) {
+                  print "<TD STYLE=\"border-bottom-style:dotted;border-bottom-width:1;border-bottom-color:#0000FF\">";
+                } else {
+                  print "<TD>";
+                }
+
+                if ($cnt>0) {
+                  $row = pg_fetch_array($res,0);
+
+                  print "<A HREF=\"./add/?s=".$row["seqno"]."\" STYLE=\"font-weight:normal\">";
+                  print "<TT>";
+
+                  print date("H:i",datetime2timestamp($row["timefrom"]))."-";
+                  print date("H:i",datetime2timestamp($row["timeto"]))."</FONT><BR>\n";
+
+                  print get_first("users","name_ryaku","id='".$row["user_id"]."'","不明または削除");
+                  print "<BR>\n";
+
+                  print mb_strcut(preg_replace("/\x0D\x0A|\x0D|\x0A|\r\n/"," ",$row["note"]),0,100,"EUC-JP");
+
+                  print "</TT>";
+                  print "</A>\n";
+                }
+                print "</TD></TR>";
+                $r++;
+              }
+              print "</TABLE>";
+            }
+            // 予約書き込みリンク
+            print "<DIV ALIGN=RIGHT>";
+            print "<A HREF=\"./add/?ey=".date("Y",$viewstamp)."&em=".date("n",$viewstamp)."&ed=".date("j",$viewstamp)."&id=".$room_id."\"><IMG SRC=\"../image/roomsadd.gif\" BORDER=0 WIDTH=10 HEIGHT=9 ALT=\"予約の追加\"></A>";
+            print "</DIV>";
+            print "</TD>\n";
+            $c++;
+          }
+          print "</TR>\n";
+        }
+      }
+      print "</TABLE>\n";
+    }
+?>
+<br>
+<?
+  }
+  // フッタ表示
+  include ("../footer.inc.php");
+?>

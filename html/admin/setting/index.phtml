@@ -1,0 +1,206 @@
+<?
+  include "../../config.inc.php"; include "../../lib.inc.php";
+  $linktext  = "<A HREF=\"../../\" CLASS=\"BAR\">トップページ</A> &gt; ";
+  $linktext .= "<A HREF=\"../\" CLASS=\"BAR\">管理者メニュー</A> &gt; ";
+  $linktext .= "<FONT COLOR=#FFFF00>管理者設定</FONT> ";
+  include "../../header.inc.php"; include "../menu.inc.php";
+
+  if (!$login) {
+    $MES[] = "先にログインしてください";
+  } elseif ($admin_sign!="t") {
+    $MES[] = "本機能は管理者のみご利用可能です";
+  } elseif ($login && $admin_sign=="t") {
+    if ($err!="t") {
+      $row = get_row("admin","*","");
+      $name         = $row["name"];
+      $name_kana    = $row["name_kana"];
+      $url          = $row["url"];
+      $email        = $row["email"];
+      $company      = $row["company"];
+      $company_kana = $row["company_kana"];
+      $depa         = $row["depa"];
+      $post         = $row["post"];
+      $zip          = $row["zip"];
+      $state        = $row["state"];
+      $city         = $row["city"];
+      $street       = $row["street"];
+      $build        = $row["build"];
+      $area         = $row["area"];
+      $tel          = $row["tel"];
+      $fax          = $row["fax"];
+    } else {
+      $name         = textsafe($name);
+      $name_kana    = textsafe($name_kana);
+      $url          = textsafe($url);
+      $email        = textsafe($email);
+      $company      = textsafe($company);
+      $company_kana = textsafe($company_kana);
+      $depa         = textsafe($depa);
+      $post         = textsafe($post);
+      $zip          = textsafe($zip);
+      $state        = textsafe($state);
+      $city         = textsafe($city);
+      $street       = textsafe($street);
+      $build        = textsafe($build);
+      $area         = textsafe($area);
+      $tel          = textsafe($tel);
+      $fax          = textsafe($fax);
+    }
+
+    $pagetext .= "
+<SCRIPT LANGUAGE=\"JavaScript\">
+<!--
+function updateconf() {
+  return confirm('管理者情報を更新します\\nよろしいですか？');
+}
+//-->
+</SCRIPT>
+
+<BR><DIV ALIGN=CENTER>
+
+<TABLE BORDER=0 CELLPADDING=0 CELLSPACING=0 WIDTH=500>
+<TR><TD ALIGN=CENTER WIDTH=110 HEIGHT=25 background=\"../../image/tabselect.gif\">管理者情報</TD>
+<TD ALIGN=CENTER WIDTH=10 HEIGHT=25></TD>
+<TD ALIGN=CENTER WIDTH=110 HEIGHT=25 background=\"../../image/tab.gif\"><A HREF=\"./display.phtml\">表示設定</A></TD>
+<TD ALIGN=CENTER WIDTH=10 HEIGHT=25></TD>
+<TD ALIGN=CENTER WIDTH=110 HEIGHT=25 background=\"../../image/tab.gif\"><A HREF=\"./system.phtml\">システム設定</A></TD>
+<TD WIDTH=140></TD>
+</TR>
+</TABLE>
+
+<TABLE BORDER=0 CELLPADDING=10 CELLSPACING=0 WIDTH=500 BGCOLOR=#666666>
+<FORM ACTION=\"./index_update.phtml\" METHOD=POST onSubmit=\"return updateconf()\">
+<TR><TD ALIGN=CENTER BGCOLOR=#9999FF STYLE=\"border-left-width:2;border-left-color:#CCCCFF;border-left-style:solid;border-right-width:2;border-right-color:#666699;border-right-style:solid;border-bottom-width:2;border-bottom-color:#666699;border-bottom-style:solid\"><BR>
+管理者情報を入力して更新ボタンを押してください。<BR><BR>
+";
+    $pagetext .= "<TABLE BORDER=0 CELLPADDING=3 CELLSPACING=1 BGCOLOR=#666666>\n";
+
+    $pagetext .= "<TR>";
+    $pagetext .= "<TD NOWRAP ALIGN=RIGHT BGCOLOR=$td_back_left>会社情報</FONT></TH>\n";
+    $pagetext .= "<TD NOWRAP ALIGN=left BGCOLOR=$td_back>";
+
+    $pagetext .= "<FONT COLOR=#555555 STYLE=\"font-size:8pt\">&nbsp;例：株式会社 ペンギン水産</FONT><BR>";
+    $pagetext .= "<INPUT MAXLENGTH=80 NAME=company SIZE=40 value=\"$company\">";
+    $pagetext .= "<FONT COLOR=#555555 STYLE=\"font-size:8pt\">&nbsp;勤務先名</FONT><BR>";
+
+    $pagetext .= "<FONT COLOR=#555555 STYLE=\"font-size:8pt\">&nbsp;例：ペンギンスイサン</FONT><BR>";
+    $pagetext .= "<INPUT MAXLENGTH=80 NAME=company_kana SIZE=40 value=\"$company_kana\">";
+    $pagetext .= "<FONT COLOR=#555555 STYLE=\"font-size:8pt\">&nbsp;フリガナ</FONT><BR>";
+
+    $pagetext .= "<FONT COLOR=#555555 STYLE=\"font-size:8pt\">&nbsp;例：資源管理部 オキアミ課</FONT><BR>";
+    $pagetext .= "<INPUT MAXLENGTH=80 NAME=depa SIZE=40 value=\"$depa\" STYLE=\"background-color:#EEEEFF\">";
+    $pagetext .= "<FONT COLOR=#555555 STYLE=\"font-size:8pt\">&nbsp;所属部署</FONT><BR>";
+
+    $pagetext .= "<FONT COLOR=#555555 STYLE=\"font-size:8pt\">&nbsp;例：主任</FONT><BR>";
+    $pagetext .= "<INPUT MAXLENGTH=80 NAME=post SIZE=40 value=\"$post\" STYLE=\"background-color:#EEEEFF\">";
+    $pagetext .= "<FONT COLOR=#555555 STYLE=\"font-size:8pt\">&nbsp;役職・肩書き</FONT><BR>";
+
+    $pagetext .= "</TD>\n";
+    $pagetext .= "</TR>\n";
+
+    $pagetext .= "<TR>";
+    $pagetext .= "<TD NOWRAP ALIGN=RIGHT BGCOLOR=$td_back_left>管理者名<BR>EMail</FONT></TH>\n";
+    $pagetext .= "<TD NOWRAP ALIGN=left BGCOLOR=$td_back>";
+    $pagetext .= "<FONT COLOR=#555555 STYLE=\"font-size:8pt\">&nbsp;例：南極 太郎</FONT><BR>";
+    $pagetext .= "<INPUT MAXLENGTH=80 NAME=name SIZE=28 value=\"$name\">";
+    $pagetext .= "<FONT COLOR=#555555 STYLE=\"font-size:8pt\">&nbsp;漢字</FONT><BR>";
+    $pagetext .= "<FONT COLOR=#555555 STYLE=\"font-size:8pt\">&nbsp;例：ナンキョクタロウ</FONT><BR>";
+    $pagetext .= "<INPUT MAXLENGTH=80 NAME=name_kana SIZE=28 value=\"$name_kana\">";
+    $pagetext .= "<FONT COLOR=#555555 STYLE=\"font-size:8pt\">&nbsp;フリガナ</FONT><BR>\n";
+    $pagetext .= "<FONT COLOR=#555555 STYLE=\"font-size:8pt\">&nbsp;例：taro@penguin.ne.jp</FONT><BR>";
+    $pagetext .= "<INPUT MAXLENGTH=80 NAME=email SIZE=40 value=\"$email\" STYLE=\"background-color:#EEEEFF\">";
+    $pagetext .= "</TD>\n";
+    $pagetext .= "</TR>\n";
+
+    $pagetext .= "<TR>";
+    $pagetext .= "<TD NOWRAP ALIGN=RIGHT BGCOLOR=$td_back_left>電話<BR>FAX</FONT></TH>\n";
+
+    $pagetext .= "<TD NOWRAP BGCOLOR=$td_back ALIGN=left>\n";
+    $pagetext .= "<TABLE border=0 cellpadding=0 cellspacing=0>\n";
+    $pagetext .= "<TR>";
+    $pagetext .= "<TD rowspan=2 valign=top><FONT COLOR=#555555 STYLE=\"font-size:8pt\">&nbsp;例：075</FONT><BR>\n";
+    $pagetext .= "<INPUT MAXLENGTH=6 NAME=area SIZE=6 value=\"$area\"> <FONT COLOR=#555555 STYLE=\"font-size:8pt\">&nbsp;−<BR>市外局番</FONT>\n";
+    $pagetext .= "</TD>\n";
+    $pagetext .= "<TD valign=top><FONT COLOR=#555555 STYLE=\"font-size:8pt\">&nbsp;例：325-5590</FONT><BR>\n";
+    $pagetext .= "<INPUT MAXLENGTH=15 NAME=tel value=\"$tel\"> <FONT COLOR=#555555 STYLE=\"font-size:8pt\">&nbsp;電話番号</FONT>\n";
+    $pagetext .= "</TD>\n";
+    $pagetext .= "</TR><TR>";
+    $pagetext .= "<TD valign=top><FONT COLOR=#555555 STYLE=\"font-size:8pt\">&nbsp;例：325-5599</FONT><BR>\n";
+    $pagetext .= "<INPUT MAXLENGTH=15 NAME=fax value=\"$fax\" STYLE=\"background-color:#EEEEFF\"> <FONT COLOR=#555555 STYLE=\"font-size:8pt\">&nbsp;FAX番号</FONT>\n";
+    $pagetext .= "</TD>\n";
+    $pagetext .= "</TR>\n";
+    $pagetext .= "</TABLE>\n";
+    $pagetext .= "</TD>\n";
+    $pagetext .= "</TR>\n";
+
+    $pagetext .= "<TR>";
+    $pagetext .= "<TD NOWRAP ALIGN=RIGHT BGCOLOR=$td_back_left>所在地</FONT></TH>\n";
+    $pagetext .= "<TD NOWRAP ALIGN=left BGCOLOR=$td_back>";
+    $pagetext .= "<FONT COLOR=#555555 STYLE=\"font-size:8pt\">&nbsp;例：600-8813<BR>〒</FONT>";
+    $pagetext .= "<INPUT MAXLENGTH=80 NAME=zip SIZE=9 value=\"$zip\">";
+    if ($network!="intranet") {
+      $pagetext .= "<FONT COLOR=#555555 STYLE=\"font-size:8pt\">&nbsp; ⇒ <a =\"http://search.post.yusei.go.jp/7zip/index.html\" target=\"_blank\">郵便番号検索</a></FONT>";
+    }
+    $pagetext .= "<BR>";
+    $pagetext .= "<FONT COLOR=#555555 STYLE=\"font-size:8pt\">&nbsp;例：京都府</FONT><BR>";
+    $pagetext .= "<SELECT NAME=\"state\">\n";
+    if ($state=="") {
+      $pagetext .= "<OPTION VALUE=\"\" selected>--------</option>\n";
+    } else {
+      $pagetext .= "<OPTION VALUE=\"\">--------</option>\n";
+    }
+    reset($STATE_ARR);
+    for ($i=0;$i<sizeof($STATE_ARR);$i++){
+      if ($state == $STATE_ARR[$i]){
+        $pagetext .= "<OPTION VALUE=\"".$STATE_ARR[$i]."\" selected>".$STATE_ARR[$i]."</option>\n";
+      } else {
+        $pagetext .= "<OPTION VALUE=\"".$STATE_ARR[$i]."\">".$STATE_ARR[$i]."</option>\n";
+      }
+    }
+
+    $pagetext .= "</SELECT>";
+    $pagetext .= "<FONT COLOR=#555555 STYLE=\"font-size:8pt\">&nbsp;都道府県</FONT><BR>\n";
+
+    $pagetext .= "<FONT COLOR=#555555 STYLE=\"font-size:8pt\">&nbsp;例：京都市下京区</FONT><BR>";
+    $pagetext .= "<INPUT MAXLENGTH=80 NAME=city SIZE=40 value=\"$city\">";
+    $pagetext .= "<FONT COLOR=#555555 STYLE=\"font-size:8pt\">&nbsp;市区郡</FONT><BR>\n";
+
+    $pagetext .= "<FONT COLOR=#555555 STYLE=\"font-size:8pt\">&nbsp;例：中堂寺粟田町93</FONT><BR>";
+    $pagetext .= "<INPUT MAXLENGTH=80 NAME=street SIZE=40 value=\"$street\">";
+    $pagetext .= "<FONT COLOR=#555555 STYLE=\"font-size:8pt\">&nbsp;町村・番地</FONT><BR>\n";
+
+    $pagetext .= "<FONT COLOR=#555555 STYLE=\"font-size:8pt\">&nbsp;例：京都リサーチパーク スタジオ棟</FONT><BR>";
+    $pagetext .= "<INPUT MAXLENGTH=80 NAME=build SIZE=40 value=\"$build\" STYLE=\"background-color:#EEEEFF\">";
+    $pagetext .= "<FONT COLOR=#555555 STYLE=\"font-size:8pt\">&nbsp;ビル・マンション&nbsp;</FONT><BR>\n";
+
+    $pagetext .= "</TD>\n";
+    $pagetext .= "</TR>\n";
+
+    $pagetext .= "</TABLE>\n";
+
+    $pagetext .= "
+<BR>
+
+<INPUT TYPE=SUBMIT VALUE=\"更新の実行\">
+
+</FORM>
+</DIV>
+
+</TD>
+</TR>
+</TABLE>
+";
+  } else {
+    $MES[] = "操作が正しくありません";
+  }
+
+  if (sizeof($MES)>0) {
+    $pagetext .= "<CENTER><BR><FONT COLOR=#FF0000>\n";
+    while(list($key,$val)=each($MES)) {
+      $pagetext .= $val."<BR>\n";
+    }
+    $pagetext .= "</FONT></CENTER>\n";
+  }
+  include ("../../detail.inc.php");
+  include ("../../footer.inc.php");
+?>

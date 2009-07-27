@@ -1,0 +1,714 @@
+<?php
+  // ヘッダ表示
+  include "../../config.inc.php";
+  include "../../lib.inc.php";
+  include "../../language.inc.php";
+
+  // URLチェック(簡易版:呼び出し元判定)
+  $env_uri = getenv("HTTP_REFERER");
+  $check = false;
+  if ($env_uri!="" && !mberegi("\/schedule\/continue\/",$env_uri)) {
+    $MES[] = "正しいページからお入りください";
+  }
+
+  // ログインチェック(簡易版)
+  include "../../login_check.inc.php";
+  if ($login) {
+
+    // ユーザー補足情報獲得(未指定時時刻計算用)
+    $sql = "select from_h,from_m,to_h,to_m from users where id = '".$login_id."'";
+    $res = pg_query($conn,$sql);
+    $row = pg_fetch_array($res,0);
+
+    if ($row["from_h"]<>"" and $row["from_h"]<>-1){
+      $calc_from_hour   = $row["from_h"];
+      $calc_from_minuts = $row["from_m"];
+    } else {
+      $calc_from_hour   = 9;
+      $calc_from_minuts = 0;
+    }
+
+    if ($row["to_h"]<>"" and $row["to_h"]<>-1){
+      $calc_to_hour   = $row["to_h"];;
+      $calc_to_minuts = $row["to_m"];
+    } else {
+      $calc_to_hour     = 17;
+      $calc_to_minuts   = 0;
+    }
+  } else {
+    $MES[] = "先に、ログインしてください ⇒ <A HREF=\"$toppath/\">ログインページへ</A>";
+  }
+
+  if (sizeof($MES)==0) {
+    // 前処理
+    $note = textsafe($note);
+
+    if ($seqno!="") {
+      $tit = "編集";
+      if ($errorthrou=="") {
+        $errorthrou = "false";
+      }
+    } else {
+      $tit = "新規";
+    }
+
+    // 共有先チェック
+    if ($tousers==""){
+    } else {
+      $tousers_new = "";
+
+      // $tousers で users のid確認
+      if (is_array($tousers)) {
+        while (list($key,$val)=each($tousers)) {
+          $touser[] = $val;
+        }
+      } else {
+        $touser = split("\t|,",$tousers);
+      }
+      for($i=0;$i<sizeof($touser);$i++) {
+        $sql = "SELECT id FROM users where id='".$touser[$i]."'";
+        $res = pg_query($conn,$sql);
+        if (pg_num_rows($res) == 0){
+          $MES[] = "共有先の相手が登録されていません";
+          break;
+        }
+        if ($id_to!="") { $id_to .= ","; };
+        $id_to .= $touser[$i];
+        $id_to_users[] = $touser[$i];
+
+        $findid=false;
+        if (sizeof($id_to_users)>0) {
+          reset($id_to_users);
+          while(list($key,$val)=each($id_to_users)) {
+            if ($val==$touser[$i]) {
+              $findid = true;
+              break;
+            }
+          }
+        }
+        if (!$findid) {
+          if ($tousers_new != "") { $tousers_new .= "\t"; }
+          $tousers_new .= $touser[$i];
+        }
+      }
+    }
+
+    // エラーチェック
+    if (empty($ey) or $ey==""){
+      $MES[] = "起算日を正しく入力して下さい";
+    } elseif (empty($em) or $em==""){
+      $MES[] = "起算日を正しく入力して下さい";
+    } elseif (empty($ed) or $ed==""){
+      $MES[] = "起算日を正しく入力して下さい";
+    }
+    if (sizeof($MES)==0) {
+      if ($ed != 99 && checkdate($em,$ed,$ey)==false) {
+        $MES[] = "起算日の指定が正しくありません";
+      }
+    }
+
+    if ($pattern == "2" && $ed>28) { # 毎月第5週以上の指定
+      $MES[] = "毎月の決まった週の日程を入力できるのは第4週までです";
+    }
+
+    if (sizeof($MES)==0) {
+      if ($ed != 99) {
+        $edate = $ey."-".$em."-".$ed;
+      } else {
+        for ($endd=31;$endd>28;$endd--) {
+          if (checkdate($em,$endd,$ey)==true) {
+            $edate = $ey."-".$em."-".$endd;
+            break;
+          }
+        }
+      }
+    }
+
+    if (sizeof($MES)==0) {
+      // 過去警告
+      if (date2timestamp($edate) < datetime2timestamp(date("Y-m-d",time())." 00:00:00")) {
+        $WMES[] = "開始日に過去の日付が設定されています";
+      }
+    }
+
+    if ($from_hour==-1 and $from_minuts!=-1 or $from_hour!=-1 and $from_minuts==-1) {
+      $MES[] = "時刻指定が正しくありません";
+      $from_time = "";
+    } else {
+      if ($from_hour==-1 or $from_minuts==-1) {
+        $from_time = "";
+      } else {
+        $from_time = $edate." ".$from_hour.":".$from_minuts.":00";
+        $from_timestamp = datetime2timestamp($from_time);
+      }
+    }
+    if ($to_hour==-1 and $to_minuts!=-1 or $to_hour!=-1 and $to_minuts==-1) {
+      $MES[] = "終了時刻の指定が正しくありません";
+      $to_time = "";
+    } else {
+      if ($to_hour==-1 or $to_minuts==-1) {
+        $to_time = "";
+      } else {
+        $to_time = $edate." ".$to_hour.":".$to_minuts.":00";
+        $to_timestamp = datetime2timestamp($to_time);
+      }
+    }
+
+    if (empty($count) or $count=="") {
+      $MES[] = "繰り返し回数の指定が正しくありません";
+    } else {
+      if ($count>24) {
+        $MES[] = "一度に登録できるのは24回までです。何回かに分けて登録してください";
+      }
+    }
+
+    if (sizeof($MES)==0) {
+      if ($room_id != "" and ($from_time == "" or $to_time == "")) {
+        $MES[] = "施設予約を同時に行う場合、開始と終了時刻は必ず指定してください";
+      }
+
+      if ($from_time !="" and $to_time !="") {
+        if ($from_hour==$to_hour and $from_minuts==$to_minuts) {
+          $MES[] = "開始時刻と終了時刻が同一です";
+        } else {
+          if ($from_hour*60+$from_minuts > $to_hour*60+$to_minuts) {
+            $MES[] = "終了時刻は開始時刻以降の時刻を設定してください";
+          }
+        }
+      }
+    }
+
+    // 処理日付のスタック
+    if (sizeof($MES)==0) {
+      $sdate[] = $edate;
+      $bakstamp = date2timestamp($edate);
+      for ($i=1;$i<$count;$i++){
+        if ($pattern == "0") { # 毎日(連続)
+          $adddate = date("Y-m-d",$bakstamp + 86400);
+        } elseif ($pattern == "1") { # 毎週Ｘ曜
+          $adddate = date("Y-m-d",$bakstamp + 86400*7);
+        } elseif ($pattern == "2") { # 毎月第ｘＸ曜
+          $backY = date("Y",$bakstamp);
+          $backM = date("m",$bakstamp);
+          $backD = date("d",$bakstamp);
+          $backWM = floor(($backD-1) / 7)+1;
+          $backW = date("w");
+          $backM++;
+          if ($backM>12) {
+            $backY++;
+            $backM=1;
+          }
+          for ($calcD=(($backWM-1)*7)+1;$calcD<($backWM*7)+1;$calcD++) {
+            if (date("w",date2timestamp($backY."-".$backM."-".$calcD))==date("w",$bakstamp)) {
+              $adddate = $backY."-".$backM."-".$calcD;
+              break;
+            }
+          }
+
+        } elseif ($pattern == "3") { # 毎月同日
+          $backY = date("Y",$bakstamp);
+          $backM = date("m",$bakstamp);
+          $backD = $ed;
+          $backM++;
+          if ($backM>12) {
+            $backY++;
+            $backM=1;
+          }
+          if (($backY % 400) == 0) { # 月末調整用
+            $day_table = $day_366; #閏年
+          } elseif (($backY % 100) == 0) {
+            $day_table = $day_365; #閏年でない
+          } elseif (($backY % 4) == 0) {
+            $day_table = $day_366; #閏年
+          } else {
+            $day_table = $day_365; #閏年でない
+          }
+          if ($backD > $day_table[($backM-1)]) {
+            $backD = $day_table[($backM-1)];
+          }
+          $adddate = $backY."-".$backM."-".$backD;
+
+        }
+
+        $sdate[] = $adddate;
+        $bakstamp = date2timestamp($adddate);
+      }
+    }
+
+    if (sizeof($MES)==0) {
+      if (($tit == "新規" and $mine != "f") or ($tit == "編集")) { // 自身を除外時はチェックを除外
+
+        reset($sdate);
+        while(list($key,$val)=each($sdate)) {
+          // ブッキングチェック用 日時生成
+          if ($from_time != "") {
+            $check_from_time = $val." ".date("H:i",$from_timestamp);
+          } else {
+            if ($to_time != "") {
+              $check_from_time = $val." ".date("H:i",($to_timestamp-3600*2)+1);
+            } else {
+              $check_from_time = $val." ".$calc_from_hour.":".$calc_from_minuts.":00";
+            }
+          }
+          if ($to_time != "") {
+            $check_to_time = $val." ".date("H:i",$to_timestamp);
+          } else {
+            if ($from_time != "") {
+              $check_to_time = $val." ".date("H:i",($from_timestamp+3600*2)-1);
+            } else {
+              $check_to_time = $val." ".$calc_to_hour.":".$calc_to_minuts.":00";
+            }
+          }
+
+          // ブッキングチェック
+          $sql  = "SELECT * FROM schedules WHERE (";
+          $sql .= "timefrom <> null and timeto <> null and "; 
+          $sql .= "((timefrom > '".$check_from_time."') and (timeto < '".$check_to_time."')) or "; 
+          $sql .= "((timeto > '".$check_from_time."') and (timeto < '".$check_to_time."')) or "; 
+          $sql .= "((timefrom > '".$check_from_time."') and (timefrom < '".$check_to_time."')) or "; 
+          $sql .= "((timefrom <= '".$check_from_time."') and (timeto >= '".$check_to_time."'))"; 
+          $sql .= ") and user_id='".$user_id."' ";
+
+          if ($seqno!="") {
+            $sql .= " and seqno<>".$seqno." ";
+          }
+          $res_check = pg_query($conn,$sql);
+          $cnt_check = pg_num_rows($res_check);
+          if ($cnt_check>0) {
+            $WDATE[date2timestamp($val)] = 0;
+            $WMES[] = date("n月j日",date2timestamp($val))."(".$wname[date("w",date2timestamp($val))].")の指定時刻には既に他のスケジュールが登録されています";
+          }
+        }
+      }
+    }
+
+    if (trim($note)=="") {
+      $MES[] = "内容が入力されていません";
+    } elseif(strlen($note)>8192) {
+      $MES[] = "内容が長すぎます。8192文字までです";
+      $note = mb_strcut($note,0,8192);
+    }
+
+    // 共有制限
+    if ($openflag==0) {
+      $opensign = 't';
+      $viewsign = 't';
+    } elseif ($openflag==1) {
+      $opensign = 't';
+      $viewsign = 'f';
+    } else {
+      $opensign = 'f';
+      $viewsign = 'f';
+    }
+
+    if (sizeof($id_to_users)>0) {
+      if ($opensign!='t') {
+        $MES[] = "予定を共有する場合は、非公開にすることはできません";
+      }
+      if ($viewsign!='t') {
+#        $MES[] = "予定を共有する場合は、内容を非表示にすることはできません";
+      }
+    }
+  }
+
+  if (sizeof($MES)==0) {
+    // 共有者のブッキングチェック
+    if (sizeof($id_to_users)>0) {
+
+      reset($sdate);
+      while(list($key,$val)=each($sdate)) {
+
+        // ブッキングチェック用 日時生成
+        if ($from_time != "") {
+          $check_from_time = $val." ".date("H:i",$from_timestamp);
+        } else {
+          if ($to_time != "") {
+            $check_from_time = $val." ".date("H:i",($to_timestamp-3600*2)+1);
+          } else {
+            $check_from_time = $val." ".$calc_from_hour.":".$calc_from_minuts.":00";
+          }
+        }
+        if ($to_time != "") {
+          $check_to_time = $val." ".date("H:i",$to_timestamp);
+        } else {
+          if ($from_time != "") {
+            $check_to_time = $val." ".date("H:i",($from_timestamp+3600*2)-1);
+          } else {
+            $check_to_time = $val." ".$calc_to_hour.":".$calc_to_minuts.":00";
+          }
+        }
+
+        reset($id_to_users);
+        for ($i=0;$i<sizeof($id_to_users);$i++){
+          $sql  = "SELECT * FROM schedules WHERE (";
+          $sql .= "(timefrom <> null and timeto <> null) and "; 
+          $sql .= "((timefrom > '".$check_from_time."') and (timeto < '".$check_to_time."')) or "; 
+          $sql .= "((timeto > '".$check_from_time."') and (timeto < '".$check_to_time."')) or "; 
+          $sql .= "((timefrom > '".$check_from_time."') and (timefrom < '".$check_to_time."')) or "; 
+          $sql .= "((timefrom <= '".$check_from_time."') and (timeto >= '".$check_to_time."'))"; 
+          $sql .= ") and user_id='".$id_to_users[$i]."' ";
+          if ($seqno!="") {
+            $sql .= " and seqno<>".$seqno." and ref_seqno<>".$seqno;
+          }
+          $res_check = pg_query($conn,$sql);
+
+          if (pg_num_rows($res_check)>0) {
+
+            $sql = "SELECT * FROM users where id='".$id_to_users[$i]."'";
+            $res_user = pg_query($conn,$sql);
+            if (pg_num_rows($res_user)>0) {
+              $row_user = pg_fetch_array($res_user, 0);  
+              $name_ryaku = $row_user["name_ryaku"];
+            } else {
+              $name_ryaku = "";
+            }
+
+            $WDATE[date2timestamp($val)] = 0;
+            $WMES[] = $name_ryaku."様には".date("n月j日",date2timestamp($val))."の指定された時刻に既に他のスケジュールが登録されています";
+            break;
+          }
+        }
+      }
+    }
+  }
+
+  if (sizeof($MES)==0) {
+    // 施設のブッキングチェック
+    if ($room_id!="") {
+      reset($sdate);
+      while(list($key,$val)=each($sdate)) {
+
+        // ブッキングチェック用 日時生成
+        if ($from_time != "") {
+          $check_from_time = $val." ".date("H:i",$from_timestamp);
+        } else {
+          if ($to_time != "") {
+            $check_from_time = $val." ".date("H:i",($to_timestamp-3600*2)+1);
+          } else {
+            $check_from_time = $val." ".$calc_from_hour.":".$calc_from_minuts.":00";
+          }
+        }
+        if ($to_time != "") {
+          $check_to_time = $val." ".date("H:i",$to_timestamp);
+        } else {
+          if ($from_time != "") {
+            $check_to_time = $val." ".date("H:i",($from_timestamp+3600*2)-1);
+          } else {
+            $check_to_time = $val." ".$calc_to_hour.":".$calc_to_minuts.":00";
+          }
+        }
+
+        $sql  = "SELECT * FROM rooms_reserve WHERE (";
+        $sql .= "(timefrom > '".$check_from_time."' and timeto < '".$check_to_time."') or "; 
+        $sql .= "(timeto > '".$check_from_time."' and timeto < '".$check_to_time."') or "; 
+        $sql .= "(timefrom > '".$check_from_time."' and timefrom < '".$check_to_time."') or "; 
+        $sql .= "(timefrom <= '".$check_from_time."' and timeto >= '".$check_to_time."')"; 
+        $sql .= ") and room_id='".$room_id."' ";
+        $res_check = pg_query($conn,$sql);
+        if (pg_num_rows($res_check)>0) {
+
+          $sql = "SELECT * FROM rooms where id='".$room_id."'";
+          $res_room = pg_query($conn,$sql);
+          if (pg_num_rows($res_room)>0) {
+            $row_room = pg_fetch_array($res_room, 0);  
+            $roomname = $row_room["name"];
+          } else {
+            $roomname = "";
+          }
+          $WDATE[date2timestamp($val)] = 0;
+
+          $MES[] = $roomname."には".date("n月j日",date2timestamp($val))."の指定された時刻に既に他の予約が登録されています";
+        }
+      }
+    }
+  }
+
+  $linktext  = "<A HREF=\"../../\" CLASS=\"BAR\">トップページ</A> &gt; ";
+  $linktext .= "<A HREF=\"../\" CLASS=\"BAR\">予定表</A> &gt; ";
+  $linktext .= "<FONT COLOR=#FFFF00>連続予定の登録</FONT>";
+  include "../../header.inc.php";
+  flush();
+?>
+<SCRIPT LANGUAGE="JavaScript">
+<!--
+function selectfromhour(t,no) {
+  if (t["from_hour"+no][0].selected) {
+    t["from_minuts"+no][0].selected = true;
+  } else {
+    if (t["from_minuts"+no][0].selected == true) t["from_minuts"+no][1].selected = true;
+  }
+}
+
+function selecttohour(t,no) {
+  if (t["to_hour"+no][0].selected) {
+    t["to_minuts"+no][0].selected = true;
+  } else {
+    if (t["to_minuts"+no][0].selected == true) t["to_minuts"+no][1].selected = true;
+  }
+}
+
+function showweekday(t,no) {
+  document.images["weekno"+no].src = '/image/mw-.gif';
+  document.images["weekday"+no].src = '/image/w-.gif';
+
+  m = t["em"+no].options[t["em"+no].selectedIndex].value;
+  d = t["ed"+no].options[t["ed"+no].selectedIndex].value;
+  if (d==99) {
+    d = t["ed"+no].options[t["ed"+no].selectedIndex-1].value;
+  }
+
+  if (!(isNaN(t["ey"+no].value)) && (t["ey"+no].value>0) && !(isNaN(m)) && (m>0) && !(isNaN(d)) && (d>0)) {
+    w = new Date();
+    s = new Date();
+    y = parseInt(t["ey"+no].value);
+    w.setYear(y); w.setMonth(m-1); w.setDate(d);
+    s.setYear(y); s.setMonth(m-1); s.setDate(1);
+
+    mw = Math.floor((d-1)/7)+1;
+    document.images["weekno"+no].src = '/image/mw'+ mw +'.gif';
+    document.images["weekday"+no].src = '/image/w'+ w.getDay() +'.gif';
+  }
+}
+
+function dailyschedule(t,no){
+  y = parseInt(t["ey"+no].value);
+  m = t["em"+no].options[t["em"+no].selectedIndex].value;
+  d = t["ed"+no].options[t["ed"+no].selectedIndex].value;
+
+  wn=opener.window;
+  opener.window.location = '/schedule/daily.phtml?y='+y+'&m='+m+'&d='+d;
+  wn.focus();
+}
+//-->
+</SCRIPT>
+
+<BR>
+
+<TABLE WIDTH=100% HEIGHT=260 CELLPADDING=0 CELLSPACING=0><TR><TD ALIGN=CENTER VALIGN=TOP>
+
+<?
+  if (sizeof($MES)>0 or (sizeof($WMES)>0 and $errorthrou!="true")) {
+    // エラーメッセージ出力
+    print "<CENTER>\n";
+    print "<FORM NAME=\"\" ACTION=\"./\" METHOD=\"POST\">\n";
+    print "<INPUT TYPE=HIDDEN NAME=\"user_id\" VALUE=\"".$user_id."\">\n";
+    print "<INPUT TYPE=HIDDEN NAME=\"ey\" VALUE=\"".$ey."\">\n";
+    print "<INPUT TYPE=HIDDEN NAME=\"em\" VALUE=\"".$em."\">\n";
+    print "<INPUT TYPE=HIDDEN NAME=\"ed\" VALUE=\"".$ed."\">\n";
+    print "<INPUT TYPE=HIDDEN NAME=\"pattern\" VALUE=\"".$pattern."\">\n";
+    print "<INPUT TYPE=HIDDEN NAME=\"count\" VALUE=\"".$count."\">\n";
+    print "<INPUT TYPE=HIDDEN NAME=\"from_hour\" VALUE=\"".$from_hour."\">\n";
+    print "<INPUT TYPE=HIDDEN NAME=\"from_minuts\" VALUE=\"".$from_minuts."\">\n";
+    print "<INPUT TYPE=HIDDEN NAME=\"to_hour\" VALUE=\"".$to_hour."\">\n";
+    print "<INPUT TYPE=HIDDEN NAME=\"to_minuts\" VALUE=\"".$to_minuts."\">\n";
+    print "<INPUT TYPE=HIDDEN NAME=\"kind\" VALUE=\"$kind\">\n";
+    print "<INPUT TYPE=HIDDEN NAME=\"note\" VALUE=\"".$note."\">\n";
+    print "<INPUT TYPE=HIDDEN NAME=\"openflag\" VALUE=\"".$openflag."\">\n";
+    print "<INPUT TYPE=HIDDEN NAME=\"userid_to\" VALUE=\"".$userid_to."\">\n";
+    print "<INPUT TYPE=HIDDEN NAME=\"groupid_to\" VALUE=\"".$groupid_to."\">\n";
+    print "<INPUT TYPE=HIDDEN NAME=\"room_id\" VALUE=\"".$room_id."\">\n";
+    print "<INPUT TYPE=HIDDEN NAME=\"member_count\" VALUE=\"".$member_count."\">\n";
+
+    if (sizeof($MES)>0) {
+      print "<FONT COLOR=#FF0000>\n";
+      while (list($key,$val)=each($MES)) {
+        print $val."<BR>\n";
+      }
+      print "</FONT><BR>\n";
+    }
+
+    if (sizeof($WMES)>0) {
+      print "<FONT COLOR=#FF0033>\n";
+      while (list($key,$val)=each($WMES)) {
+        print $val."<BR>\n";
+      }
+      print "</FONT><BR>\n";
+    }
+
+    print "<INPUT TYPE=SUBMIT VALUE=\"戻る\">";
+    print "</FORM>\n";
+    print "<CENTER>\n";
+
+  }
+  if (sizeof($MES)==0) {
+    // 正常処理
+    if ($errorthrou=="true") {
+      // 追加の実行
+      print "<script language=JavaScript>\n";
+      print "<!--//\n";
+      print "  location.href='./add.phtml';\n";
+      print "//-->\n";
+      print "</script>\n";
+    } else {
+      // 確認画面
+      print "<TABLE>\n";
+      print "<FORM NAME=\"\" ACTION=\"./add.phtml\" METHOD=\"POST\">\n";
+      print "<TR><TD ALIGN=CENTER>\n";
+      print "以下の日程でスケジュールを登録しますか？<BR><BR>";
+
+      print "<TABLE>";
+      if (sizeof($WMES)>0) {
+        print "<INPUT TYPE=HIDDEN NAME=\"errorthrou\" VALUE=\"true\">\n";
+      }
+
+      print "<INPUT TYPE=HIDDEN NAME=\"user_id\" VALUE=\"".$user_id."\">\n";
+
+      print "<INPUT TYPE=HIDDEN NAME=\"pattern\" VALUE=\"".$pattern."\">\n";
+      print "<INPUT TYPE=HIDDEN NAME=\"count\" VALUE=\"".$count."\">\n";
+
+      print "<INPUT TYPE=HIDDEN NAME=\"kind\" VALUE=\"$kind\">\n";
+      print "<INPUT TYPE=HIDDEN NAME=\"note\" VALUE=\"".$note."\">\n";
+      print "<INPUT TYPE=HIDDEN NAME=\"opensign\" VALUE=\"".$opensign."\">\n";
+      print "<INPUT TYPE=HIDDEN NAME=\"viewsign\" VALUE=\"".$viewsign."\">\n";
+      print "<INPUT TYPE=HIDDEN NAME=\"all_gw\" VALUE=\"".$all_gw."\">\n";
+
+      print "<INPUT TYPE=HIDDEN NAME=\"mine\" VALUE=\"".$mine."\">\n";
+
+      print "<INPUT TYPE=HIDDEN NAME=\"tousers\" VALUE=\"".$id_to."\">\n";
+      print "<INPUT TYPE=HIDDEN NAME=\"userid_to\" VALUE=\"".$id_to."\">\n";
+      // 渡し用ユーザー・グループ
+      if (sizeof($touser)>0) {
+        for($i=0;$i<sizeof($touser);$i++) {
+          print "<INPUT TYPE=HIDDEN NAME=\"touser[]\" VALUE=\"".$touser[$i]."\">\n";
+        }
+      }
+      if (sizeof($togroup)>0) {
+        for($i=0;$i<sizeof($togroup);$i++) {
+          print "<INPUT TYPE=HIDDEN NAME=\"togroup[]\" VALUE=\"".$togroup[$i]."\">\n";
+        }
+      }
+
+      print "<INPUT TYPE=HIDDEN NAME=\"id_to\" VALUE=\"".$id_to."\">\n";
+      print "<INPUT TYPE=HIDDEN NAME=\"room_id\" VALUE=\"".$room_id."\">\n";
+      print "<INPUT TYPE=HIDDEN NAME=\"member_count\" VALUE=\"".$member_count."\">\n";
+
+#      print "<TR>";
+
+      // 登録予定表示
+      print "<TABLE BORDER=0 CELLPADDING=0 CELLSPACING=0 BGCOLOR=#999999><TR><TD>\n";
+      $c=0;
+      reset($sdate);
+      while(list($key,$val)=each($sdate)) {
+        $c++;
+        if ($c % 2==0) { $bgcolor = $bg_light; } else { $bgcolor = $bg_dark; }
+        $vy = date("Y",date2timestamp($val));
+        $vm = date("m",date2timestamp($val));
+        $vd = date("d",date2timestamp($val));
+        $weekno = floor((date("j",date2timestamp($vy."-".$vm."-".$vd))-1) / 7)+1;
+        $weekday = date("w",date2timestamp($vy."-".$vm."-".$vd));
+
+        print "<TABLE BORDER=0 CELLPADDING=5 CELLSPACING=1>\n";
+        print "<TR BGCOLOR=$bgcolor>\n";
+        print "<TD ALIGN=RIGHT NOWRAP ROWSPAN=2 BGCOLOR=$bgcolor WIDTH=20>".$c.".</TD>\n";
+        print "<TD BGCOLOR=$bgcolor>日付:\n";
+        print "<INPUT TYPE=TEXT NAME=\"ey$c\" VALUE=\"$vy\" SIZE=5 MAXLENGTH=4 ONCHANGE=\"showweekday(this.form,$c)\" STYLE=\"ime-mode:disabled\">年\n";
+?>
+<SELECT NAME="em<? echo $c ?>" ONCHANGE="showweekday(this.form,<? echo $c ?>)" style="ime-mode:disabled">
+<?
+  for ($i=1;$i<=12;$i++){
+    print "<OPTION VALUE=\"$i\"";
+    if ($i == $vm) { print " SELECTED"; }
+    print ">";
+    if (strlen($i) == 1) print "0";
+    print $i."</OPTION>\n";
+  }
+?>
+</SELECT>月
+<?
+  // 日
+?>
+<SELECT NAME="ed<? echo $c ?>" ONCHANGE="showweekday(this.form,<? echo $c ?>)" style="ime-mode:disabled">
+<?
+  for ($i=1;$i<=31;$i++){
+    print "<OPTION VALUE=\"$i\"";
+    if ($i == $vd){ print " SELECTED"; }
+    print ">";
+    if (strlen($i) == 1) print "0";
+    print $i."</OPTION>\n";
+  }
+?>
+</SELECT>日&nbsp;<IMG NAME="weekno<? echo $c ?>" SRC="/image/mw<? echo $weekno ?>.gif" style="vertical-align:text-top" ALT="第"<? echo $weekno ?> WIDTH=24 HEIGHT=13><IMG NAME="weekday<? echo $c ?>" SRC="/image/w<? echo $weekday ?>.gif" style="vertical-align:text-top" WIDTH=35 HEIGHT=13>
+</TD>
+<!--<TD NOWRAP ALIGN=LEFT ROWSPAN=2 BGCOLOR=<? echo $bgcolor ?>><INPUT TYPE=BUTTON ONCLICK="dailyschedule(this.form,<? echo $c ?>)" VALUE="確認"></TD>-->
+</TR>
+<TR BGCOLOR=<? echo $bgcolor ?>>
+<TD BGCOLOR=<? echo $bgcolor ?>>時刻:
+<SELECT NAME="from_hour<? echo $c ?>" ONCHANGE="selectfromhour(this.form,<? echo $c ?>)" style="ime-mode:disabled">
+<?
+  print "<OPTION VALUE=\"-1\"";
+  if ($from_hour == -1){ print " SELECTED"; }
+  print ">--</OPTION>\n";
+  for ($i=0;$i<=23;$i++){
+    print "<OPTION VALUE=\"$i\"";
+    if ($i == $from_hour){ print " SELECTED"; }
+    print ">";
+    if (strlen($i) == 1) print "0";
+    print $i."</OPTION>\n";
+  }
+?>
+</SELECT>：<SELECT NAME="from_minuts<? echo $c ?>" style="ime-mode:disabled">
+<?
+  print "<OPTION VALUE=\"-1\"";
+  if ($from_minuts == -1){ print " SELECTED"; }
+  print ">--</OPTION>\n";
+  for ($i=0;$i<60;$i=$i+5){
+    print "<OPTION VALUE=\"$i\"";
+    if ($i <= $from_minuts){ print " SELECTED"; }
+    print ">";
+    if (strlen($i) == 1) print "0";
+    print $i."</OPTION>\n";
+  }
+?>
+</SELECT>&nbsp;〜&nbsp;<SELECT NAME="to_hour<? echo $c ?>" ONCHANGE="selecttohour(this.form,<? echo $c ?>)" style="ime-mode:disabled">
+<?
+  print "<OPTION VALUE=\"-1\"";
+  if ($to_hour == -1){ print " SELECTED"; }
+  print ">--</OPTION>\n";
+
+  for ($i=0;$i<=23;$i++){
+    print "<OPTION VALUE=\"$i\"";
+    if ($i == $to_hour){ print " SELECTED"; }
+    print ">";
+    if (strlen($i) == 1) print "0";
+    print $i."</OPTION>\n";
+  }
+?>
+</SELECT>：<SELECT name="to_minuts<? echo $c ?>" style="ime-mode:disabled">
+<?
+  print "<OPTION VALUE=\"-1\"";
+  if ($to_minuts==-1){ print " SELECTED"; }
+  print ">--</OPTION>\n";
+
+  for ($i=0;$i<60;$i=$i+5){
+    print "<OPTION VALUE=\"$i\"";
+    if ($i <= $to_minuts){ print " SELECTED"; }
+    print ">";
+    if (strlen($i)==1) print "0";
+    print $i."</OPTION>\n";
+  }
+?>
+</SELECT>
+</TD>
+</TR>
+</TABLE>
+<?
+      }
+      print "</TD></TR></TABLE>";
+
+      print "<TR><TD ALIGN=CENTER COLSPAN=2>";
+
+      if (sizeof($MES)==0) {
+        print "<INPUT TYPE=SUBMIT VALUE=\"スケジュール登録\"><BR>\n";
+      }
+      print "</TD></TR></TABLE>\n";
+    }
+
+    print "</TD></FORM></TR></TABLE>\n";
+
+  }
+
+  print "</TD></TR></TABLE>\n";
+
+  // フッター出力
+  include "../../footer.inc.php";
+?>

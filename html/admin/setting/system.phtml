@@ -1,0 +1,109 @@
+<?
+  include "../../config.inc.php"; include "../../lib.inc.php";
+  $linktext  = "<A HREF=\"../../\" CLASS=\"BAR\">トップページ</A> &gt; ";
+  $linktext .= "<A HREF=\"../\" CLASS=\"BAR\">管理者メニュー</A> &gt; ";
+  $linktext .= "<FONT COLOR=#FFFF00>管理者設定:システム設定</FONT> ";
+  include "../../header.inc.php"; include "../menu.inc.php";
+
+  if (!$login) {
+    $MES[] = "先にログインしてください";
+  } elseif ($admin_sign!="t") {
+    $MES[] = "本機能は管理者のみご利用可能です";
+  } elseif ($login && $admin_sign=="t") {
+    if ($err!="t") {
+      $row = get_row("admin","*","");
+      $account = $row["account"];
+      $ftpsize = $row["ftpsize"];
+    } else {
+      $account = textsafe($account);
+      $ftpsize = textsafe($ftpsize);
+    }
+
+    if (empty($account)) $account = 5;
+    if (empty($ftpsize)) $ftpsize = 100;
+
+    $pagetext .= "
+<SCRIPT LANGUAGE=\"JavaScript\">
+<!--
+function updateconf() {
+  return confirm('基本表示を更新します\\nよろしいですか？');
+}
+//-->
+</SCRIPT>
+
+<BR><DIV ALIGN=CENTER>
+
+<TABLE BORDER=0 CELLPADDING=0 CELLSPACING=0 WIDTH=500>
+<TR>
+<TD ALIGN=CENTER WIDTH=110 HEIGHT=25 background=\"../../image/tab.gif\"><A HREF=\"./\">管理者情報</A></TD>
+<TD ALIGN=CENTER WIDTH=10 HEIGHT=25>&nbsp;</TD>
+<TD ALIGN=CENTER WIDTH=110 HEIGHT=25 background=\"../../image/tab.gif\"><A HREF=\"./display.phtml\">表示設定</A></TD>
+<TD ALIGN=CENTER WIDTH=10 HEIGHT=25>&nbsp;</TD>
+<TD ALIGN=CENTER WIDTH=110 HEIGHT=25 background=\"../../image/tabselect.gif\">システム設定</TD>
+<TD WIDTH=140>&nbsp;</TD>
+</TR>
+</TABLE>
+
+<TABLE BORDER=0 CELLPADDING=10 CELLSPACING=0 WIDTH=500 BGCOLOR=#666666>
+<FORM ACTION=\"./system_update.phtml\" METHOD=POST onSubmit=\"return updateconf()\">
+<TR><TD ALIGN=CENTER BGCOLOR=#9999FF STYLE=\"border-left-width:2;border-left-color:#CCCCFF;border-left-style:solid;border-right-width:2;border-right-color:#666699;border-right-style:solid;border-bottom-width:2;border-bottom-color:#666699;border-bottom-style:solid\"><BR>
+現在のシステム設定は以下の通りです。<BR>(変更は管理テーブルを編集してください)<BR><BR>
+<TABLE BORDER=0 CELLPADDING=3 CELLSPACING=1 BGCOLOR=#666666>
+";
+    $pagetext .= "<TR><TD NOWRAP ALIGN=RIGHT BGCOLOR=#DDDDFF>最大利用者数</FONT></TH>\n";
+    $pagetext .= "<TD NOWRAP ALIGN=left BGCOLOR=#FFFFFF>";
+    if (!eregi("gw\.penguin\.ne\.jp($|:)",$envHostName)) {
+      $pagetext .= "<INPUT TYPE=TEXT SIZE=6 NAME=\"account\" VALUE=\"$account\">人";
+    } else {
+      $pagetext .= $account."人";
+    }
+    $pagetext .= "</TD></TR>\n";
+
+		if (file_exists($basepath.$toppath."/folder")) {
+			$pagetext .= "<TR><TD NOWRAP ALIGN=RIGHT BGCOLOR=#DDDDFF>FTPサイズ制限</FONT></TH>\n";
+			$pagetext .= "<TD NOWRAP ALIGN=left BGCOLOR=#FFFFFF>";
+			if (!eregi("gw\.penguin\.ne\.jp($|:)",$envHostName)) {
+				$pagetext .= "<INPUT TYPE=TEXT SIZE=8 NAME=\"ftpsize\" VALUE=\"$ftpsize\">MB";
+			} else {
+				$pagetext .= $ftpsize."MB";
+			}
+			$pagetext .= "</TD></TR>\n";
+		}
+
+    $pagetext .= "</TABLE>\n";
+    $pagetext .= "<BR>\n";
+
+    if (!eregi("gw\.penguin\.ne\.jp($|:)",$envHostName)) {
+      $pagetext .= "<INPUT TYPE=SUBMIT VALUE=\"更新の実行\"><BR>\n";
+      $pagetext .= "<BR>\n";
+    }
+
+    $pagetext .= "
+</TD></TR></TABLE>
+<BR>
+
+
+</FORM>
+</DIV>
+
+</TD>
+</TR>
+</TABLE>
+
+<BR>
+";
+  } else {
+    $MES[] = "操作が正しくありません";
+  }
+
+  if (sizeof($MES)>0) {
+    $pagetext .= "<CENTER><BR><FONT COLOR=#FF0000>\n";
+    while(list($key,$val)=each($MES)) {
+      $pagetext .= $val."<BR>\n";
+    }
+    $pagetext .= "</FONT></CENTER>\n";
+  }
+
+  include ("../../detail.inc.php");
+  include ("../../footer.inc.php");
+?>

@@ -1,0 +1,42 @@
+<?php
+  include "../../config.inc.php";
+  include "../../lib.inc.php";
+
+  include ("../../header.inc.php");
+  include ("../menu.inc.php");
+
+  if (!$login) {
+    $MES[] = "先にログインしてください";
+  } elseif ($admin_sign!="t") {
+    $MES[] = "本機能は管理者のみご利用可能です";
+  } elseif ($login && $admin_sign=="t") {
+    // 削除実行
+    if (sizeof($MES)==0){
+      $sql = "DELETE FROM $tbl"; pg_query($conn,$sql);
+
+      if ($tbl=="address") {
+        $sql = "DELETE FROM address_log"; pg_query($conn,$sql);
+      } elseif ($tbl=="boards") {
+        $sql = "DELETE FROM boards_post"; pg_query($conn,$sql);
+        $sql = "DELETE FROM boards_res"; pg_query($conn,$sql);
+      } elseif ($tbl=="circulas") {
+        $sql = "DELETE FROM circulas_ret"; pg_query($conn,$sql);
+        $sql = "DELETE FROM circulas_res"; pg_query($conn,$sql);
+      } elseif ($tbl=="files") {
+        $sql = "DELETE FROM folders"; pg_query($conn,$sql);
+      } elseif ($tbl=="mail") {
+        $sql = "DELETE FROM mail_res"; pg_query($conn,$sql);
+      } elseif ($tbl=="workflow") {
+        $sql = "DELETE FROM workflow_ret"; pg_query($conn,$sql);
+        $sql = "DELETE FROM workflow_res"; pg_query($conn,$sql);
+      }
+    }
+
+    $pagetext .= "
+<BR><BR>
+<CENTER><B>削除完了!</B></CENTER>
+";
+  }
+  include ("../../detail.inc.php");
+  include ("../../footer.inc.php");
+?>

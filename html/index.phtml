@@ -1,0 +1,66 @@
+<?
+  include "./config.inc.php";
+  include "./lib.inc.php";
+
+  $linktext = "<FONT COLOR=#FFFF00>トップページ</FONT> ";
+
+  include "./header.inc.php";
+  flush();
+
+  if ($login) {
+    if ($passwd_updatestamp == "" || datetime2timestamp($passwd_updatestamp)+86400*30 < time()) {
+?>
+<CENTER><FONT COLOR=#FF0000>
+パスワードが３０日以上変更されていません。セキュリティ対策のためパスワード<BR>
+は１ヶ月程度で変更するようにしてください。 変更はこちら ⇒ &lt;<A HREF="./member/profedit/passwd.phtml">パスワード変更</A>&gt;
+</FONT></CENTER>
+<?
+    }
+
+    print "<TABLE BORDER=0 CELLPADDING=2 CELLSPACING=0 WIDTH=100%><TR><TD>";
+
+    // スケジュール
+    include("part_schedule.php");
+
+    print "</TD></TR></TABLE>";
+
+    print "<TABLE BORDER=$borderwidth CELLPADDING=2 CELLSPACING=0 WIDTH=100%><TR>";
+    print "<TD WIDTH=25% VALIGN=TOP>";
+    // 行き先案内板
+    include("part_place.php");
+    // イベント
+    include("part_event.php");
+    // 施設予約
+    include("part_room.php");
+
+    print "</TD>";
+
+    print "<TD WIDTH=55% VALIGN=TOP>";
+    // 伝言メモ
+    include("part_mail.php");
+    // 備忘録
+    include("part_todo.php");
+    // BBS
+    include("part_bulletin.php");
+
+    print "</TD>\n";
+
+    print "<TD WIDTH=22% VALIGN=TOP>";
+    // ワークフロー
+    include("part_workflow.php");
+    // 回覧板
+    include("part_circular.php");
+    // Webフォルダ
+    if (file_exists($basepath.$toppath."/folder")) {
+	    include("part_folder.php");
+		}
+    // リンク
+    include("part_link.php");
+
+    print "</TD>";
+    print "</TR></TABLE>\n";
+  } else {
+    // 未ログイン時
+  }
+  include ("./footer.inc.php");
+?>

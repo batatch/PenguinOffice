@@ -1,0 +1,224 @@
+<?
+  include "../../config.inc.php"; include "../../lib.inc.php";
+  include "../../language.inc.php";
+
+  $linktext  = "<A HREF=\"../../\" CLASS=\"BAR\">トップページ</A> &gt; ";
+  $linktext .= "<A HREF=\"../\" CLASS=\"BAR\">住所録</A> &gt; ";
+  $linktext .= "<FONT COLOR=#FFFF00>住所の登録</FONT>";
+
+  include "../../login_check.inc.php";
+
+  if ($login && sizeof($MES)==0 && $address_flag<=1) {
+
+    // 前処理
+    $corp_name   = textsafe(stripslashes($corp_name));
+    $corp_kana   = textsafe(stripslashes($corp_kana));
+    $corp_zip    = textsafe(stripslashes($corp_zip));
+    $corp_city   = textsafe(stripslashes($corp_city));
+    $corp_street = textsafe(stripslashes($corp_street));
+    $corp_build  = textsafe(stripslashes($corp_build));
+    $corp_tel    = textsafe(stripslashes($corp_tel));
+    $corp_fax    = textsafe(stripslashes($corp_fax));
+    $corp_url    = textsafe(stripslashes($corp_url));
+    $corp_email  = textsafe(stripslashes($corp_email));
+
+    $person_name     = textsafe(stripslashes($person_name));
+    $person_kana     = textsafe(stripslashes($person_kana));
+#    $person_sex
+    $person_depa     = textsafe(stripslashes($person_depa));
+    $person_post     = textsafe(stripslashes($person_post));
+    $person_dialin   = textsafe(stripslashes($person_dialin));
+    $person_email    = textsafe(stripslashes($person_email));
+    $person_email2   = textsafe(stripslashes($person_email2));
+#    $person_birthday =;
+    $person_handy    = textsafe(stripslashes($person_handy));
+    $person_zip      = textsafe(stripslashes($person_zip));
+    $person_state    = textsafe(stripslashes($person_state));
+    $person_city     = textsafe(stripslashes($person_city));
+    $person_street   = textsafe(stripslashes($person_street));
+    $person_build    = textsafe(stripslashes($person_build));
+    $person_tel      = textsafe(stripslashes($person_tel));
+    $person_fax      = textsafe(stripslashes($person_fax));
+
+    $comment = textsafe($comment);
+
+    $kind_list = "";
+    if (sizeof($kind)>0) {
+      while (list($key,$val)=each($kind)) {
+        if ($kind_list != "") { $kind_list .= ","; }
+        $kind_list .= $val;
+      }
+    }
+    // エラーチェック
+    if ($comment != "") {
+      if (strlen($comment)>1000) {
+        $DMES[]="コメントが長すぎます。500文字以内(半角1000文字)で指定してください";
+      }
+    }
+
+    // エラー無しならDB更新
+    if (sizeof($DMES)==0) {
+      while (true) { // マルチユーザー対応
+        // seqno採番
+        $sql = "SELECT seqno FROM address ORDER BY seqno desc;";
+        $res = pg_query($conn, $sql);
+
+        if (pg_num_rows($res)==0) {
+          $seqno = 1;
+        } else {
+          $row = pg_fetch_array($res, 0);  
+          $seqno = $row["seqno"]+1;
+        }
+
+        $sql  = "INSERT INTO address (";
+        $sql .= "seqno,";
+        $sql .= "corp_name,";
+        $sql .= "corp_kana,";
+        $sql .= "corp_email,";
+        $sql .= "corp_url,";
+        $sql .= "corp_zip,";
+        $sql .= "corp_country,";
+        $sql .= "corp_state,";
+        $sql .= "corp_city,";
+        $sql .= "corp_street,";
+        $sql .= "corp_build,";
+        $sql .= "corp_tel,";
+        $sql .= "corp_fax,";
+        $sql .= "person_depa,";
+        $sql .= "person_post,";
+        $sql .= "person_name,";
+        $sql .= "person_kana,";
+        $sql .= "person_email,";
+        $sql .= "person_email2,";
+        $sql .= "person_birthday,";
+        $sql .= "person_dialin,";
+        $sql .= "person_sex,";
+        $sql .= "person_handy,";
+        $sql .= "person_zip,";
+        $sql .= "person_country,";
+        $sql .= "person_state,";
+        $sql .= "person_city,";
+        $sql .= "person_street,";
+        $sql .= "person_build,";
+        $sql .= "person_tel,";
+        $sql .= "person_fax,";
+        $sql .= "comment,";
+        $sql .= "kind_list,";
+        $sql .= "create_user_id,";
+        $sql .= "createstamp,";
+        $sql .= "updatestamp";
+        $sql .= " ) VALUES (";
+        $sql .= "$seqno,";
+        $sql .= "'".db_textsafe($corp_name)."',";
+        $sql .= "'".db_textsafe($corp_kana)."',";
+        $sql .= "'".db_textsafe($corp_email)."',";
+        $sql .= "'".db_textsafe($corp_url)."',";
+        $sql .= "'".db_textsafe($corp_zip)."',";
+        $sql .= "'".db_textsafe($corp_country)."',";
+        $sql .= "'".db_textsafe($corp_state)."',";
+        $sql .= "'".db_textsafe($corp_city)."',";
+        $sql .= "'".db_textsafe($corp_street)."',";
+        $sql .= "'".db_textsafe($corp_build)."',";
+        $sql .= "'".db_textsafe($corp_tel)."',";
+        $sql .= "'".db_textsafe($corp_fax)."',";
+        $sql .= "'".db_textsafe($person_depa)."',";
+        $sql .= "'".db_textsafe($person_post)."',";
+        $sql .= "'".db_textsafe($person_name)."',";
+        $sql .= "'".db_textsafe($person_kana)."',";
+        $sql .= "'".db_textsafe($person_email)."',";
+        $sql .= "'".db_textsafe($person_email2)."',";
+        if(empty($person_birthday)) { $sql .= "null,"; } else { $sql .= "'".$person_birthday."',"; }
+        $sql .= "'".db_textsafe($person_dialin)."',";
+        $sql .= "'".$person_sex."',";
+        $sql .= "'".db_textsafe($person_handy)."',";
+        $sql .= "'".db_textsafe($person_zip)."',";
+        $sql .= "'".db_textsafe($person_country)."',";
+        $sql .= "'".db_textsafe($person_state)."',";
+        $sql .= "'".db_textsafe($person_city)."',";
+        $sql .= "'".db_textsafe($person_street)."',";
+        $sql .= "'".db_textsafe($person_build)."',";
+        $sql .= "'".db_textsafe($person_tel)."',";
+        $sql .= "'".db_textsafe($person_fax)."',";
+        $sql .= "'".db_textsafe($comment)."',";
+        $sql .= "'".$kind_list."',";
+        $sql .= "'".$login_id."',";
+        $sql .= "'now',";
+        $sql .= "'now'";
+        $sql .= ")";
+
+        $res = pg_query($conn,$sql);
+        if ($res==false || pg_affected_rows($res)==0) {
+          $errcount++;
+          if ($errcount>10) { //再試行回数 10回
+            $DMES[] = "登録に失敗しました。";
+            break;
+          }
+        } else {
+          $org_seqno = $seqno;
+          break;
+        }
+      }
+    }
+
+    if (sizeof($DMES)==0) {
+      // 正常時
+      Header("Location: ../");
+    } else {
+      // エラーメッセージ出力
+      include "../../header.inc.php";
+      flush();
+
+      print "<BR>";
+      print "<CENTER><DIV ALIGN=CENTER><FONT COLOR=#FF0000><B>";
+      // エラーメッセージ出力
+      while (list($key,$val)=each($DMES)) {
+        print $val."<BR>\n";
+      }
+      print "</FONT></DIV></CENTER>\n";
+
+      print "<FORM NAME=\"error\" ACTION=\"./other.phtml\" METHOD=POST>\n";
+      print "<INPUT TYPE=HIDDEN name=\"corp_name\" value=\"".$corp_name."\">\n";
+      print "<INPUT TYPE=HIDDEN name=\"corp_kana\" value=\"".$corp_kana."\">\n";
+      print "<INPUT TYPE=HIDDEN name=\"corp_zip\" value=\"".$corp_zip."\">\n";
+      print "<INPUT TYPE=HIDDEN name=\"corp_state\" value=\"".$corp_state."\">\n";
+      print "<INPUT TYPE=HIDDEN name=\"corp_city\" value=\"".$corp_city."\">\n";
+      print "<INPUT TYPE=HIDDEN name=\"corp_street\" value=\"".$corp_street."\">\n";
+      print "<INPUT TYPE=HIDDEN name=\"corp_build\" value=\"".$corp_build."\">\n";
+      print "<INPUT TYPE=HIDDEN name=\"corp_tel\" value=\"".$corp_tel."\">\n";
+      print "<INPUT TYPE=HIDDEN name=\"corp_fax\" value=\"".$corp_fax."\">\n";
+      print "<INPUT TYPE=HIDDEN name=\"corp_url\" value=\"".$corp_url."\">\n";
+      print "<INPUT TYPE=HIDDEN name=\"corp_email\" value=\"".$corp_email."\">\n";
+
+      print "<INPUT TYPE=HIDDEN name=\"person_name\" value=\"".$person_name."\">\n";
+      print "<INPUT TYPE=HIDDEN name=\"person_kana\" value=\"".$person_kana."\">\n";
+      print "<INPUT TYPE=HIDDEN name=\"person_sex\" value=\"".$person_sex."\">\n";
+      print "<INPUT TYPE=HIDDEN name=\"person_depa\" value=\"".$person_depa."\">\n";
+      print "<INPUT TYPE=HIDDEN name=\"person_post\" value=\"".$person_post."\">\n";
+      print "<INPUT TYPE=HIDDEN name=\"person_dialin\" value=\"".$person_dialin."\">\n";
+      print "<INPUT TYPE=HIDDEN name=\"person_email\" value=\"".$person_email."\">\n";
+      print "<INPUT TYPE=HIDDEN name=\"person_email2\" value=\"".$person_email2."\">\n";
+      print "<INPUT TYPE=HIDDEN name=\"person_birthday_Y\" value=\"".$person_birthday_Y."\">\n";
+      print "<INPUT TYPE=HIDDEN name=\"person_birthday_M\" value=\"".$person_birthday_M."\">\n";
+      print "<INPUT TYPE=HIDDEN name=\"person_birthday_D\" value=\"".$person_birthday_D."\">\n";
+      print "<INPUT TYPE=HIDDEN name=\"person_handy\" value=\"".$person_handy."\">\n";
+      print "<INPUT TYPE=HIDDEN name=\"person_zip\" value=\"".$person_zip."\">\n";
+      print "<INPUT TYPE=HIDDEN name=\"person_state\" value=\"".$person_state."\">\n";
+      print "<INPUT TYPE=HIDDEN name=\"person_city\" value=\"".$person_city."\">\n";
+      print "<INPUT TYPE=HIDDEN name=\"person_street\" value=\"".$person_street."\">\n";
+      print "<INPUT TYPE=HIDDEN name=\"person_build\" value=\"".$person_build."\">\n";
+      print "<INPUT TYPE=HIDDEN name=\"person_tel\" value=\"".$person_tel."\">\n";
+      print "<INPUT TYPE=HIDDEN name=\"person_fax\" value=\"".$person_fax."\">\n";
+
+      print "<INPUT TYPE=HIDDEN name=\"kind_list\" value=\"".$kind_list."\">\n";
+      print "<INPUT TYPE=HIDDEN name=\"comment\" value=\"".$comment."\">\n";
+
+      print "<INPUT TYPE=SUBMIT value=\"戻る\" style=\"width:120px\">\n";
+      print "</FORM>\n";
+
+      print "</TD></TR></TABLE>\n";
+      print "<CENTER>";
+
+      include "../../footer.inc.php";
+    }
+  }
+?>

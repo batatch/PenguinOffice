@@ -1,0 +1,347 @@
+<?php
+  include "../../config.inc.php";
+  include "../../lib.inc.php";
+  include "../../language.inc.php";
+
+  $linktext  = "<A HREF=\"../../\" CLASS=\"BAR\">トップページ</A> &gt; ";
+  $linktext .= "<A HREF=\"../\" CLASS=\"BAR\">リンク集</A> &gt; ";
+  if (!empty($seqno)){
+    if ($type == "link") {
+      $linktext .= "<FONT COLOR=#FFFF00>リンクの編集</FONT>";
+    } else {
+      $linktext .= "<FONT COLOR=#FFFF00>フォルダの編集</FONT>";
+    }
+  } else {
+    if ($type == "link") {
+      $linktext .= "<FONT COLOR=#FFFF00>リンクの登録</FONT>";
+    } else {
+      $linktext .= "<FONT COLOR=#FFFF00>フォルダの作成</FONT>";
+    }
+  }
+
+  include "../../header.inc.php"; flush();
+
+  // ログインチェック
+  if (!$login) {
+    $DMES[] = "先に、ログインしてください ⇒ <A HREF=\"$toppath/\">ログインページへ</A>";
+  } else {
+    // 住所録からの追加時
+    if ($mode=="address") {
+      $sql = "SELECT * FROM address where seqno=".$ano;
+      $res = pg_query($conn,$sql);
+      if (pg_num_rows($res)>0){
+        $row = pg_fetch_array($res,0);
+        $title = $row["corp_name"];
+        $edit_url = $row["corp_url"];
+      }
+    }
+
+    if ($seqno != ""){
+      // 編集
+      $sql = "SELECT * FROM links where path='".$path."' and seqno=".$seqno;
+      $res = pg_query($conn,$sql);
+      if (pg_num_rows($res)>0){
+        $row = pg_fetch_array($res,0);
+        $type = $row["type"];
+
+        $create_user_id = $row["user_id"];
+        $user_name = get_first("users","name_ryaku","id='".$create_user_id."'","不明");
+        if ($row["updatestamp"]>0) {
+          $fileupdate = date("m月d日 H:i",datetime2timestamp($row["updatestamp"]));
+        } else {
+          $fileupdate = "";
+        }
+
+        $group_ids   = $row["view_group_ids"];
+        $user_ids    = $row["view_user_ids"];
+        if ($title == "")    $title = $row["title"];
+        if ($edit_url == "") $edit_url = $row["url"];
+      } else {
+        $DMES[] = "指定された情報はありません";
+      }
+    } else {
+      // 新規
+      $title = "";
+      if ($edit_url == "") $edit_url = "http://";
+
+      // パスの階層チェック
+      if ($type == "dir") {
+        $addpath = trim($path);
+        $patharr = split('/',$addpath);
+        if (sizeof($patharr)-1>$path_level) {
+          $DMES[] = $path_level."階層以上のフォルダを作成することはできません。";
+        }
+      }
+    }
+
+    $group_id = split(",",$group_ids);
+    $user_id  = split(",",$user_ids);
+
+    $pagetext .= "<BR>";
+
+    $pagetext .= "<TABLE WIDTH=100%><TR><TD VALIGN=TOP ALIGN=CENTER>\n";
+    if (sizeof($DMES) > 0) {
+      // エラー時
+      $pagetext .= "<TABLE BORDER=0 WIDTH=100%><TR><TD ALIGN=CENTER>\n";
+      $pagetext .= "<TABLE BORDER=0>\n";
+      while (list($key,$val)=each($DMES)) {
+        $pagetext .= "<TR><TD><FONT COLOR=#FF0000><B>".$val."</B></FONT></TD></TR>\n";
+      }
+      $pagetext .= "</TABLE>\n";
+      $pagetext .= "</TD></TR></TABLE>\n";
+    } else {
+      $pagetext .= "<SCRIPT LANGUAGE=\"JavaScript\">\n";
+      $pagetext .= "<!--\n";
+      $pagetext .= "function delwin(path,seqno,type,user_id,backpath) {\n";
+      $pagetext .= "  if(confirm(\"削除しますか。\\n注:一度削除したら戻すことはできません。\")) {\n";
+      $pagetext .= "    window.open(\"../del/?p=$p&path=\"+path+\"&seqno=\"+seqno+\"&user_id=\"+user_id+\"&type=\"+type+\"&backpath=\"+backpath,\"_self\");\n";
+      $pagetext .= "  }\n";
+      $pagetext .= "}\n";
+      $pagetext .= "
+function selGroup(f) {
+  f.group[1].checked = true;
+}
+function clearGroup(f) {
+  for (i=0;i<f.group_ids.length;i++) {
+    f.group_ids.options[i].selected = false;
+  }
+}
+function selUser(f) {
+  f.user[1].checked = true;
+}
+function clearUser(f) {
+  for (i=0;i<f.user_ids.length;i++) {
+    f.user_ids.options[i].selected = false;
+  }
+}
+";
+      $pagetext .= "//-->\n";
+      $pagetext .= "</SCRIPT>\n";
+
+      $pagetext .= "<FORM ACTION=\"./add.phtml\" METHOD=POST>\n";
+      $pagetext .= "<INPUT TYPE=HIDDEN NAME=\"p\" VALUE=\"$p\">\n";
+      $pagetext .= "<INPUT TYPE=HIDDEN NAME=\"seqno\" VALUE=\"$seqno\">\n";
+      $pagetext .= "<INPUT TYPE=HIDDEN NAME=\"user_id\" VALUE=\"$login_id\">\n";
+      $pagetext .= "<INPUT TYPE=HIDDEN NAME=\"path\" VALUE=\"$path\">\n";
+      $pagetext .= "<INPUT TYPE=HIDDEN NAME=\"old_path\" VALUE=\"$path\">\n";
+      $pagetext .= "<INPUT TYPE=HIDDEN NAME=\"old_title\" VALUE=\"$title\">\n";
+      $pagetext .= "<INPUT TYPE=HIDDEN NAME=\"type\" VALUE=\"$type\">\n";
+
+      // 通常表示
+      $pagetext .= "各項目に入力してから、更新ボタンをクリックしてください<BR><BR>";
+
+      $pagetext .= "<TABLE WIDTH=480><TR><TD><FONT COLOR=#555555>作成者 : ";
+      if (!empty($create_user_id)) {
+        $pagetext .= "<A HREF=\"../../member/?id=".$create_user_id."\">";
+        $pagetext .= $user_name;
+        $pagetext .= "<IMG SRC=\"../../image/clip.gif\" BORDER=0 WIDTH=10 HEIGHT=11 ALIGN=ABSMIDDLE>";
+        $pagetext .= "</A>";
+      } else {
+        $pagetext .= $user_name;
+      }
+      $pagetext .= "</TD></TR></TABLE>\n";
+
+      $pagetext .= "<TABLE BORDER=0 CELLPADDING=4 CELLSPACING=1 BGCOLOR=#999999 WIDTH=480>\n";
+
+      $pagetext .= "<TR>\n";
+      $pagetext .= "<TD ALIGN=RIGHT WIDTH=90 NOWRAP VALIGN=TOP BGCOLOR=$td_back_left>&nbsp;タイトル&nbsp;</TD>\n";
+      $pagetext .= "<TD ALIGN=LEFT BGCOLOR=$td_back>";
+      if ($seqno != ""){
+        $pagetext .= "<TABLE ALIGN=LEFT><TR><TD><A HREF=\"../?new_path=".urlencode($path.$title."/")."\"><IMG SRC=\"../../image/icon/folder.gif\" BORDER=0 ALT=\"フォルダ名 : ".$path.$title."/"."  \n\" WIDTH=32 HEIGHT=32></A></TD></TR></TABLE>";
+      }
+      $pagetext .= "<INPUT TYPE=TEXT NAME=\"title\" VALUE=\"".$title."\" SIZE=46 TABINDEX=1><BR>\n";
+      $pagetext .= "&nbsp;<FONT STYLE=\"FONT-SIZE:7pt;COLOR:#FF0000;\">※ 全角20文字（半角40文字）以内</FONT><BR>\n";
+      $pagetext .= "&nbsp;<FONT STYLE=\"FONT-SIZE:7pt;COLOR:#555555;\">※ わかりやすいタイトルを入力してください</FONT>\n";
+      $pagetext .= "</TD>\n";
+      $pagetext .= "</TR>\n";
+
+      // リンク作成表示
+      if ($type == "link") {
+        $pagetext .= "<TR>\n";
+        $pagetext .= "<TD ALIGN=RIGHT WIDTH=90 NOWRAP VALIGN=TOP BGCOLOR=$td_back_left>&nbsp;URL&nbsp;</TD>\n";
+        $pagetext .= "<TD ALIGN=LEFT BGCOLOR=$td_back>";
+        $pagetext .= "<INPUT TYPE=TEXT NAME=\"edit_url\" VALUE=\"".$edit_url."\" SIZE=46 TABINDEX=2><BR>\n";
+        $pagetext .= "&nbsp;<FONT STYLE=\"FONT-SIZE:7pt;COLOR:#555555;\">※ アドレスは http:// から入力してください</FONT>\n";
+        $pagetext .= "</TD></TR>\n";
+      }
+
+      // フォルダー階層表示
+      if($seqno <> "" && ($admin_sign=='t' || $create_user_id==$login_id)) {
+        $pagetext .= "<INPUT TYPE=HIDDEN NAME=\"now_path\" VALUE=\"".$path."\">\n";
+        $pagetext .= "<TR>\n";
+        $pagetext .= "<TD ALIGN=RIGHT WIDTH=90 NOWRAP VALIGN=TOP BGCOLOR=$td_back_left>&nbsp;移動先&nbsp;</TD>\n";
+        $pagetext .= "<TD ALIGN=LEFT BGCOLOR=$td_back>";
+        $pagetext .= "<SELECT NAME=\"path\" TABINDEX=3>\n";
+        $dirs[] = "/";
+        $sql = "SELECT * FROM links where type='dir'";
+        $res = pg_query($conn,$sql);
+        if (pg_num_rows($res) > 0) {
+          for ($i=0;$i<pg_num_rows($res);$i++) {
+            $row = pg_fetch_array($res,$i);
+            $dirs[]=mbereg_replace("\\\/","/",$row["path"].$row["title"]);
+          }
+        }
+        sort($dirs);
+        while(list($key,$val)=each($dirs)) {
+          if (strpos(" ".$val."/", $path.$title."/")!=1) {
+            $pagetext .= "<OPTION VALUE=\"".$val."\"";
+            if ($val."/" == $path) $pagetext .= " SELECTED";
+            $pagetext .= ">".$val."</OPTION>\n";
+          }
+        }
+        $pagetext .= "</SELECT><BR>\n";
+        $pagetext .= "&nbsp;<FONT STYLE=\"FONT-SIZE:7pt;COLOR:#555555;\">※ 移動先フォルダを選択して下さい</FONT>\n";
+        $pagetext .= "</TD>\n";
+        $pagetext .= "</TR>\n";
+      }
+
+      // 住所録からの追加時
+      if($mode=="address") {
+        $pagetext .= "<INPUT TYPE=HIDDEN NAME=\"now_path\" VALUE=\"".$path."\">\n";
+        $pagetext .= "<TR>\n";
+        $pagetext .= "<TD ALIGN=RIGHT WIDTH=90 NOWRAP VALIGN=TOP BGCOLOR=$td_back_left>&nbsp;登録先&nbsp;</TD>\n";
+        $pagetext .= "<TD ALIGN=LEFT BGCOLOR=$td_back>";
+        $pagetext .= "<SELECT NAME=\"path\" TABINDEX=3>\n";
+
+        $dirs[] = "/";
+        $sql = "SELECT * FROM links where type='dir'";
+        $res = pg_query($conn,$sql);
+        if (pg_num_rows($res) > 0) {
+          for ($i=0;$i<pg_num_rows($res);$i++) {
+            $row = pg_fetch_array($res,$i);
+            $dirs[]=mbereg_replace("\\\/","/",$row["path"].$row["title"]);
+          }
+        }
+
+        sort($dirs);
+
+        while(list($key,$val)=each($dirs)) {
+          if (strpos(" ".$val."/", $path.$title."/")!=1) {
+            $pagetext .= "<OPTION VALUE=\"".$val."\"";
+            if ($val."/" == $path) $pagetext .= " SELECTED";
+            $pagetext .= ">".$val."</OPTION>\n";
+          }
+        }
+        $pagetext .= "</SELECT><BR>\n";
+        $pagetext .= "&nbsp;<FONT STYLE=\"FONT-SIZE:7pt;COLOR:#555555;\">※ 登録先フォルダを選択して下さい</FONT>\n";
+        $pagetext .= "</TD>\n";
+        $pagetext .= "</TR>\n";
+      }
+      
+      if ($type == "dir" && $admin_sign=="t") {
+        $pagetext .= "<TR>\n";
+        $pagetext .= "<TD ALIGN=RIGHT WIDTH=90 NOWRAP VALIGN=TOP BGCOLOR=$td_back_left>&nbsp;利用者設定&nbsp;</TD>\n";
+        $pagetext .= "<TD ALIGN=LEFT BGCOLOR=$td_back>";
+        $pagetext .= "<TABLE CELLPADDING=3 CELLSPACING=1 BGCOLOR=#999999>\n";
+        $pagetext .= "<TR><TD BGCOLOR=#CCCCCC ALIGN=CENTER>グループ指定</TD>\n";
+        $pagetext .= "<TD BGCOLOR=#999999 ALIGN=CENTER>ユーザー指定</TD></TR>\n";
+        $pagetext .= "<TR>\n";
+        $pagetext .= "<INPUT TYPE=HIDDEN NAME=\"target\" VALUE=\"group\">\n";
+        $pagetext .= "<INPUT TYPE=HIDDEN NAME=\"path\" VALUE=\"".urlencode($path)."\">\n";
+        $pagetext .= "<TD BGCOLOR=$td_back ALIGN=CENTER STYLE=\"text-align:center\">";
+
+        $pagetext .= "<INPUT TYPE=RADIO NAME=\"group\" VALUE=\"all\"";
+        if ($group_ids=="" || $group_ids=="all") {
+          $pagetext .= " CHECKED";
+        }
+        $pagetext .= " ONCLICK=\"clearGroup(this.form)\">未設定";
+
+        $pagetext .= "<INPUT TYPE=RADIO NAME=\"group\" VALUE=\"select\"";
+        if ($group_ids!="" && $group_ids!="all") {
+          $pagetext .= " CHECKED";
+        }
+        $pagetext .= ">個別選択<BR>\n";
+
+        $pagetext .= "<SELECT NAME=\"group_ids[]\" SIZE=5 MULTIPLE STYLE=\"width:120px\" ONCLICK=\"selGroup(this.form)\">\n";
+
+        $sql_group = "SELECT * FROM groups ORDER BY seqno";
+        $res_group = pg_query($conn,$sql_group);
+        $cnt_group = pg_num_rows($res_group);
+        if ($cnt_group>0) {
+          for ($i=0;$i<$cnt_group;$i++) {
+            $row_group = pg_fetch_array($res_group,$i);
+            $pagetext .= "<OPTION VALUE=\"".$row_group["id"]."\"";
+            if (sizeof($group_id)>0) {
+              reset($group_id);
+              while (list($key,$val)=each($group_id)) {
+                if ($val==$row_group["id"]) { $pagetext .= " SELECTED"; break; }
+              }
+            }
+            $pagetext .= ">".$row_group["name"]."\n";
+          }
+        }
+
+        $pagetext .= "</SELECT><BR>\n";
+
+        $pagetext .= "</TD>";
+
+        $pagetext .= "<INPUT TYPE=HIDDEN NAME=\"target\" VALUE=\"user\">\n";
+        $pagetext .= "<INPUT TYPE=HIDDEN NAME=\"path\" VALUE=\"".urlencode($path)."\">\n";
+        $pagetext .= "<TD BGCOLOR=$td_back ALIGN=CENTER STYLE=\"text-align:center\">";
+
+        $pagetext .= "<INPUT TYPE=RADIO NAME=\"user\" VALUE=\"all\"";
+        if ($user_ids=="" || $user_ids=="all") {
+          $pagetext .= " CHECKED";
+        }
+        $pagetext .= " ONCLICK=\"clearUser(this.form)\">未設定";
+
+        $pagetext .= "<INPUT TYPE=RADIO NAME=\"user\" VALUE=\"select\"";
+        if ($user_ids!="" && $user_ids!="all") {
+          $pagetext .= " CHECKED";
+        }
+        $pagetext .= ">個別選択<BR>\n";
+
+        $pagetext .= "<SELECT NAME=\"user_ids[]\" SIZE=5 MULTIPLE STYLE=\"width:160px\" ONCLICK=\"selUser(this.form)\">\n";
+
+        $sql_user = "SELECT * FROM users ORDER BY seqno";
+        $res_user = pg_query($conn,$sql_user);
+        $cnt_user = pg_num_rows($res_user);
+        if ($cnt_user>0) {
+          for ($i=0;$i<$cnt_user;$i++) {
+            $row_user = pg_fetch_array($res_user,$i);
+            $pagetext .= "<OPTION VALUE=\"".$row_user["id"]."\"";
+            if (sizeof($user_id)>0) {
+              reset($user_id);
+              while (list($key,$val)=each($user_id)) {
+                if ($val==$row_user["id"]) { $pagetext .= " SELECTED"; break; }
+              }
+            }
+            $pagetext .= ">".$row_user["name"]."\n";
+          }
+        }
+
+        $pagetext .= "</SELECT><BR>\n";
+
+        $pagetext .= "</TD>";
+        $pagetext .= "</TR></TABLE>\n";
+        $pagetext .= "<FONT STYLE=\"font-size:8pt\" COLOR=#777755>※ どちらかの指定に該当することでフォルダが表示されます</FONT>";
+
+        $pagetext .= "</TD></TR>\n";
+      } else {
+        ## 一般ユーザーの場合
+        $pagetext .= "<INPUT TYPE=HIDDEN NAME=\"group\" VALUE=\"all\">\n";
+        $pagetext .= "<INPUT TYPE=HIDDEN NAME=\"user\" VALUE=\"all\">\n";
+      }
+
+      if ($fileupdate!="") {
+        $pagetext .= "<TABLE WIDTH=480><TR><TD ALIGN=RIGHT><FONT COLOR=#555555>最終更新日時 : $fileupdate</TD></TR></TABLE>\n";
+      }
+
+      $pagetext .= "</TABLE>\n";
+      $pagetext .= "<TABLE BORDER=0 CELLPADDING=10 CELLSPACING=0 ALIGN=CENTER><TR>\n";
+      if ($seqno == ""){
+        $pagetext .= "<TD><INPUT TYPE=SUBMIT NAME=\"submit\" VALUE=\"作成の実行\" TABINDEX=99 style=\"width:100px\"></TD>\n";
+      } else {
+	      if ($admin_sign=='t' || ($create_user_id==$login_id)) {
+	        $pagetext .= "<TD><INPUT TYPE=SUBMIT VALUE=\"更新の実行\" NAME=\"submit\" TABINDEX=99 style=\"width:100px\"></TD>\n";
+	        $pagetext .= "<TD><INPUT TYPE=BUTTON VALUE=\"削除\" onclick=\"delwin('".urlencode($path)."','".$seqno."','".$type."','".$login_id."','".urlencode($path)."')\" TABINDEX=100 style=\"width:100px\"></TD>\n";
+				}
+      }
+      $pagetext .= "</TR></TABLE>\n";
+      $pagetext .= "</FORM>\n";
+    }
+    $pagetext .= "</TD></TR></TABLE>\n";
+  }
+  include "../../detail.inc.php";
+  include "../../footer.inc.php";
+?>

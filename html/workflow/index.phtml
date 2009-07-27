@@ -1,0 +1,365 @@
+<?php
+  include ("../config.inc.php"); include ("../lib.inc.php");
+
+  // 表示中のディレクトリエントリ
+  if (!empty($_POST["workflow"]) || !empty($_GET["workflow"])) {
+    $workflow = $_REQUEST["workflow"];
+    $headertext .= "Set-Cookie: workflow_id=".$workflow."; path=/;\n";
+  } else {
+    $workflow = $_COOKIE["workflow_id"];
+  }
+
+  // 前回設定値の保存と復旧(Cookie使用)
+  if (!empty($_POST["viewtype"]) || !empty($_GET["viewtype"])) {
+    $viewtype = $_REQUEST["viewtype"];
+    $headertext .= "Set-Cookie: workflow_viewtype=".$viewtype."; path=/;\n";
+  } else {
+    $viewtype = $_COOKIE["workflow_viewtype"];
+  }
+  if (!empty($_POST["viewrange"]) || !empty($_GET["viewrange"])) {
+    $viewrange = $_REQUEST["viewrange"];
+    $headertext .= "Set-Cookie: workflow_viewrange=".$viewrange."; path=/;\n";
+  } else {
+    $viewrange = $_COOKIE["workflow_viewrange"];
+  }
+  if (!empty($_POST["vieworder"]) || !empty($_GET["vieworder"])) {
+    $vieworder = $_REQUEST["vieworder"];
+    $headertext .= "Set-Cookie: workflow_vieworder=".$vieworder."; path=/;\n";
+  } else {
+    $vieworder = $_COOKIE["workflow_vieworder"];
+  }
+  if (empty($viewtype))  $viewtype  = "notread";
+  if (empty($viewrange)) $viewrange = "to";
+  if (empty($vieworder)) $vieworder = "desc";
+
+  if (!empty($_GET["kwd"])) {
+    $kwd = textsafe($_GET["kwd"]);
+    $headertext .= "Set-Cookie: workflow_kwd=".urlencode($kwd)."; path=/;\n";
+  } else {
+    $kwd = "";
+    $headertext .= "Set-Cookie: workflow_kwd=; path=/;\n";
+  }
+
+  // リンク用テキストの設定
+  $linktext  = "<A HREF=\"../\" ALT=\"トップページ\" CLASS=\"BAR\">トップページ</A> &gt; ";
+  $linktext .= "<FONT COLOR=#FFFF00>ワークフロー</FONT> ";
+
+  // 検索機能の使用?
+  $search    = true;
+  $searchuri = $toppath."/workflow/";
+
+  // ヘッダ表示
+  include ("../header.inc.php");
+
+ // 機能別メニュー内容の取得
+ include ("./menu.inc.php");
+
+  // 変数の初期値
+  if (empty($_GET["p"])) { $p = 1; } else { $p = $_GET["p"]; }
+
+  if ($login && sizeof($MES)==0) {
+    // 前処理
+#    $pagetext  = "";
+
+    // JavaScript 書き出し
+    $pagetext .= "
+<SCRIPT LANGUAGE = \"JavaScript\">
+<!--
+function remove(seqno) {
+  if (confirm(\"案件を削除してもよろしいですか？\")) {
+    location.href='./remove/?no='+seqno;
+  }
+}
+//-->
+</SCRIPT>";
+
+    ## 新しい案件ボタン表示
+    $pagetext .= "<TABLE BORDER=0 CELLPADDING=0 CELLSPACING=0 WIDTH=100%><TR><TD ALIGN=RIGHT>";
+    $pagetext .= "<A HREF=\"./regist/\"><IMG SRC=\"../image/entrysadd.gif\" BORDER=0> 新しい案件</A>";
+    $pagetext .= "</TD></TR></TABLE>";
+
+    $pagetext .= "
+<TABLE BORDER=0 CELLSPACING=0 CELLPADDING=3 WIDTH=100%><TR>
+<FORM ACTION=\"./\" METHOD=POST>
+<TD ALIGN=LEFT>
+";
+    // 表示種別
+#    $pagetext .= "<INPUT TYPE=RADIO NAME=\"viewtype\" VALUE=\"all\"";
+#    if ($viewtype=="all") $pagetext .= " CHECKED";
+#    $pagetext .= " ONCLICK=\"location.href='./?viewtype=all'\">全て";
+#    $pagetext .= "<INPUT TYPE=RADIO NAME=\"viewtype\" VALUE=\"notread\"";
+#    if ($viewtype=="notread") $pagetext .= " CHECKED";
+#    $pagetext .= " ONCLICK=\"location.href='./?viewtype=notread'\"><FONT COLOR=#FF3333>未読</FONT>";
+#    $pagetext .= "<INPUT TYPE=RADIO NAME=\"viewtype\" VALUE=\"hasread\"";
+#    if ($viewtype=="hasread") $pagetext .= " CHECKED";
+#    $pagetext .= " ONCLICK=\"location.href='./?viewtype=hasread'\"><FONT COLOR=#3333FF>既読</FONT>";
+
+#    $pagetext .= " <FONT COLOR=#666666>|</FONT> ";
+
+    // 表示範囲
+#    $pagetext .= "<INPUT TYPE=RADIO NAME=\"viewrange\" VALUE=\"to\"";
+#    if ($viewrange=="to") $pagetext .= " CHECKED";
+#    $pagetext .= " ONCLICK=\"location.href='./?viewrange=to'\">受信<IMG SRC=\"../image/btn_workflow.gif\" BORDER=0 ALIGN=ABSMIDDLE>";
+#    $pagetext .= "<INPUT TYPE=RADIO NAME=\"viewrange\" VALUE=\"from\"";
+#    if ($viewrange=="from") $pagetext .= " CHECKED";
+#    $pagetext .= " ONCLICK=\"location.href='./?viewrange=from'\">送信<IMG SRC=\"../image/btn_workflow2.gif\" WIDTH=16 HEIGHT=18 BORDER=0 ALIGN=ABSMIDDLE>";
+
+#    $pagetext .= "</TD>\n";
+
+    $pagetext .= "<TD ALIGN=RIGHT HEIGHT=22>";
+    // 昇順・降順選択
+    $pagetext .= "<INPUT TYPE=RADIO NAME=\"vieworder\" VALUE=\"asc\"";
+    if ($vieworder=="asc") $pagetext .= " CHECKED";
+    $pagetext .= " ONCLICK=\"location.href='./?vieworder=asc'\">昇順";
+    $pagetext .= "<INPUT TYPE=RADIO NAME=\"vieworder\" VALUE=\"desc\"";
+    if ($vieworder=="desc") $pagetext .= " CHECKED";
+    $pagetext .= " ONCLICK=\"location.href='./?vieworder=desc'\">降順\n";
+    $pagetext .= "</TD></TR>
+</FORM>
+</TABLE>\n";
+
+    $kwd = trim($kwd);
+
+    ## SQL生成
+    if ($viewrange=="to") {
+      // 自分宛の案件の時のSQL (注:引き当て用のt_workflowはmenu.inc内で事前に生成されている)
+      $sql = "SELECT workflow.*,t_workflow.status as status FROM workflow RIGHT JOIN (SELECT seqno,min(status) as status FROM t_workflow WHERE session_id='$sid' GROUP BY seqno) as t_workflow ON t_workflow.seqno = workflow.seqno ";
+      if ($viewtype=="notread") {
+        $sql .= "WHERE status='1' ";
+      } elseif ($viewtype=="hasread") {
+        $sql .= "WHERE status='2' ";
+      } elseif ($viewtype=="hasread2") {
+        $sql .= "WHERE status='3' ";
+      }
+
+      if ($vieworder=="asc") {
+        $sql .= "ORDER BY workflow.createstamp";
+      } else {
+        $sql .= "ORDER BY workflow.createstamp DESC";
+      }
+    } else {
+      // 結果待ちの案件のSQL
+      $sql  = "SELECT * FROM workflow WHERE ";
+      $sql .= " user_id = '$login_id' ";
+      if ($viewtype!="all") {
+        $sql .= "AND ";
+        if ($viewtype=="notread") {
+          $sql .= "result_sign is null ";
+        } elseif ($viewtype=="hasread") {
+          $sql .= "not result_sign is null ";
+        }
+      }
+      if ($vieworder=="asc") {
+        $sql .= "ORDER BY createstamp";
+      } else {
+        $sql .= "ORDER BY createstamp DESC";
+      }
+    }
+
+    $res = pg_query($conn, $sql);
+    $cnt = pg_num_rows($res);
+
+    if ($cnt>0) {
+      $allpages = floor($cnt/$workflow_rows)+1;
+      if ($p>$allpages) $p = 1;
+
+      $s_row = ($p-1) * $workflow_rows;
+      $e_row = $p * $workflow_rows - 1;
+      if ($e_row>$cnt-1) {$e_row = $cnt-1;}
+      if ($cnt-1>$e_row) {$nextpage = true;}
+    }
+
+    // ヘッダー表示
+    $pagetext .= "<TABLE BORDER=0 CELLPADDING=0 CELLSPACING=0 WIDTH=100%><TR><TD>\n";
+    $pagetext .= "<TABLE BORDER=0 CELLPADDING=2 CELLSPACING=0 WIDTH=100%>\n";
+    $pagetext .= "<TR BGCOLOR=#999999 HEIGHT=22>";
+    $pagetext .= "<TH ALIGN=LEFT><FONT COLOR=#FFFFFF>件名</TH>";
+    $pagetext .= "<TH WIDTH=80 ALIGN=LEFT><FONT COLOR=#FFFFFF>状況</TH>";
+    $pagetext .= "<TH WIDTH=100 ALIGN=CENTER><FONT COLOR=#FFFFFF>発言者</TH>";
+    $pagetext .= "</TR>\n";
+
+    // 発言表示
+    if ($cnt>0) {
+      for ($i=$s_row;$i<=$e_row;$i++) {
+        $row = pg_fetch_array($res,$i);
+
+        $seqno   = $row["seqno"];
+        $subject = textsafe($row["subject"]);
+        if ($subject=="") { $subject="(no subject)"; }
+        if ($row["retry_sign"]=="t") {
+          $subject .= " (再)";
+        }
+        if (strlen($subject)>45) $subject = mb_strcut($subject,0,45)." ...";
+
+        $subject = str_highlight($kwd,$subject);
+
+        $flow_id_arr = split(",",$row["flow_ids"]);
+
+        if ($bg_sign) { $bg_color=$bg_dark; $bg_sign=false; } else { $bg_color=$bg_light; $bg_sign=true; } // 色設定
+
+        $pagetext .= "<TR BGCOLOR=$bg_color>\n";
+
+        $pagetext .= "<TD NOWRAP>";
+        $pagetext .= "&nbsp;<A HREF=\"./result/?no=".$row["seqno"]."&func=$viewrange\">";
+        if ($viewrange=="to") {
+          $pagetext .= "<IMG SRC=\"../image/workflow.gif\" BORDER=0 ALIGN=ABSMIDDLE> ";
+        } else {
+          $pagetext .= "<IMG SRC=\"../image/btn_workflow2.gif\" WIDTH=16 HEIGHT=18 BORDER=0 ALIGN=ABSMIDDLE> ";
+        }
+
+echo "<!--seqno=".$row["seqno"]." AND user_id='$login_id'-->";
+        if (get_count("workflow_res","seqno=".$row["seqno"]." AND user_id='$login_id'")==0) {
+          $pagetext .= "<FONT COLOR=#FF0033>".$subject."</FONT>";
+        } else {
+          $pagetext .= $subject;
+        }
+        $pagetext .= "</A>";
+        $pagetext .= " <FONT COLOR=#666666>".date("n月j日 H:i",datetime2timestamp($row["createstamp"]))."";
+
+        $pagetext .= "</TD>";
+
+        $pagetext .= "<TD NOWRAP>";
+        if ($viewrange=="from") {
+          // 送りデータ時
+          if ($row["result_sign"]=="t") {
+            $sql_res = "SELECT recognize_sign FROM workflow_ret WHERE refno=$seqno ORDER BY seqno DESC";
+            $res_res = pg_query($conn, $sql_res);
+            $cnt_res = pg_num_rows($res_res);
+            if ($cnt_res==0) {
+              $pagetext .= "決裁済";
+            } else {
+              $row_res = pg_fetch_array($res_res,0);
+              if ($row_res["recognize_sign"]=="t") {
+                $pagetext .= "<FONT COLOR=#FF0000>承認</FONT>";
+              } else {
+                $pagetext .= "<FONT COLOR=#000000>否認</FONT>";
+              }
+            }
+          } elseif ($row["result_sign"]=="f") {
+            $pagetext .= "<FONT COLOR=#000000>否認</FONT>";
+          } else {
+            $pagetext .= "<FONT COLOR=#3333FF>決裁中</FONT>";
+          }
+
+          $pagetext .= " <FONT COLOR=#666666>";
+          $pagetext .= " ";
+
+          $sql_res = "SELECT count(*) AS count FROM workflow_ret WHERE refno=$seqno AND result_sign='t'";
+          $res_res = pg_query($conn, $sql_res);
+          $cnt_res = pg_num_rows($res_res);
+          if ($cnt_res==0) {
+            $pagetext .= "0";
+          } else {
+            $row_res = pg_fetch_array($res_res,0);
+            $pagetext .= number_format($row_res["count"]);
+          }
+          $pagetext .= "/";
+          $pagetext .= number_format(sizeof($flow_id_arr));
+        } else {
+          // 受けデータ時
+          if ($row["status"]=="1") {
+            $pagetext .= "<FONT COLOR=#3333FF>未承認</FONT> <FONT COLOR=#5555FF>";
+          } elseif ($row["status"]=="2") {
+            $pagetext .= "<FONT COLOR=#FF3333>承認済</FONT> <FONT COLOR=#5555FF>";
+          } elseif ($row["status"]=="3") {
+            $pagetext .= "<FONT COLOR=#333333>否認済</FONT> <FONT COLOR=#5555FF>";
+          } else {
+            $pagetext .= "-";
+          }
+        }
+        $pagetext .= "</TD>";
+
+        $pagetext .= "<TD ALIGN=CENTER NOWRAP>";
+        if ($row["user_id"]<>"") {
+          $sql_user = "SELECT id,name_ryaku FROM users WHERE id='".$row["user_id"]."'";
+          $res_user = pg_query($conn,$sql_user);
+          if (pg_num_rows($res_user)>0){
+            $user_name = pg_result($res_user,0,"name_ryaku");
+          } else {
+            $user_name = "";
+          }
+          $pagetext .= "<A HREF=\"../member/?id=".$row["user_id"]."\">".$user_name."</A>";
+        } else {
+          $pagetext .= "-\n";
+        }
+        $pagetext .= "</TD>";
+
+        $pagetext .= "</TR>\n";
+      }
+    } else {
+      // 発言なし
+      $pagetext .= "<TR>\n";
+      $pagetext .= "<TD COLSPAN=5 ALIGN=CENTER HEIGHT=22>案件はありません</TD>\n";
+      $pagetext .= "</TR>\n";
+    }
+    $pagetext .= "</TABLE>\n";
+    $pagetext .= "</TD></TR></TABLE>\n";
+    $pagetext .= "</TD></TR></TABLE><br>\n";
+
+    // ページ情報の表示
+    if ($allpages>1) {
+      $pagetext .= "<CENTER>";
+
+      $r = 0;
+      $s_p = $p - 4;
+      $e_p = $p + 4;
+      if ($s_p<1) {
+        $r = 1-$s_p;
+        $s_p = $s_p + $r;
+        $e_p = $e_p + $r;
+      } elseif ($e_p>$allpages) {
+        $r = $e_p - $allpages;
+        $s_p = $s_p - $r;
+        $e_p = $e_p - $r;
+      }
+      if ($s_p < 1) $s_p = 1;
+      if ($e_p > $allpages) $e_p = $allpages;
+
+      if ($p>1) {
+        $pagetext .= "<A HREF=\"./?p=".($p-1)."\">";
+        $pagetext .= "前のページ";
+        $pagetext .= "</A>";
+      } else {
+        $pagetext .= "<FONT COLOR=#999999>前のページ</FONT>";
+      }
+
+      $pagetext .= "&nbsp;&nbsp;";
+
+      if ($s_p != 1) {
+        $pagetext .= "<A HREF=\"./p=".($s_p-1)."\">&lt;</A>&nbsp;";
+      }
+
+      for ($i=$s_p;$i<=$e_p;$i++){
+        if ($p!=$i) {
+          $pagetext .= "[<A HREF=\"./?p=".$i."\">".$i."</A>]";
+        } else {
+          $pagetext .= "[".$i."]";
+        }
+        $pagetext .= "&nbsp;";
+      }
+
+      if ($e_p != $allpages) {
+        $pagetext .= "<A HREF=\"./?p=".($e_p+1)."\">&gt;</A>";
+      }
+
+      $pagetext .= "&nbsp;";
+
+      if ($nextpage) {
+        $pagetext .= "<A HREF=\"./?p=".($p+1)."\">";
+        $pagetext .= "次のページ";
+        $pagetext .= "</A>";
+      } else {
+        $pagetext .= "<FONT COLOR=#999999>次のページ</FONT>";
+      }
+
+      $pagetext .= "&nbsp;";
+      $pagetext .= "</CENTER><BR>\n";
+    }
+  }
+
+
+  // 明細表示
+  include ("../detail.inc.php");
+  // フッタ表示
+  include ("../footer.inc.php");
+?>

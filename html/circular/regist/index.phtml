@@ -1,0 +1,715 @@
+<?
+include ("../../config.inc.php"); include ("../../lib.inc.php");
+
+$linktext  = "<A HREF=\"../../\" CLASS=\"BAR\">トップページ</A> &gt; ";
+$linktext .= "<A HREF=\"../\" CLASS=\"BAR\">回覧板</A> &gt; ";
+$linktext .= "<FONT COLOR=#FFFF00>新しい回覧</FONT> ";
+
+$kwd = stripslashes(urldecode($_COOKIE["circular_kwd"]));
+
+include ("../../login_check.inc.php");
+
+if ($login && sizeof($MES)==0) {
+	// 前処理
+	if ($_POST["check"] != "t") {
+		if (!empty($n) && is_numeric($n)) {
+			$sql  = "SELECT * FROM circulas WHERE seqno=$n";
+			$res = pg_query($conn,$sql);
+			$cnt = pg_num_rows($res);
+			if ($cnt>0) {
+				$row = pg_fetch_array($res,0);
+				$subject = $row["subject"];
+				$body    = $row["body"];
+				$user_id_to  = $row["user_id_to"];
+				$user_ids_to = split(",",$user_id_to);
+			}
+		}
+	} else {
+		$subject     = textsafe($_POST["subject"]);
+		$body        = textsafe($_POST["body"]);
+		$user_id_to  = $_POST["user_id_to"];
+		$user_ids_to = split(",",$user_id_to);
+		$check       = $_POST["check"];
+		$sendmailusers = $_POST["sendmailusers"];
+	}
+	
+	$pagetext .= "
+<SCRIPT LANGUAGE=\"JavaScript\">
+<!--
+my = \"$login_id\";
+dat_groups = new Array();
+";
+	$sql_group = "SELECT id,name FROM groups ORDER BY seqno";
+	$res_group = pg_query($conn,$sql_group);
+	$cnt_group = pg_num_rows($res_group);
+	$pagetext .= "cnt_groups = ".$cnt_group."\n";
+	if ($cnt_group>0) {
+		for ($i=0;$i<$cnt_group;$i++) {
+			$row_group = pg_fetch_array($res_group,$i);
+			$res_entry = pg_query($conn,"SELECT user_id FROM users_entry WHERE group_id='".$row_group["id"]."' AND user_id<>'$login_id'");
+			$cnt_entry = pg_num_rows($res_entry);
+			
+			if ($res_entry>0) {
+				$users_entry = "";
+				for ($j=0;$j<$cnt_entry;$j++) {
+					$row_entry = pg_fetch_array($res_entry,$j);
+					if ($users_entry != "") $users_entry .= ",";
+					$users_entry .= $row_entry["user_id"];
+				}
+			}
+			if ($users_entry!="") {
+				$pagetext .= "dat_groups[\"".$row_group["id"]."\"] = \"".$users_entry."\";\n";
+			}
+		}
+	}
+	
+	$pagetext .= "
+dat_users = new Array();
+";
+	$all_users = "";
+	
+	$sql_user = "SELECT id,name FROM users ORDER BY seqno";
+	$res_user = pg_query($conn,$sql_user);
+	$cnt_user = pg_num_rows($res_user);
+	$pagetext .= "cnt_users = ".$cnt_user."\n";
+	if ($cnt_user>0) {
+		for ($i=0;$i<$cnt_user;$i++) {
+			$row_user = pg_fetch_array($res_user,$i);
+			$pagetext .= "dat_users[\"".$row_user["id"]."\"] = \"".$row_user["name"]."\";\n";
+			if ($i!=0) $all_users .= ",";
+			$all_users .= $row_user["id"];
+		}
+	}
+	
+	$pagetext .= "dat_groups[\"all\"] = \"".$all_users."\";\n";
+	
+	$pagetext .= "
+
+function selectGroup(t) {
+  group_id = t.groups[t.groups.selectedIndex].value;
+  user_ids = new Array();
+
+  t.users.length = 0;
+
+  if (group_id == '') {
+    user_ids = dat_groups['all'].split(',');
+  } else {
+    if (dat_groups[group_id] != null) {
+      user_ids = dat_groups[group_id].split(',');
+    }
+  }
+  if (user_ids.length>0) {
+    c = 0;
+    for (i=0;i<user_ids.length;i++) {
+      if (user_ids[i] != my) {
+        t.users.length = t.users.length + 1;
+        t.users.options[c].value = user_ids[i];
+        t.users.options[c].text  = dat_users[user_ids[i]];
+        c++;
+      }
+    }
+  }
+}
+
+function clearAllUser(t) {
+  for (i=0;i<t.elements.length;i++) {
+    if (t.elements[i].name == \"user_ids_to[]\") {
+      var p = i;
+      break;
+    }
+  }
+
+  var o = t.elements[p];
+
+  o.length = 0;
+  t.user_id_to.value = '';
+}
+
+function selectAllUser(t) {
+  if (t.users.length>0) {
+    for (i=0;i<t.users.length;i++) {
+      t.users.options[i].selected = true;
+    }
+  }
+  t.allcheck.checked = false;
+}
+
+function addUser(t) {
+  for (i=0;i<t.elements.length;i++) {
+    if (t.elements[i].name == \"user_ids_to[]\") {
+      var p = i;
+      break;
+    }
+  }
+  var o = t.elements[p];
+
+  s = t.user_id_to.value;
+  if (t.users.length>0) {
+    for (i=0;i<t.users.length;i++) {
+      if (t.users.options[i].selected) {
+        t.users.options[i].selected = false;
+        var id = t.users.options[i].value;
+        var c = false;
+        for(j=0;j<o.length;j++) {
+          if (o.options[j].value == id) {
+            c = true;
+            break;
+          }
+        }
+        if (!c) {
+          if (o.length>0) s = s + ',';
+          o.length = o.length + 1;
+          o.options[o.length-1].value = id;
+          o.options[o.length-1].text = dat_users[id];
+          s = s + id;
+        }
+      }
+    }
+  }
+  t.user_id_to.value = s;
+}
+
+function removeUser(t) {
+  for (i=0;i<t.elements.length;i++) {
+    if (t.elements[i].name == \"user_ids_to[]\") {
+      var p = i;
+      break;
+    }
+  }
+
+  var o = t.elements[p];
+
+  var val = new Array();
+  var txt = new Array();
+  var c = 0;
+  
+  if (o.length>0) {
+    for (i=0;i<o.length;i++) {
+      if (!o.options[i].selected) {
+        val[c] = o.options[i].value;
+        txt[c] = o.options[i].text;
+        c++;
+      }
+    }
+
+    o.length = 0;
+    s = '';
+    if (c>0) {
+      o.length = c;
+      for (i=0;i<c;i++) {
+        if (i>0) s = s + ',';
+        o.options[i].value = val[i];
+        o.options[i].text  = txt[i];
+        s = s + val[i];
+      }
+    }
+    t.user_id_to.value = s;
+  }
+}
+//-->
+</SCRIPT>
+";
+	
+	if ($check=="t") {
+		if (trim($subject)=="") {
+			$WMES[] = "タイトルが入力されていません";
+		} elseif(strlen($subject)>80) {
+			$WMES[] = "タイトルが長すぎます。全角40文字までで入力してください";
+			$subject = mb_strcut($subject,0,80);
+		}
+		
+		if (trim($body)=="") {
+			$WMES[] = "本文が入力されていません";
+		} elseif(strlen($body)>8192) {
+			$WMES[] = "本文が長すぎます。8192文字までで入力してください";
+			$body = mb_strcut($body,0,8192);
+		}
+		
+		if ($user_id_to=="") {
+			$WMES[] = "回覧先が選択されていません";
+		} else {
+			$user_id_to_back = "";
+			$users_entry = split(",",$user_id_to);
+			if (sizeof($users_entry)>0) {
+				for ($i=0;$i<sizeof($users_entry);$i++) {
+					if ($users_entry[$i]!="") {
+						$user_id_find = false;
+						if ($i>0) {
+							for ($j=0;$j<$i;$j++) {
+								if ($users_entry[$i]==$users_entry[$j]) {
+									$user_id_find = true;
+									break;
+								}
+							}
+						}
+						if (!$user_id_find) {
+							if ($user_id_to_back!="") $user_id_to_back .= ",";
+							$user_id_to_back .= $users_entry[$i];
+						}
+					}
+				}
+			}
+		}
+	}
+	
+	if($_FILES["file1"]["size"]==0) {
+		#      $DMES[] = "アップロードファイルが設定されていません。<br>";
+	} else {
+		if($_FILES["file1"]["size"] > $upload_max) { //
+		$DMES[] = "アップロードファイルのサイズが大きすぎます（アップロードするファイルは".floor($upload_max/1024/1000)."MB以内に調整して下さい）";
+		} else {
+			$filename = stripslashes($_FILES["file1"]["name"]);
+			
+			$pos_sepa = strrpos($filename, "\\");
+			$pos_dot  = strrpos($filename, ".");
+			if ($pos_sepa>0 || $pos_dot>0) {
+				if ($pos_sepa>0) {
+					$file1_orgname = substr($filename,$pos_sepa + 1);
+				} else {
+					$file1_orgname = $filename;
+				}
+				if ($pos_dot>0) {
+					$file1_orgext  = substr($filename,$pos_dot + 1);
+				} else {
+					$file1_orgext  = "";
+				}
+			} else {
+				$file1_orgname = $filename;
+				$file1_orgext  = "";
+			}
+		}
+		
+		if ($file1_orgname != sjis2euc(euc2sjis($file1_orgname))) {
+			$DMES[] = "添付ファイル[1]のファイル名が正しくありません<BR>（ファイル名に利用できない文字が使用されているか漢字コードの変換に失敗しました）";
+		} elseif (substr($file1_orgname,0,1)==".") {
+			$DMES[] = "添付ファイル[1]のファイル名が正しくありません<BR>（.[ドット]ではじまるファイル名が使用されているか、漢字コードの変換に失敗しました）";
+		} else {
+			$p = strrpos($file1_orgname,".");
+			if ($p==0) { // 拡張子あり？
+			$DMES[] = "添付ファイル[1]は拡張子が正しく指定されていません";
+			}
+		}
+	}
+	
+	if($_FILES["file2"]["size"]==0) {
+		#$DMES[] = "アップロードファイルが設定されていません。<br>";
+	} else {
+		if($_FILES["file2"]["size"]>$upload_max) { //
+		$DMES[] = "アップロードファイルのサイズが大きすぎます<BR>（アップロードするファイルは".floor($upload_max/1024/1000)."MB以内に調整して下さい）";
+		} else {
+			$filename = stripslashes($_FILES["file2"]["name"]);
+			
+			$pos_sepa = strrpos($filename, "\\");
+			$pos_dot  = strrpos($filename, ".");
+			if ($pos_sepa>0 || $pos_dot>0) {
+				if ($pos_sepa>0) {
+					$file2_orgname = substr($filename,$pos_sepa + 1);
+				} else {
+					$file2_orgname = $filename;
+				}
+				if ($pos_dot>0) {
+					$file2_orgext  = substr($filename,$pos_dot + 1);
+				} else {
+					$file2_orgext  = "";
+				}
+			} else {
+				$file2_orgname = $filename;
+				$file2_orgext  = "";
+			}
+		}
+		if ($file2_orgname != sjis2euc(euc2sjis($file2_orgname))) {
+			$DMES[] = "添付ファイル[2]のファイル名が正しくありません<BR>（ファイル名に利用できない文字が使用されているか漢字コードの変換に失敗しました）";
+		} elseif (substr($file2_orgname,0,1)==".") {
+			$DMES[] = "添付ファイル[2]のファイル名が正しくありません<BR>（.[ドット]ではじまるファイル名が使用されているか、漢字コードの変換に失敗しました）";
+		} else {
+			$p = strrpos($file2_orgname,".");
+			if ($p==0) { // 拡張子あり？
+			$DMES[] = "添付ファイル[2]は拡張子が正しく指定されていません";
+			}
+		}
+		
+		if (sizeof($DMES)==0) {
+			if ($file1_orgname != "" && $file2_orgname != "" && $file1_orgname == $file2_orgname) {
+				$DMES[] = "添付ファイル[1]と[2]に同名のファイルが指定されています";
+			}
+		}
+	}
+	
+	if (sizeof($DMES)==0 && sizeof($WMES)==0 && $check=="t") {
+		// DB更新
+		$retry=0;
+		
+		$seqno = get_last("circulas","seqno","",0)+1;	// seqno取得
+		
+		// データ書込み
+		$sql  = "INSERT INTO circulas (";
+		$sql .= "seqno, user_id, user_id_to, subject, body, result_sign, createstamp, updatestamp ";
+		$sql .= ") VALUES (";
+		$sql .=      $seqno    .",";
+		$sql .= "'". $login_id ."',";
+		$sql .= "'". $user_id_to ."',";
+		$sql .= "'". db_textsafe($subject)."',";
+		$sql .= "'". db_textsafe($body)   ."',";
+		$sql .= "'f',";
+		$sql .= "'now()',";
+		$sql .= "'now()'";
+		$sql .= ")";
+		
+		$res = pg_query($conn, $sql);
+		if ($res != false) {
+			$cnt = pg_affected_rows($res);
+		} else {
+			$cnt = 0;
+		}
+		if ($cnt==0) $DMES[] = "発言の投稿処理に失敗しました";
+		
+		if (sizeof($DMES)==0) {
+			// circulas正常書き込み完了 -> circuras_ret を生成
+			for ($i=0;$i<sizeof($user_ids_to);$i++) {
+				$sql  = "INSERT INTO circulas_ret (";
+				$sql .= "refno, seqno, user_id, note, result_sign, createstamp ";
+				$sql .= ") VALUES (";
+				$sql .= $seqno.",";
+				$sql .= ($i+1).",";
+				$sql .= "'".$user_ids_to[$i]."',";
+				$sql .= "'',";
+				$sql .= "'f',";
+				$sql .= "'now()')";
+				$res = pg_query($conn,$sql);
+			}
+		}
+		
+		// 添付ファイルのコピー
+		if (sizeof($DMES)==0 && file_exists($circularspath)) {
+			$dirno = sprintf("%08d",$seqno);
+			
+			if (!file_exists($circularspath."/".$dirno."/")) {
+				mkdir($circularspath."/".$dirno."/",0755);
+			}
+			$ret = exec($cmd_rm." ".$circularspath."/".$dirno."/*");
+			
+			// 一発アップロード時
+			if ($_FILES["file1"]["size"]>0 && $_FILES['file1']['tmp_name']!="") {
+				copy($_FILES['file1']['tmp_name'],$circularspath."/".$dirno."/".$file1_orgname);
+				#unlink($_FILES['file1']['tmp_name']);
+			}
+			if ($_FILES["file2"]["size"]>0 && $_FILES['file2']['tmp_name']!="") {
+				copy($_FILES['file2']['tmp_name'],$circularspath."/".$dirno."/".$file2_orgname);
+				#unlink($_FILES['file2']['tmp_name']);
+			}
+			
+			// 一発アップロードじゃない時
+			if ($_POST["file1_size"]>0 && $_POST['file1_name']!="") {
+				copy($_POST['file1'],$circularspath."/".$dirno."/".$_POST['file1_name']);
+				unlink($_POST['file1']);
+			}
+			if ($_POST["file2_size"]>0 && $_POST['file2_name']!="") {
+				copy($_POST['file2'],$circularspath."/".$dirno."/".$_POST['file2_name']);
+				unlink($_POST['file2']);
+			}
+		}
+		
+		// メール送信
+		if (sizeof($DMES)==0 && $sendmailusers=="t") {
+			// 発信者アドレスのセット
+			$mailfrom = trim(get_first("users","email_sub","id='".$login_id."'",""));
+			if ($mailfrom == "") {
+				$mailfrom = trim(get_first("users","email","id='".$login_id."'",""));
+			}
+			
+			if ($mailfrom != "") {
+				// ヘッダの生成
+				$mailheader  = "Date: ".date("D, j M Y G:i:s")." +0900\n";
+				$mailheader .= "From: ".$mailfrom."\n";
+				$mailheader .= "Reply-To: ".$mailfrom."\n";
+				$mailheader .= "Return-Path: ".$mailfrom."\n";
+				$mailheader .= "Errors-To: ".$webmaster."\n";
+				$mailheader .= "MIME-Version: 1.0\n";
+				$mailheader .= "Content-Type: text/plain; charset=iso-2022-jp\n";
+				#$mailheader .= "Content-Type: multipart/mixed; boundary=\"".$boundary."\"\n";
+				$mailheader .= "Content-Transfer-Encoding: 7bit\n";
+				$mailheader .= "X-Mailer: PenguinOffice SendMail";
+				
+				// 表題の生成
+				$mailsubject  = "回覧:".date("m/d");
+				$mailsubject .= "(";
+				$mailsubject .= $wname[date("w")];
+				$mailsubject .= ") ";
+				$mailsubject .= date("H:i");
+				
+				// 本文の生成
+				$mailbody = "";
+				
+				// 発信者アドレスのセット
+				if ($seqno == ""){
+					$mailbody .= "登録者:";
+				} else {
+					$mailbody .= "更新者:";
+				}
+				$mailbody .= trim(get_first("users","name_ryaku","id='".$login_id."'",""));
+				$mailbody .= "\n";
+				
+				$mailbody .= "ﾀｲﾄﾙ:".mail_textsafe($subject)."\n";
+				$mailbody .= "------------------\n";
+				$mailbody .= mail_textsafe($body);
+				
+				for ($i=0;$i<sizeof($user_ids_to);$i++) {
+					// 受信者アドレスのセット
+					$mailto = trim(get_first("users","email_sub","id='".$user_ids_to[$i]."'",""));
+					if ($mailto == "") {
+						$mailto = trim(get_first("users","email","id='".$user_ids_to[$i]."'",""));
+					}
+					
+					if ($mailto!="") {
+						// ワンタイムパースワード確認
+						$onepass = trim(get_first("users","onetime_passwd","id='".$user_ids_to[$i]."'",""));
+						if (trim($onepass)=="") {
+							$onepass = make_serial(12);
+							$sql_update = "UPDATE users SET onetime_passwd='".$onepass."' WHERE id='".$user_ids_to[$i]."'";
+							pg_query($conn,$sql_update);
+						}
+						
+						// キャリア毎のメール準備
+						if (eregi("@docomo\.ne\.jp$",$mailto)) {
+							# Docomo 500字(-90字[リンク分])まで
+							$maxlen = 500-90;
+						} elseif (eregi("@jp\-.\.ne\.jp$",$mailto) || eregi("@..\.vodafone\.ne\.jp$",$mailto)) {
+							# J-SKY 384字(-90字[リンク分])まで
+							$maxlen = 384-90;
+						} elseif (eregi("@ezweb\.ne\.jp$",$mailto) || eregi("@.*\.ezweb\.ne\.jp$",$mailto) || eregi("@ez.*\.ido\.ne\.jp$",$mailto)) {
+							# EZWeb 2000字(-90字[リンク分])まで
+							$maxlen = 2000-90;
+						} else {
+							$maxlen = 10000;
+						}
+						$mailbody = mb_strcut($mailbody,0,$maxlen);
+						
+						$mailbody .= "\n--\n";
+						if (eregi("@docomo\.ne\.jp$",$mailto) || eregi("@jp\-.\.ne\.jp$",$mailto)  || eregi("@..\.vodafone\.ne\.jp$",$mailto) || eregi("@ezweb\.ne\.jp$",$mailto) || eregi("@.*\.ezweb\.ne\.jp$",$mailto) || eregi("@ez.*\.ido\.ne\.jp$",$mailto)) {
+							// Docomo or J-PHONE or EZWeb
+							$mailbody .= "回覧の確認⇒"."http://".$domain."/i/cir/view.phtml?sn=".$onepass."&type=tonot&s=".$seqno;
+						} else {
+							$mailbody .= "回覧の確認⇒"."https://".$domain."/circular/result/?mode=dlogin&sn=".$onepass."&no=".$seqno;
+						}
+						// メール送信
+						mail ($mailto,
+						mb_encode_mimeheader(euc2jis($mailsubject),"ISO-2022-JP"),
+						euc2jis($mailbody),
+						euc2jis($mailheader));
+					}
+				}
+			}
+		}
+	}
+	
+	if (sizeof($DMES)>0) {
+		// 入力エラー時
+		$pagetext .= "<BR><BR>";
+		$pagetext .= "<CENTER>";
+		$pagetext .= "<FONT COLOR=#FF0000>";
+		while (list($key,$val)=each($DMES)) {
+			$pagetext .= $val."<BR>";
+		}
+		$pagetext .= "<BR><FORM ACTION=\"./\" METHOD=POST>";
+		$pagetext .= "<INPUT TYPE=HIDDEN NAME=\"error\" VALUE=\"t\">";
+		$pagetext .= "<INPUT TYPE=HIDDEN NAME=\"p\" VALUE=\"$p\">";
+		$pagetext .= "<INPUT TYPE=HIDDEN NAME=\"subject\" VALUE=\"$subject\">";
+		$pagetext .= "<INPUT TYPE=HIDDEN NAME=\"body\" VALUE=\"$body\">";
+		$pagetext .= "<INPUT TYPE=HIDDEN NAME=\"user_id_to\" VALUE=\"$user_id_to_back\">";
+		$pagetext .= "<INPUT TYPE=SUBMIT VALUE=\"戻る\">";
+		$pagetext .= "</FORM>";
+		$pagetext .= "</FONT>";
+		$pagetext .= "</CENTER>";
+	} elseif (sizeof($WMES)>0 || $check!="t") {
+		$pagetext .= "
+<BR>
+<CENTER>
+タイトルと本文を入力し回覧先を選択してから、送信ボタンをクリックしてください。
+<BR>
+";
+		$pagetext .= "<BR><FONT COLOR=#FF0099>";
+		if (sizeof($WMES)>0) {
+			while (list($key,$val)=each($WMES)) {
+				$pagetext .= $val."<BR>";
+			}
+		}
+		$pagetext .= "</FONT><BR>";
+		
+		// ワーニングエラー時
+		$pagetext .= "
+<TABLE BORDER=0 CELLPADDING=4 CELLSPACING=1 width=480 BGCOLOR=#999999>
+<FORM ACTION=\"./\" METHOD=POST ONSUBMIT=\"return confirm('回覧を送信しますか？')\" ENCTYPE=\"multipart/form-data\">
+<INPUT TYPE=HIDDEN NAME=\"MAX_FILE_SIZE\" VALUE=\"$upload_max\">
+<INPUT TYPE=HIDDEN NAME=\"check\" VALUE=\"t\">
+<INPUT TYPE=HIDDEN NAME=\"p\" VALUE=\"$p\">
+
+<TR>
+<TD ALIGN=RIGHT WIDTH=90 NOWRAP VALIGN=TOP BGCOLOR=$td_back_left>タイトル</TD>
+<TD ALIGN=LEFT BGCOLOR=$td_back>
+<INPUT TYPE=TEXT SIZE=46 NAME=\"subject\" VALUE=\"$subject\"></TD>
+</TR>
+
+<TR>
+<TD ALIGN=RIGHT WIDTH=90 NOWRAP VALIGN=TOP BGCOLOR=$td_back_left>本文</TD>
+<TD ALIGN=LEFT BGCOLOR=$td_back>
+<TEXTAREA NAME=\"body\" COLS=52 ROWS=12 STYLE=\"width:380px;height:176px\">$body</TEXTAREA>
+</TD></TR>
+";
+		
+		$pagetext .= "
+<TR>
+<TD ALIGN=RIGHT WIDTH=90 NOWRAP VALIGN=TOP BGCOLOR=$td_back_left>回覧先</TD>
+<TD ALIGN=LEFT BGCOLOR=$td_back>
+<TABLE BORDER=0 CELLPADDING=2 CELLSPACING=2>
+<TR><TD COLSPAN=2>&nbsp;</TD>
+<TD><SELECT NAME=\"groups\" ONCHANGE=\"selectGroup(this.form)\" STYLE=\"width:120px\">\n";
+		$pagetext .= "<OPTION VALUE=\"\" SELECTED>(全て)\n";
+		
+		$sql_group = "SELECT id,name FROM groups ORDER BY seqno";
+		$res_group = pg_query($conn,$sql_group);
+		$cnt_group = pg_num_rows($res_group);
+		if ($cnt_group>0) {
+			for ($i=0;$i<$cnt_group;$i++) {
+				$row_group = pg_fetch_array($res_group,$i);
+				$res_entry = pg_query($conn,"SELECT user_id FROM users_entry WHERE group_id='".$row_group["id"]."' AND user_id<>'$login_id'");
+				if (pg_num_rows($res_entry)>0) {
+					$pagetext .= "<OPTION VALUE=\"".$row_group["id"]."\">".$row_group["name"];
+					$pagetext .= "\n";
+				}
+			}
+		}
+		
+		$pagetext .= "</SELECT>
+</TD></TR>
+
+<TR><TD VALIGN=TOP><SELECT NAME=\"user_ids_to[]\" SIZE=8 STYLE=\"width:140px\">
+";
+		
+		$user_ids_to = split(",",$user_id_to);
+		
+		if (sizeof($user_ids_to)>0) {
+			for ($i=0;$i<sizeof($user_ids_to);$i++) {
+				if ($user_ids_to[$i]!="") {
+					$pagetext .= "<OPTION VALUE=\"".$user_ids_to[$i]."\">";
+					$pagetext .= get_first("users","name","id='".$user_ids_to[$i]."'","");
+					$pagetext .= "\n";
+				}
+			}
+		}
+		$pagetext .= "</SELECT><BR>
+<INPUT TYPE=BUTTON NAME=\"allclear\" VALUE=\"全て消去\" ONCLICK=\"clearAllUser(this.form)\">
+</TD>
+<TD ALIGN=CENTER VALIGN=MIDDLE>
+<INPUT TYPE=BUTTON VALUE=\"&lt; 追加\" ONCLICK=\"addUser(this.form)\"><BR><BR>
+<INPUT TYPE=BUTTON VALUE=\"削除 &gt;\" ONCLICK=\"removeUser(this.form)\"><BR><BR><BR>
+</TD>
+<TD VALIGN=TOP><SELECT NAME=\"users\" MULTIPLE SIZE=8 STYLE=\"width:140px\">
+";
+		
+		$sql_user = "SELECT id,depa,post,name FROM users ORDER BY seqno";
+		$res_user = pg_query($conn,$sql_user);
+		$cnt_user = pg_num_rows($res_user);
+		
+		if ($cnt_user>0) {
+			for ($i=0;$i<$cnt_user;$i++) {
+				$row_user = pg_fetch_array($res_user,$i);
+				if ($login_id != $row_user["id"]) { //自身を除外
+				$pagetext .= "<OPTION VALUE=\"".$row_user["id"]."\" ";
+				if ($sendtype=="P" && preg_match("/(^|,)".$row_user["id"]."(,|$)/",$senddata)){
+					$pagetext .= "selected";
+				}
+				$pagetext .= ">".$row_user["name"];
+				$pagetext .= "</OPTION>\n";
+				}
+			}
+		}
+		$pagetext .= "</SELECT><BR>
+<INPUT TYPE=BUTTON NAME=\"allcheck\" VALUE=\"全て選択\" ONCLICK=\"selectAllUser(this.form)\">
+<INPUT TYPE=HIDDEN NAME=\"user_id_to\" VALUE=\"$user_id_to\">
+</TD></TR></TABLE>";
+		
+		$pagetext .= "<INPUT TYPE=CHECKBOX NAME=\"sendmailusers\" VALUE=\"t\"";
+		if (($sendmailusers=="" && $check!="t") || $sendmailusers=="t") {
+			$pagetext .= " CHECKED";
+		}
+		$pagetext .= "><FONT COLOR=#666666>回覧先にメールで通知する<BR>\n";
+		$pagetext .= "&nbsp;※<FONT STYLE=\"font-size:85%\">アドレス間違いや受信制限などメールが届かない場合はエラーメールが返ってきます</FONT><BR>";
+		
+		$pagetext .= "</TD></TR>";
+		
+
+		if (file_exists($circularspath)) {
+			if (sizeof($_FILES)==0 || ($_POST["file1_name"]=="" && $_POST["file2_name"]=="")) {
+				$pagetext .= "
+<TR>
+<TD ALIGN=RIGHT WIDTH=80 NOWRAP BGCOLOR=$td_back_left VALIGN=TOP>添付ファイル<BR><FONT COLOR=#666666>※2つまで</FONT></TD>
+<TD ALIGN=LEFT WIDTH=400 NOWRAP BGCOLOR=$td_back>
+
+<INPUT TYPE=FILE NAME=\"file1\" STYLE=\"width:260px\" STYLE=\"ime-mode:disabled\"><BR>
+<INPUT TYPE=FILE NAME=\"file2\" STYLE=\"width:260px\" STYLE=\"ime-mode:disabled\"><BR>
+
+</TD>
+</TR>";
+			} else {
+				$pagetext .= "
+<TR>
+<TD ALIGN=RIGHT WIDTH=80 NOWRAP BGCOLOR=$td_back_left VALIGN=TOP>添付ファイル</TD>
+<TD ALIGN=LEFT WIDTH=400 NOWRAP BGCOLOR=$td_back>";
+				
+				if ($_FILES["file1"]["name"]=="" && $_FILES["file2"]["name"]!="") {
+					$pagetext .= "添付ファイルなし";
+				} else {
+					if ($_FILES["file1"]["name"]!="") {
+						$tempfilename =  tempnam($tmppath,"cur1");
+						$pagetext .= "<!--";
+						copy ($_FILES['file1']['tmp_name'],$tempfilename);
+						$pagetext .= "-->";
+						
+						$pagetext .= "<INPUT TYPE=HIDDEN NAME=\"file1_name\" VALUE=\"".$_FILES["file1"]["name"]."\">";
+						$pagetext .= "<INPUT TYPE=HIDDEN NAME=\"file1_size\" VALUE=\"".$_FILES["file1"]["size"]."\">";
+						$pagetext .= "<INPUT TYPE=HIDDEN NAME=\"file1_type\" VALUE=\"".$_FILES["file1"]["type"]."\">";
+						$pagetext .= "<INPUT TYPE=HIDDEN NAME=\"file1\" VALUE=\"$tempfilename\">";
+						
+						$imageicon = ext_check($_FILES["file1"]["name"]);
+						$pagetext .= "<IMG SRC=\"".$imageicon."\" BORDER=0 ALT=\"".$_FILES["file1"]["name"]."\" ALIGN=ABSMIDDLE WIDTH=32 HEIGHT=32 VSPACE=2 HSPACE=2>";
+						$pagetext .= $_FILES["file1"]["name"];
+					}
+					if ($_FILES["file2"]["name"]!="") {
+						$tempfilename =  tempnam($tmppath,"cur2");
+						$pagetext .= "<!--";
+						copy ($_FILES['file2']['tmp_name'],$tempfilename);
+						$pagetext .= "-->";
+						$pagetext .= "<INPUT TYPE=HIDDEN NAME=\"file2_name\" VALUE=\"".$_FILES["file2"]["name"]."\">";
+						$pagetext .= "<INPUT TYPE=HIDDEN NAME=\"file2_size\" VALUE=\"".$_FILES["file2"]["size"]."\">";
+						$pagetext .= "<INPUT TYPE=HIDDEN NAME=\"file2_type\" VALUE=\"".$_FILES["file2"]["type"]."\">";
+						$pagetext .= "<INPUT TYPE=HIDDEN NAME=\"file2\" VALUE=\"$tempfilename\">";
+
+						$imageicon = ext_check($_FILES["file2"]["name"]);
+						$pagetext .= "<IMG SRC=\"".$imageicon."\" BORDER=0 ALT=\"".$_FILES["file2"]["name"]."\" ALIGN=ABSMIDDLE WIDTH=32 HEIGHT=32 VSPACE=2 HSPACE=2>";
+						$pagetext .= $_FILES["file2"]["name"];
+					}
+				}
+			}
+		}
+		
+		$pagetext .= "</TD></TR></TABLE>";
+		$pagetext .= "<BR>";
+		$pagetext .= "<INPUT TYPE=SUBMIT VALUE=\"回覧の送信\" style=\"width:140px\">";
+		$pagetext .= "</FORM>";
+		$pagetext .= "</CENTER>";
+		
+	} else {
+		// 正常時
+		$returl = "../";
+		if ($p=="top") {
+			$returl = "../../";
+		}
+		Header("Location: ".$returl);
+		exit;
+	}
+}
+
+include("../../header.inc.php");
+include("../../detail.inc.php");
+include("../../footer.inc.php");
+?>

@@ -1,0 +1,95 @@
+<?php
+  include "../../config.inc.php";
+  include "../../lib.inc.php";
+
+  // リンク用テキストの設定
+  $linktext  = "<A HREF=\"../../\" ALT=\"トップページ\" CLASS=\"BAR\">トップページ</A> &gt; ";
+  $linktext .= "<A HREF=\"../\" ALT=\"管理者メニュー\" CLASS=\"BAR\">管理者メニュー</A> &gt; ";
+  $linktext .= "<FONT COLOR=#FFFF00>スケジュール項目設定</FONT> ";
+
+  // ヘッダ表示
+  include "../../header.inc.php";
+
+  // 機能別メニュー内容の取得
+  include "../menu.inc.php";
+
+  if ($login && $admin_sign=="t") {
+    print "<!--";
+    $pagetext = "";
+    $pagetext .= "<SCRIPT LANGUAGE=\"JavaScript\">\n";
+    $pagetext .= "<!--\n";
+    $pagetext .= "function delConfirm(seqno,key,p) {\n";
+    $pagetext .= "  if (confirm(\"この項目を削除しますか？\\n注:一度削除した項目は元に戻すことはできません\")) {\n";
+    $pagetext .= "    window.open('./delete.phtml?seqno='+seqno+'&key='+key+'&p='+p+'','_self');\n";
+    $pagetext .= "  }\n";
+    $pagetext .= "}\n";
+    $pagetext .= "// -->\n";
+    $pagetext .= "</SCRIPT>\n";
+    $pagetext .= "<BR><CENTER>\n";
+
+    if (!empty($_POST["back"]) && $_POST["back"]=="t") {
+      // 更新ページからの戻り(エラー)時
+      $p      = stripslashes($_POST["p"]);
+      $seqno  = stripslashes($_POST["seqno"]);
+      $key    = stripslashes($_POST["key"]);
+      $value  = stripslashes($_POST["value"]);
+    } else {
+      // 変数処理
+      if (!empty($_REQUEST["p"])) $p = $_REQUEST["p"];
+
+      // SELECT条件の指定
+      if ((!empty($_REQUEST["seqno"]) && is_numeric($_REQUEST["seqno"])) &&
+          (!empty($_REQUEST["key"])   && is_numeric($_REQUEST["key"])) ) {
+        $sql = "SELECT * FROM address_kind WHERE seqno=".$_REQUEST["seqno"]." AND key='".$_REQUEST["key"]."'";
+        $res = pg_query($conn, $sql);
+        $cnt = pg_num_rows($res);
+      } else {
+        $cnt = 0;
+      }
+
+      if ($cnt>0) {
+        $row = pg_fetch_array($res, 0);
+        $seqno      = $row["seqno"];
+        $key        = $row["key"];
+        $old_key    = $row["key"];
+        $value      = $row["value"];
+      } else {
+        $seqno      = "";
+        $key        = "";
+        $passwd     = "";
+        $value      = "";
+      }
+    }
+
+    //テーブル出力
+    $pagetext .= "<TABLE BGCOLOR=#999999 BORDER=0 CELLPADDING=3 CELLSPACING=1>\n";
+    $pagetext .= "<FORM ACTION=\"./update.phtml\" METHOD=POST>\n";
+    $pagetext .= "<INPUT TYPE=HIDDEN NAME=\"p\" VALUE=\"$p\">\n";
+    if (!empty($_REQUEST["seqno"])) {
+      $pagetext .= "<INPUT TYPE=HIDDEN NAME=\"key\" VALUE=\"$key\">\n";
+      $pagetext .= "<INPUT TYPE=HIDDEN NAME=\"seqno\" VALUE=\"$seqno\">\n";
+    }
+    $pagetext .= "<TR><TH ALIGN=RIGHT NOWRAP BGCOLOR=$td_back_left>&nbsp;項目名&nbsp;</TD>";
+    $pagetext .= "<TD NOWRAP BGCOLOR=#FFFFEE>";
+    $pagetext .= "<INPUT TYPE=TEXT NAME=\"value\" SIZE=16 MAXLENGTH=60 VALUE=\"$value\">\n";
+    $pagetext .= "</TD></TR>\n";
+
+    $pagetext .= "</TABLE>\n";
+    $pagetext .= "<BR>\n";
+
+    if (!empty($_REQUEST["seqno"])) {
+      $pagetext .= "<INPUT TYPE=SUBMIT VALUE=\"更新する\" STYLE=\"width:80px\">&nbsp;";
+      $pagetext .= "<INPUT TYPE=BUTTON VALUE=\"削除\" onclick=\"delConfirm(".$_REQUEST["seqno"].",'$key','$p')\">\n";
+    } else {
+      $pagetext .= "<INPUT TYPE=SUBMIT VALUE=\"登録する\" STYLE=\"width:80px\">";
+    }
+    $pagetext .= "</FORM>\n";
+    $pagetext .= "</CENTER>\n";
+    print "-->";
+  }
+  // 明細表示
+  include "../../detail.inc.php";
+
+  // フッタ表示
+  include "../../footer.inc.php";
+?>

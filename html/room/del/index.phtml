@@ -1,0 +1,59 @@
+<?php
+include "../../config.inc.php"; include "../../lib.inc.php";
+
+$linktext  = "<A HREF=\"../../\" CLASS=\"BAR\">トップページ</A> &gt; ";
+$linktext .= "<A HREF=\"../\" CLASS=\"BAR\">施設・設備予約</A> &gt; ";
+$linktext .= "<FONT COLOR=#FFFF00>予約の削除</FONT>";
+
+include "../../login_check.inc.php";
+
+if ($login && sizeof($MES)==0) {
+	// 削除処理
+	if($seqno==""){
+		$MES[] = "正しいページから利用してください";
+	} else {
+		$sql = "SELECT * FROM rooms_reserve where seqno=".$seqno;
+		$res = pg_query($conn,$sql);
+		if(pg_num_rows($res)==0){
+			$MES[] = "指定された情報は既に削除されています";
+		} else {
+			$sql = "DELETE FROM rooms_reserve where seqno=".$seqno;
+			$res = pg_query($conn,$sql);
+			if($res==false){
+				$MES[] = "削除に失敗しました";
+			}
+		}
+	}
+	
+	if (sizeof($MES)>0) {
+		// エラーメッセージ出力
+		include "../../header.inc.php";
+		
+		print "<br>\n";
+		print "<TABLE WIDTH=$TABLEWIDTH><TR><TD ALIGN=CENTER>";
+		while (list($key,$val)=each($MES)) {
+			print "<font color=#FF0000><b>".$val."</b></font><br>\n";
+		}
+		print "<br>\n";
+		print "<input TYPE=button VALUE=\"戻る\" onClick=\"history.back()\"><br>\n";
+		print "<input TYPE=button VALUE=\"閉じる\" onClick=\"javascript:window.close();opener.window.location.reload()\"><br>\n";
+		print "<br>\n";
+		print "</td></tr></table>\n";
+		
+		include "../../footer.inc.php";
+	} else {
+		// 正常処理
+		$returl = "../";
+		if ($p=="top") {
+			$returl = "../../";
+		} elseif ($_COOKIE["room_move"]=="daily") {
+			$returl = "../daily.phtml";
+		} elseif ($_COOKIE["room_move"]=="monthly") {
+			$returl = "../monthly.phtml";
+		} elseif ($_COOKIE["room_move"]=="yearly") {
+			$returl = "../yearly.phtml";
+		}
+		header("Location: ".$returl);
+	}
+}
+?>

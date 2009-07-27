@@ -1,0 +1,408 @@
+<?php
+  include "../../config.inc.php"; include "../../lib.inc.php";
+
+  $linktext  = "<A HREF=\"../../\" CLASS=\"BAR\">トップページ</A> &gt; ";
+  $linktext .= "<A HREF=\"../\" CLASS=\"BAR\">施設・設備予約</A> &gt; ";
+  if (!empty($q)) {
+    $linktext .= "<FONT COLOR=#FFFF00>予約のコピー</FONT>";
+  } elseif (empty($s)) {
+    $linktext .= "<FONT COLOR=#FFFF00>予約の登録</FONT>";
+  } else {
+    $linktext .= "<FONT COLOR=#FFFF00>予約の確認</FONT>";
+  }
+
+  include "../../header.inc.php"; flush();
+
+  if ($login && sizeof($MES)==0) {
+    //登録ページからの戻り判定
+    if (eregi("room\/add\/add\.phtml",$referer)){
+      $tit = "再入力";
+      $id = $room_id;
+    } else {
+      if ($s <> ""){
+        $tit = "編集";
+
+        // 予約の存在確認
+        $sql = "SELECT * FROM rooms_reserve WHERE seqno=".$s;
+        $res = pg_query($conn,$sql);
+        if (pg_num_rows($res)==0) {
+          $DMES[] = "指定された予約情報は既に削除されています";
+        } else {
+          $row = pg_fetch_array($res,0);
+
+          $id             = $row["room_id"];
+          $user_id        = $row["user_id"];
+          $note           = $row["note"];
+          $member_count   = $row["member_count"];
+          $update_user_id = $row["update_user_id"];
+          if (empty($update_user_id)) $update_user_id = $user_id;
+
+          $stamp = datetime2timestamp($row["date"]);
+          $ey    = date("Y",$stamp);
+          $em    = date("m",$stamp);
+          $ed    = date("d",$stamp);
+
+          $from      = split(" ",$row["timefrom"]);
+          $from_time = split(":",$from[1]);
+          $from_h    = $from_time[0];
+          $from_m    = $from_time[1];
+
+          $to      = split(" ",$row["timeto"]);
+          $to_time = split(":",$to[1]);
+          $to_h    = $to_time[0];
+          $to_m    = $to_time[1];
+
+          $updatestamp = $row["updatestamp"];
+        }
+      } else {
+        $tit = "新規";
+
+        $user_id = $login_id;
+        $manage_id = "";
+        if ($q <> ""){
+          // コピー時
+          $sql = "select * from rooms_reserve where seqno=".$q;
+          $res = pg_query($conn,$sql);
+
+          if (pg_num_rows($res)==0) {
+            $DMES[] = "指定された予約情報は既に削除されています";
+          } else {
+            $row = pg_fetch_array($res,0);
+
+            $id = $row["room_id"];
+
+            $note = $row["note"];
+
+            $stamp = datetime2timestamp($row["date"]);
+            $ey = date("Y",$stamp);
+            $em = date("m",$stamp);
+            $ed = date("d",$stamp);
+
+            $from      = split(" ",$row["timefrom"]);
+            $from_time = split(":",$from[1]);
+            $from_h    = $from_time[0];
+            $from_m    = $from_time[1];
+
+            $to      = split(" ",$row["timeto"]);
+            $to_time = split(":",$to[1]);
+            $to_h    = $to_time[0];
+            $to_m    = $to_time[1];
+
+          }
+        } else {
+          // 通常時
+          $note = "";
+
+          $sql = "SELECT * FROM users WHERE id='".$login_id."'";
+          $res = pg_query($conn, $sql);
+          $cnt = pg_num_rows($res);
+          if ($cnt>0 && $row["from_h"]!=0 && $row["to_h"]!=0) {
+            $row        = pg_fetch_array($res, 0);
+            $from_h     = $row["from_h"];
+            $from_m     = $row["from_m"];
+            $to_h       = $row["to_h"];
+            $to_m       = $row["to_m"];
+          } else {
+            $from_h = 9;
+            $from_m = 0;
+            $to_h   = -1;
+            $to_m   = -1;
+          }
+
+          if ($ey=="" and $em=="" and $ed==""){
+            $ey = date("Y",time());
+            $em = date("m",time());
+            $ed = date("d",time());
+          }
+        }
+      }
+    }
+    if (!empty($id)) {
+      $manage_id = get_first("rooms","manage_id","id='$id'","");
+    }
+
+    if ($_POST["err"]=="t") {
+      if ($from_hour<>"")   $from_h = $from_hour;
+      if ($from_minuts<>"") $from_m = $from_minuts;
+      if ($to_hour<>"")     $to_h   = $to_hour;
+      if ($to_minuts<>"")   $to_m   = $to_minuts;
+
+      if (!empty($s)) {
+        $update_user_id = get_first("rooms_reserve","update_user_id","seqno=$s","");
+        $updatestamp    = get_first("rooms_reserve","updatestamp","seqno=$s","");
+      }
+      if (empty($update_user_id)) $update_user_id = $user_id;
+    }
+    if (empty($member_count)) $member_count = 1;
+
+    $weekno = date("w",date2timestamp($ey."-".$em."-".$ed)); // 曜日のセット(初期表示用)
+
+    $user_name = get_first("users","name_ryaku","id='".$user_id."'","不明"); // user名の取得
+
+    if (sizeof($DMES)>0) {
+      // エラーメッセージ出力
+      print "<TABLE BORDER=0 WIDTH=100%><FORM><TR><TD ALIGN=CENTER><FONT COLOR=#FF0000>";
+      print "<BR>";
+      // エラーメッセージ出力
+      while (list($key,$val)=each($DMES)) {
+        print $val."<BR>\n";
+      }
+      print "<BR>";
+      print "<INPUT TYPE=BUTTON VALUE=\"戻る\" ONCLICK=\"history.back()\">";
+      print "</TD></TR></FORM></TABLE>\n";
+    } else {
+      print "
+<script language=\"JavaScript\">
+<!--
+  function delwin(seqno) {
+    if(confirm('この予約を削除しますか。\\n注:一度削除した予約を戻すことはできません。')) {
+      window.location.href = '../del/?seqno='+seqno+'&p=$p';
+    }
+  }
+
+  function changeday(t) {
+    document.images['weekday'].src = '/image/w-.gif';
+    y = parseInt(t.ey.value);
+    m = t.em.options[t.em.selectedIndex].value;
+    d = t.ed.options[t.ed.selectedIndex].value;
+    if (!(isNaN(y)) && (y>0) && !(isNaN(m)) && (m>0) && !(isNaN(d)) && (d>0)) {
+      w = new Date();
+      w.setYear(y); w.setMonth(m-1); w.setDate(d);
+      document.images['weekday'].src = '/image/w'+ w.getDay() +'.gif';
+    }
+  }
+
+  function selectfromhour(t) {
+    if (t.from_hour[0].selected) {
+      t.from_minuts[0].selected = true;
+    } else {
+      if (t.from_minuts[0].selected == true) t.from_minuts[1].selected = true;
+
+      if (t.to_hour.selectedIndex==0 || t.to_hour.selectedIndex<t.from_hour.selectedIndex) {
+        t.to_hour.selectedIndex = t.from_hour.selectedIndex;
+        t.to_minuts.selectedIndex = t.from_minuts.selectedIndex;
+      }
+    }
+  }
+
+  function selecttohour(t) {
+    if (t.to_hour[0].selected) {
+      t.to_minuts[0].selected = true;
+    } else {
+      if (t.to_minuts[0].selected == true) t.to_minuts[1].selected = true;
+    }
+  }
+
+//-->
+</script>
+";
+      print "<BR>\n";
+  
+      print "<TABLE WIDTH=100% HEIGHT=445><TR><TD VALIGN=TOP ALIGN=CENTER>\n";
+      print "<FORM ACTION=\"./add.phtml\" METHOD=POST>\n";
+      print "<TABLE BORDER=0 CELLPADDING=2 CELLSPACING=0 ALIGN=CENTER><TR><TD VALIGN=TOP ALIGN=CENTER>\n";
+
+      if (!empty($s)) {
+        print "<DIV ALIGN=LEFT>";
+        print "<TABLE><TR><TD><FONT COLOR=#555555>";
+        print "登録者 : ";
+        print "<A HREF=\"../../member/?id=".$update_user_id."\">".get_first("users","name_ryaku","id='".$update_user_id."'","不明")."<IMG SRC=\"../../image/clip.gif\" BORDER=0 WIDTH=10 HEIGHT=11 ALIGN=ABSMIDDLE></A>\n";
+        print "</TD></TR></TABLE>\n";
+        print "</DIV>\n";
+      }
+
+      print "<TABLE BORDER=0 CELLPADDING=4 CELLSPACING=1 BGCOLOR=#999999>\n";
+      print "<INPUT TYPE=HIDDEN NAME=\"seqno\" VALUE=\"$s\">\n";
+      print "<INPUT TYPE=HIDDEN NAME=\"p\" VALUE=\"$p\">\n";
+      print "<INPUT TYPE=HIDDEN NAME=\"target\" VALUE=\"$target\">\n";
+      print "<INPUT TYPE=HIDDEN NAME=\"user_id\" VALUE=\"$user_id\">\n";
+
+      if ($user_id==$login_id) {
+        print "<INPUT TYPE=HIDDEN NAME=\"user_id\" VALUE=\"$user_id\">\n";
+      } else {
+        print "<TR>\n";
+        print "<TD ALIGN=RIGHT WIDTH=80 NOWRAP VALIGN=TOP BGCOLOR=$td_back_left>&nbsp;担当者&nbsp;</TD>\n";
+        print "<TD ALIGN=LEFT BGCOLOR=$td_back>\n";
+        print "<B><A HREF=\"../../member/?id=".$user_id."\">$user_name</A></B>\n";
+        print "</TD>\n";
+        print "</TR>\n";
+      }
+
+      print "<TR>\n";
+      print "<TD ALIGN=RIGHT WIDTH=80 NOWRAP VALIGN=TOP BGCOLOR=$td_back_left>&nbsp;施設&nbsp;</TD>\n";
+      print "<TD ALIGN=LEFT BGCOLOR=$td_back>\n";
+      print "<SELECT NAME=\"room_id\" STYLE=\"ime-mode:disabled\">\n";
+      // 設備タイプの獲得
+      $sql_roomtype = "SELECT * FROM rooms_type ORDER BY seqno";
+      $res_roomtype = pg_query($conn,$sql_roomtype);
+      $cnt_roomtype = pg_num_rows($res_roomtype);
+      if ($cnt_roomtype>0) {
+        for ($i=0;$i<$cnt_roomtype;$i++) {
+          $row_roomtype = pg_fetch_array($res_roomtype,$i);
+          $types[($row_roomtype["seqno"])] = $row_roomtype["name"];
+        }
+      }
+
+      if (empty($id) or $id=="") {
+        print "<OPTION VALUE=\"\" SELECTED>施設を選択してください</OPTION>\n";
+      } else {
+        print "<OPTION VALUE=\"\">施設を選択してください</OPTION>\n";
+      }
+      print "<OPTION VALUE=\"\">--------------------</OPTION>\n";
+      $b_type = "";
+      $sql_room = "SELECT * FROM rooms ORDER BY type,id";
+      $res_room = pg_query($conn,$sql_room);
+      $cnt_room = pg_num_rows($res_room);
+
+      if ($cnt_room>0) {
+        for ($i=0;$i<$cnt_room;$i++) {
+          $row_room = pg_fetch_array($res_room,$i);
+          $rooms[$i] = array($row_room["id"],$row_room["type"],$row_room["name"]);
+          if ($b_type != $row_room["type"]) {
+            print "<OPTION VALUE=\"\">【".$types[$row_room["type"]]."】</OPTION>\n";
+          }
+          $b_type = $row_room["type"];
+          if ($id==$row_room["id"]) {
+            print "<OPTION VALUE=\"".$row_room["id"]."\" selected>・".$row_room["name"]."</OPTION>\n";
+          } else {
+            print "<OPTION VALUE=\"".$row_room["id"]."\">・".$row_room["name"]."</OPTION>\n";
+          }
+        }
+      }
+      print "</SELECT>\n";
+      print "</TD>\n";
+      print "</TR>\n";
+
+      print "<TR>\n";
+      print "<TD ALIGN=RIGHT WIDTH=80 NOWRAP VALIGN=TOP BGCOLOR=$td_back_left>&nbsp;日付&nbsp;</TD>\n";
+      print "<TD ALIGN=LEFT BGCOLOR=$td_back>\n";
+      // 年
+      print "<INPUT TYPE=TEXT NAME=\"ey\" VALUE=\"$ey\" SIZE=5 MAXLENGTH=4 ONCHANGE=\"changefromday(this.form);\" STYLE=\"ime-mode:disabled\">年\n";
+      // 月
+      print "<SELECT NAME=\"em\" ONCHANGE=\"changeday(this.form)\" STYLE=\"ime-mode:disabled\">\n";
+      for ($i=1;$i<=12;$i++){
+        print "<OPTION value=$i";
+        if ($i == $em){
+           print " selected ";
+        }
+        print ">";
+        if (strlen($i)==1) print "0";
+        print $i;
+        print "</OPTION>\n";
+      }
+      print "</SELECT>月\n";
+      // 日
+      print "<SELECT NAME=\"ed\" ONCHANGE=\"changeday(this.form)\" style=\"ime-mode:disabled\">\n";
+      for ($i=1;$i<=31;$i++){
+        print "<OPTION value=$i";
+        if ($i == $ed){
+           print " selected ";
+        }
+        print ">";
+        if (strlen($i)==1) print "0";
+        print $i;
+        print "</OPTION>\n";
+      }
+      print "</SELECT>日&nbsp;<IMG NAME=\"weekday\" SRC=\"/image/w$weekno.gif\">&nbsp;\n";
+      print "</TD>\n";
+      print "</TR>\n";
+
+      print "<TR>\n";
+      print "<TD ALIGN=RIGHT WIDTH=80 NOWRAP VALIGN=TOP BGCOLOR=$td_back_left>&nbsp;時刻&nbsp;</TD>\n";
+      print "<TD ALIGN=LEFT BGCOLOR=$td_back>\n";
+      print "<SELECT NAME=\"from_hour\" ONCHANGE=\"selectfromhour(this.form)\" STYLE=\"ime-mode:disabled\">\n";
+      print "<OPTION value=\"-1\"";
+      if ($from_h==-1){ print " selected "; }
+      print ">--</OPTION>\n";
+      for ($i=0;$i<=23;$i++){
+        print "<OPTION value=\"$i\"";
+        if ($i == $from_h){ print " selected "; }
+        print ">";
+        if (strlen($i)==1) print "0";
+        print $i."</OPTION>\n";
+      }
+      print "</SELECT>：<SELECT NAME=\"from_minuts\" style=\"ime-mode:disabled\">\n";
+      print "<OPTION value=\"-1\"";
+      if ($from_m==-1){ print " selected "; }
+      print ">--</OPTION>\n";
+      for ($i=0;$i<60;$i=$i+$interval){
+        print "<OPTION value=\"$i\"";
+        if ($i == $from_m){ print " selected "; }
+        print ">";
+        if (strlen($i)==1) print "0";
+        print $i."</OPTION>\n";
+      }
+      print "</SELECT>〜<SELECT NAME=\"to_hour\" ONCHANGE=\"selecttohour(this.form)\" STYLE=\"ime-mode:disabled\">\n";
+      print "<OPTION value=\"-1\"";
+      if ($to_h==-1){ print " selected "; }
+      print ">--</OPTION>\n";
+      for ($i=0;$i<=23;$i++){
+        print "<OPTION value=\"$i\"";
+        if ($i == $to_h){ print " selected "; }
+        print ">";
+        if (strlen($i)==1) print "0";
+        print $i."</OPTION>\n";
+      }
+      print "</SELECT>：<SELECT name=\"to_minuts\" STYLE=\"ime-mode:disabled\">\n";
+      print "<OPTION value=\"-1\"";
+      if ($to_m==-1){ print " selected "; }
+      print ">--</OPTION>\n";
+      for ($i=0;$i<60;$i=$i+$interval){
+        print "<OPTION value=\"$i\"";
+        if ($i == $to_m){ print " selected "; }
+        print ">";
+        if (strlen($i)==1) print "0";
+        print $i."</OPTION>\n";
+      }
+      print "</SELECT>\n";
+      print "</TD></TR>\n";
+
+      print "<TR>\n";
+      print "<TD ALIGN=RIGHT WIDTH=80 NOWRAP VALIGN=TOP BGCOLOR=$td_back_left>&nbsp;内容&nbsp;</TD>\n";
+      print "<TD ALIGN=LEFT BGCOLOR=$td_back>\n";
+      print "<TEXTAREA NAME=\"note\" COLS=46 ROWS=5 style=\"ime-mode:active\">".$note."</TEXTAREA></TD>\n";
+      print "</TR>\n";
+
+      print "<TR>\n";
+      print "<TD ALIGN=RIGHT WIDTH=80 NOWRAP VALIGN=TOP BGCOLOR=$td_back_left>&nbsp;利用人数&nbsp;</TD>\n";
+      print "<TD ALIGN=LEFT BGCOLOR=$td_back>\n";
+      print "<INPUT TYPE=TEXT NAME=\"member_count\" SIZE=4 style=\"ime-mode:disabled\" VALUE=\"$member_count\">名\n";
+      print "</TR>\n";
+
+      print "</TABLE>\n";
+
+      if (!empty($s)) {
+        print "<DIV ALIGN=RIGHT>";
+        print "<TABLE><TR><TD><FONT COLOR=#555555>";
+        print "更新日時 : ";
+        print date("Y年m月d日 H:i",datetime2timestamp($updatestamp))."\n";
+        print "</TD></TR></TABLE>\n";
+        print "</DIV>\n";
+      }
+      print "</TD></TR>\n";
+
+      print "</TABLE>\n";
+
+      print "<TABLE BORDER=0 CELLPADDING=3 CELLSPACING=0 ALIGN=CENTER><TR>\n";
+
+      if (!empty($s)){
+        if ($user_id == $login_id or $manage_id == $login_id) {
+          print "<TD><INPUT TYPE=SUBMIT VALUE=\"更新\" style=\"width:100px\"></TD>\n";
+        }
+        print "<TD><INPUT TYPE=BUTTON VALUE=\"コピー\" onclick=\"location.href='./?q=".$s."&p=".$p."'\" style=\"width:70px\"></TD>\n";
+
+        if ($user_id == $login_id or $manage_id == $login_id) {
+          print "<TD><INPUT TYPE=BUTTON VALUE=\"削除\" onclick=\"delwin('".$s."')\" style=\"width:60px;background-color:#FFCCCC\"></TD>\n";
+        }
+      } else {
+        print "<TD><INPUT TYPE=SUBMIT VALUE=\"登録\" style=\"width:100px\"></TD>\n";
+      }
+
+      print "</TR></TABLE>\n";
+
+      print "</FORM>\n";
+      print "</TD></TR></TABLE>\n";
+    }
+  }
+  include "../../footer.inc.php";
+?>

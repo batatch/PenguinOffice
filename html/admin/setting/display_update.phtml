@@ -1,0 +1,147 @@
+<?
+  include "../../config.inc.php"; include "../../lib.inc.php";
+  $linktext  = "<A HREF=\"/\" CLASS=\"BAR\">トップページ</A> &gt; ";
+  $linktext .= "<A HREF=\"/admin/\" CLASS=\"BAR\">管理者メニュー</A> &gt; ";
+  $linktext .= "<FONT COLOR=#FFFF00>管理者設定:表示設定</FONT> ";
+  include "../../header.inc.php"; include "../menu.inc.php";
+
+  if (!$login) {
+    $DMES[] = "先にログインしてください";
+  } elseif ($admin_sign!="t") {
+    $DMES[] = "本機能は管理者のみご利用可能です";
+  } elseif ($login && $admin_sign=="t") {
+    // 事前整形
+    $service_name = textsafe($_POST["service_name"]);
+    $url          = textsafe($_POST["url"]);
+#    $logoutsecond = textsafe($_POST["logoutsecond"]);
+    $interval     = textsafe($_POST["interval"]);
+    $sunday       = textsafe($_POST["sunday"]);
+    $monday       = textsafe($_POST["monday"]);
+    $tuesday      = textsafe($_POST["tuesday"]);
+    $wednesday    = textsafe($_POST["wednesday"]);
+    $thursday     = textsafe($_POST["thursday"]);
+    $friday       = textsafe($_POST["friday"]);
+    $saturday     = textsafe($_POST["saturday"]);
+    // エラーチェック
+    if ($service_name=="") {
+      $DMES[] = "サービス名が入力されていません";
+    } elseif(strlen($service_name)>100) {
+      $DMES[] = "サービス名が長すぎます(100文字以内)";
+      $service_name = mb_strcut($service_name,0,100);
+    }
+    if ($url=="") {
+#      $DMES[] = "ホームページアドレスが入力されていません";
+    } elseif(strlen($url)>200) {
+      $DMES[] = "ホームページアドレスが長すぎます(200文字以内)";
+      $url = mb_strcut($url,0,200);
+    }
+
+    if (sizeof($DMES)==0) {
+
+      if ($sunday=="t"   ) { $sunbool="t"; }    else { $sunbool="f"; }
+      if ($monday=="t")    { $monbool="t"; }    else { $monbool="f"; }
+      if ($tuesday=="t")   { $tuesbool="t"; }   else { $tuesbool="f"; }
+      if ($wednesday=="t") { $wednesbool="t"; } else { $wednesbool="f"; }
+      if ($thursday=="t")  { $thursbool="t"; }  else { $thursbool="f"; }
+      if ($friday=="t")    { $fribool="t"; }    else { $fribool="f"; }
+      if ($saturday=="t")  { $saturbool="t"; }  else { $saturbool="f"; }
+
+
+      if (get_count("admin","")==0) {
+        // 追加
+        $sql  = "INSERT INTO admin (";
+        $sql .= "service_name,";
+        if ($url != "") {
+          $sql .= "url,";
+        }
+#        $sql .= "logoutsecond,";
+        $sql .= "interval,";
+        $sql .= "sunday,monday,tuesday,wednesday,thursday,friday,saturday,";
+        $sql .= "createstamp,updatestamp";
+        $sql .= ") VALUES (";
+        $sql .= "'".db_textsafe($service_name)."',";
+        if ($url != "") {
+          $sql .= "'".db_textsafe($url)       ."',";
+        }
+#        $sql .= " ".$logoutsecond             ." ,";
+        $sql .= " ".$interval                 ." ,";
+        $sql .= "'".$sunbool                  ."',";
+        $sql .= "'".$monbool                  ."',";
+        $sql .= "'".$tuesbool                 ."',";
+        $sql .= "'".$wednesbool               ."',";
+        $sql .= "'".$thursbool                ."',";
+        $sql .= "'".$fribool                  ."',";
+        $sql .= "'".$saturbool                ."',";
+        $sql .= "'now','now')";
+      } else {
+        // 更新
+        $sql  = "UPDATE admin SET ";
+        $sql .= "service_name = '".db_textsafe($service_name)."',";
+        if ($url != "") {
+          $sql .= "url        = '".db_textsafe($url)         ."',";
+        }
+#        $sql .= "logoutsecond =  ".$logoutsecond." ,";
+        $sql .= "interval     =  ".$interval." ,";
+        $sql .= "sunday       = '".$sunbool."',";
+        $sql .= "monday       = '".$monbool."',";
+        $sql .= "tuesday      = '".$tuesbool."',";
+        $sql .= "wednesday    = '".$wednesbool."',";
+        $sql .= "thursday     = '".$thursbool."',";
+        $sql .= "friday       = '".$fribool."',";
+        $sql .= "saturday     = '".$saturbool."',";
+        $sql .= "updatestamp  = 'now'";
+      }
+      // SQL実行
+      $res = pg_query($conn, $sql);
+      if ($res==false) {
+        $DMES[] = "表示情報の設定に失敗しました";
+      } elseif (pg_affected_rows($res)==0) {
+        $DMES[] = "表示情報の設定に失敗しました";
+      }
+    }
+  }
+
+  if (sizeof($DMES)>0) {
+    $pagetext .= "<CENTER><BR><FONT COLOR=#FF0000>\n";
+    while(list($key,$val)=each($DMES)) {
+      $pagetext .= $val."<BR>\n";
+    }
+    $pagetext .= "</FONT><BR>\n";
+    $pagetext .= "
+<FORM ACTION=\"./\" METHOD=POST>
+<INPUT TYPE=HIDDEN NAME=\"err\" VALUE=\"t\">
+<INPUT TYPE=HIDDEN NAME=\"service_name\" VALUE=\"".$service_name."\">
+<INPUT TYPE=HIDDEN NAME=\"url\"          VALUE=\"".$url         ."\">
+<!--<INPUT TYPE=HIDDEN NAME=\"logoutsecond\" VALUE=\"".$logoutsecond."\">-->
+<INPUT TYPE=HIDDEN NAME=\"interval\"     VALUE=\"".$interval    ."\">
+<INPUT TYPE=HIDDEN NAME=\"sunday         VALUE=\"".$sunday      ."\">
+<INPUT TYPE=HIDDEN NAME=\"monday         VALUE=\"".$monday      ."\">
+<INPUT TYPE=HIDDEN NAME=\"tuesday        VALUE=\"".$tuesday     ."\">
+<INPUT TYPE=HIDDEN NAME=\"wednesday      VALUE=\"".$wednesday   ."\">
+<INPUT TYPE=HIDDEN NAME=\"thursday       VALUE=\"".$thursday    ."\">
+<INPUT TYPE=HIDDEN NAME=\"friday         VALUE=\"".$friday      ."\">
+<INPUT TYPE=HIDDEN NAME=\"saturday       VALUE=\"".$saturday    ."\"> 
+<INPUT TYPE=SUBMIT VALUE=\"戻る\">
+</FORM>";
+
+    $pagetext .= "</CENTER>";
+  } else {
+    // 正常時
+    $returl = "./display.phtml";
+    $pagetext .= "
+<BR>
+<CENTER>
+設定完了<BR>
+<BR>
+<A HREF=\"#\" ONCLICK=\"location.replace('$returl');location.href='$returl';\">≪設定へ戻る≫</A>
+</CENTER>
+<BR>
+<SCRIPT LANGUAGE=\"JavaScript\">
+<!--//
+  setTimeout(\"location.replace('$returl');location.href='$returl/';\", 3000);
+//-->
+</SCRIPT>\n";
+  }
+  include ("../../detail.inc.php");
+  include ("../../footer.inc.php");
+?>

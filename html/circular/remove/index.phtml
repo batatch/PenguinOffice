@@ -1,0 +1,85 @@
+<?
+include ("../../config.inc.php"); include ("../../lib.inc.php");
+
+$linktext  = "<A HREF=\"../../\" CLASS=\"BAR\">トップページ</A> &gt; ";
+$linktext .= "<A HREF=\"../\" CLASS=\"BAR\">回覧板</A> &gt; ";
+$linktext .= "<FONT COLOR=#FFFF00>回覧の削除</FONT> ";
+
+$no = $_GET["no"];
+
+include ("../../login_check.inc.php");
+
+if ($login && sizeof($MES)==0) {
+	// エラーチェック
+	if (empty($no)) {
+		$DMES[] = "回覧が選択されていません";
+	} else {
+		$sql = "SELECT * FROM circulas WHERE seqno=$no";
+		if (!$admin_sign=="t") $sql .= " AND user_id='$login_id'";
+		
+		$res = pg_query($conn,$sql);
+		$cnt = pg_num_rows($res);
+		if ($cnt==0) {
+			// 回覧なし
+			$DMES[] = "指定された回覧は登録されていないか既に削除されています";
+		} else {
+			// 回覧の削除
+			$sql = "DELETE FROM circulas WHERE seqno=$no";
+			$res = pg_query($conn,$sql);
+			if ($res != false) {
+				$cnt = pg_affected_rows($res);
+			} else {
+				$cnt = 0;
+			}
+			if ($cnt==0) {
+				$DMES[] = "回覧の削除処理に失敗しました";
+			} else {
+				// 既読情報の削除
+				$sql = "DELETE FROM circulas_res WHERE seqno=$no";
+				$res = pg_query($conn,$sql);
+				
+				// 回覧の回答を削除
+				$sql = "DELETE FROM circulas_ret WHERE refno=$no";
+				$res = pg_query($conn,$sql);
+				
+				// 回覧の添付ファイル/ディレクトリ削除
+				$dirno = strval($no); if (strlen($dirno)<8) $dirno = str_repeat("0",8-strlen($dirno)).$dirno;
+				if (file_exists($circularspath."/".$dirno."/")) {
+					exec($cmd_rm." ".$circularspath."/".$dirno."/*");
+					exec($cmd_rm." -rf ".$circularspath."/".$dirno."");
+				}
+			}
+		}
+	}
+	
+	if (sizeof($DMES)==0) {
+		// 正常時
+		$returl = "../";
+		if ($p=="top") {
+			$returl = "../../";
+		}
+		Header("Location: ".$returl);
+		
+	} else {
+		// エラー時
+		include "../../header.inc.php";
+		
+		$pagetext .= "<BR><BR>\n";
+		$pagetext .= "<CENTER>\n";
+		$pagetext .= "<FONT COLOR=#FF0000>\n";
+		while (list($key,$val)=each($DMES)) {
+			$pagetext .= $val."<BR>\n";
+		}
+		$pagetext .= "</FONT>\n";
+		
+		$pagetext .= "<BR><FORM>\n";
+		$pagetext .= "<INPUT TYPE=BUTTON VALUE=\"戻る\" ONCLICK=\"history.back()\">\n";
+		
+		$pagetext .= "</FORM>\n";
+		$pagetext .= "</CENTER>\n";
+		
+		include "../../detail.inc.php";
+		include "../../footer.inc.php";
+	}
+}
+?>

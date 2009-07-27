@@ -1,0 +1,65 @@
+<?
+  include "../../config.inc.php"; include "../../lib.inc.php";
+
+  $linktext  = "<A HREF=\"../../\" CLASS=\"BAR\">トップページ</A> &gt; ";
+  $linktext .= "<A HREF=\"../\" CLASS=\"BAR\">ワークフロー</A> &gt; ";
+  $linktext .= "<FONT COLOR=#FFFF00>フロー設定</FONT> ";
+
+  include ("../../login_check.inc.php");
+
+  $pagetext = "";
+
+  if ($login && $admin_sign=="t") {
+    if (!empty($_REQUEST["p"]))      $p     = $_REQUEST["p"];
+    if (!empty($_REQUEST["seqno"]))  $seqno = $_REQUEST["seqno"];
+
+    // 削除対象の確認
+    $sql = "SELECT * FROM flows WHERE seqno=".$seqno;
+    $res = pg_query($conn,$sql);
+    $cnt = pg_num_rows($res);
+    if ($cnt>0) {
+      $row = pg_fetch_array($res, 0);  
+    } else {
+      $DMES[] = "ワークフロー情報の確認に失敗しました";
+    }
+
+    if (sizeof($MES)==0) {
+      // 削除処理
+      $sql = "DELETE FROM flows WHERE seqno=".$seqno;
+      $res = pg_query($conn, $sql);
+      if ($res==false) {
+        $DMES[] = "ワークフロー情報の削除に失敗しました";
+      }
+    }
+
+    // エラー処理
+    if (sizeof($DMES)>0) {
+		  include "../../header.inc.php"; flush();
+		  include "../menu.inc.php";
+
+      $pagetext .= "<BR><CENTER>";
+      $pagetext .= "<TABLE>";
+      $pagetext .= "<FORM ACTION=\"./edit.phtml\" METHOD=POST>\n";
+      $pagetext .= "<TR><TD>";
+
+      $pagetext .= "<FONT COLOR=#FF0000>";
+      for ($i=0;$i<sizeof($DMES);$i++){
+        $pagetext .= $DMES[$i]."<BR>";
+      }
+
+      $pagetext .= "</TD></TR></TABLE>";
+      $pagetext .= "<BR>";
+      $pagetext .= "<INPUT TYPE=BUTTON VALUE=\"戻る\" ONCLICK=\"history.back()\" STYLE=\"width:80px\">\n";
+      $pagetext .= "</FORM>";
+      $pagetext .= "</CENTER>\n";
+
+		  include "../../detail.inc.php";
+		  include "../../footer.inc.php";
+    } else {
+      // 正常終了時
+     	$returl = "./?p=$p";
+      Header("Location: ".$returl);
+    }
+  }
+
+?>

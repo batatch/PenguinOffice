@@ -1,0 +1,275 @@
+<?
+	include "../../config.inc.php";
+	include "../../lib.inc.php";
+
+	$linktext  = "<A HREF=\"../../\" CLASS=\"BAR\">トップページ</A> &gt; ";
+	$linktext .= "<A HREF=\"../\" CLASS=\"BAR\">備忘録</A> &gt; ";
+	if (empty($seqno)) {
+		$linktext .= "<FONT COLOR=#FFFF00>メモの登録</FONT>";
+	} else {
+		$linktext .= "<FONT COLOR=#FFFF00>メモの確認</FONT>";
+	}
+	
+	if (empty($todo_s_sort) or $todo_s_sort=="") { $todo_s_sort = "stamp"; }
+
+	include "../../header.inc.php"; flush();
+
+	include("../session.inc.php");
+
+	unset($begin_day);	
+	unset($end_day);	
+
+	$pagetext .= "<TABLE BORDER=0 CELLPADDING=2 CELLSPACING=0 width=100%><FORM><TR>\n";
+	$pagetext .= "<TD ALIGN=LEFT VALIGN=MIDDLE>&nbsp;</TD>\n";
+	$pagetext .= "<TD ALIGN=RIGHT VALIGN=MIDDLE>&nbsp;";
+	$pagetext .= "<A HREF=\"./?p=".$todo_s_p."\"><IMG SRC=\"../../image/entrysadd.gif\" WIDTH=10 HEIGHT=9 BORDER=0 ALIGN=ABSMIDDLE ALT=\"メモの追加\">新しいメモ</A>";
+	$pagetext .= "<!--&nbsp;<A HREF=\"#\" ONCLICK=\"delConf()\"><IMG SRC=\"../../image/eraser.gif\" WIDTH=14 HEIGHT=14 BORDER=0 ALIGN=ABSMIDDLE ALT=\"メモの全件削除\">全て削除</A>-->";
+	$pagetext .= "</TD>\n";
+	$pagetext .= "</TR></FORM></TABLE>\n";
+
+	if ($login && sizeof($MES)==0) {
+		
+		include "../menu.inc.php";
+    
+		$subject = textsafe($_POST["subject"]);
+		$body    = textsafe($_POST["body"]);
+
+	    // 前処理
+    	if (empty($seqno)){
+			$seqno = 0; // 新規時
+			$priority = 3;
+		} else {
+			$sql = "SELECT * FROM todos WHERE seqno=".$seqno." AND user_id='".$login_id."'";
+			$res = pg_query($conn,$sql);
+
+			if (pg_num_rows($res)>0) {
+				$row = pg_fetch_array($res,0);
+				$priority  = $row["priority"];
+				$subject   = $row["subject"];
+				$body      = $row["body"];
+				$temp_day  = $row["begin_day"];
+				$begin_day = explode("-", $temp_day);
+				$temp_day  = $row["end_day"];
+				$end_day   = explode("-", $temp_day);
+				$progress  = $row["progress"];
+				
+				$pagetext .= "<INPUT type=\"hidden\" name=\"seqno\" value=".$seqno.">\n";
+			} else {
+				$DMES[] = "既に指定されたメモは既に削除されたか登録されていません";
+			}
+		}
+#Array ( [p] => [seqno] => 0 [old_priority] => 3 [subject] => [priority] => 3 [begin_year] => 2004 [begin_month] => 6 [begin_day] => 29 [end_year] => 2004 [end_month] => 6 [end_day] => 29 [v] => [progress] => [body] => [use_end_flg] => off )
+
+		if (($_POST["subject"]) !==NULL) $subject = $_POST["subject"];
+		if (($_POST["priority"]) !==NULL) $priority = $_POST["priority"];
+		if (($_POST["body"]) !==NULL) $body = $_POST["body"];
+		if (($_POST["begin_year"]) !==NULL) $begin_day[0] = $_POST["begin_year"];
+		if (($_POST["begin_month"]) !==NULL) $begin_day[1] = $_POST["begin_month"];
+		if (($_POST["begin_day"]) !==NULL) $begin_day[2] = $_POST["begin_day"];
+		if (($_POST["end_year"]) !==NULL) $end_day[0] = $_POST["end_year"];
+		if (($_POST["end_month"]) !==NULL) $end_day[1] = $_POST["end_month"];
+		if (($_POST["end_day"]) !==NULL) $end_day[2] = $_POST["end_day"];
+
+		if (($_POST["v"]) !==NULL) $progress = $_POST["v"];
+		if (strlen($progress) == 0) $progress = 0;
+		
+		if (sizeof($DMES)>0) {
+		
+			// エラー時
+			$pagetext .= "<BR>\n";
+			$pagetext .= "<TABLE BORDER=0 WIDTH=100%><FORM>";
+			$pagetext .= "<TR><TD ALIGN=CENTER><FONT COLOR=#FF0000>";
+			// エラーメッセージ出力
+			while (list($key,$val)=each($DMES)) {
+				$pagetext .= $val."<BR>\n";
+			}
+			
+			$pagetext .= "<BR>\n";
+			$pagetext .= "<INPUT TYPE=button VALUE=\"戻る\" onClick=\"history.back()\">\n";
+
+			$pagetext .= "</TD></TR></FORM></TABLE>\n";
+		
+		} else {
+		
+			// 正常処理
+			$pagetext .= "<SCRIPT LANGUAGE=\"JavaScript\">\n";
+			$pagetext .= "<!--\n";
+			$pagetext .= "    function delwin(seqno) {\n";
+			$pagetext .= "        if(confirm(\"このメモを削除しますか。\\n注:一度削除したメモを戻すことはできません。\")) {\n";
+			$pagetext .= "            window.open(\"../del/?p=$p&seqno=\"+seqno,\"_self\");\n";
+			$pagetext .= "        }\n";
+			$pagetext .= "    }\n";
+			$pagetext .= "//-->\n";
+			$pagetext .= "</SCRIPT>";
+
+#			$pagetext .= "<CENTER><BR>";
+#      if (!empty($seqno) && $seqno>0) {
+#				$pagetext .= "修正が終わったら必ず「更新」ボタンを押してください<BR>";
+#			} else {
+#				$pagetext .= "タイトルと内容を入力して「登録」ボタンを押してください<BR>";
+#			}
+#			$pagetext .= "<BR></CENTER>";
+
+			$pagetext .= "<TABLE WIDTH=100%>\n";
+			$pagetext .= "</form><FORM name=\"edit_form\" ACTION=\"./add.phtml\" METHOD=POST>\n";
+			$pagetext .= "<TR><TD VALIGN=TOP ALIGN=CENTER>\n";
+			$pagetext .= "<INPUT TYPE=HIDDEN NAME=\"p\" VALUE=\"$p\">\n";
+			$pagetext .= "<INPUT TYPE=HIDDEN NAME=\"seqno\" VALUE=\"$seqno\">\n";
+			$pagetext .= "<INPUT TYPE=HIDDEN NAME=\"old_priority\" VALUE=\"$priority\">\n";
+			$pagetext .= "<TABLE BORDER=0 CELLPADDING=4 CELLSPACING=1 ALIGN=CENTER BGCOLOR=#666666>\n";
+			$pagetext .= "<TR>\n";
+			$pagetext .= "<TD ALIGN=LEFT BGCOLOR=$td_back_left VALIGN=TOP>タイトル:\n";
+			$pagetext .= "<INPUT TYPE=TEXT SIZE=46 NAME=\"subject\" VALUE=\"$subject\" STYLE=\"width:340px;ime-mode:active\"><BR>\n";
+
+			$pagetext .= "<TABLE CELLPADDING=0 CELLPADDING=0 BORDER=0>\n";
+			$pagetext .= "<TR><TD><FONT STYLE=\"font-size:85%\">&nbsp;重要度:　&nbsp;</TD>\n";
+
+			for($i = 3; $i > 0; $i--) {
+				$pagetext .= "<TD BGCOLOR=".$priority_color[$i-1]." ALIGN=CENTER><FONT STYLE=\"font-size:85%; width: 80px;\">";
+				$pagetext .= "　<INPUT TYPE=\"RADIO\" NAME=\"priority\" VALUE=\"".$i."\"";
+				if ($priority == $i) {
+					$pagetext .= " checked";
+				}
+				if (empty($priority) and $i == 3){
+					$pagetext .= " checked";
+				}
+		   		$pagetext .= ">";
+		        $pagetext .= "".$priority_name[$i-1]."　&nbsp;";
+				$pagetext .= "</TD>";
+			}
+      		$pagetext .= "<td>&nbsp;</td></TR>";
+      
+			$today = getdate();
+		  
+			$pagetext .= "<TR><TD>開始日:　&nbsp;</TD><td colspan=4>";
+			// 開始年
+			$pagetext .= "<select name=begin_year>";
+			if (strlen($begin_day[0]) == 0) $begin_day[0] = $today["year"];
+			$selected[$begin_day[0]] = " selected";
+			for ($i = $today["year"] - 5; $i <= $today["year"] + 5; $i++){
+				$pagetext .= "<option value=".$i.$selected[$i].">".$i."</option>";
+			}
+			unset($selected);
+			$pagetext .= "</select>年";
+			// 開始月
+			$pagetext .= "<select name=begin_month>";
+			if (strlen($begin_day[1]) == 0) $begin_day[1] = $today["mon"];
+			$selected[number_format($begin_day[1])] = " selected";
+			for ($i = 1; $i <= 12; $i++){
+				$pagetext .= "<option value=".$i.$selected[$i].">".$i."</option>";
+			}
+			unset($selected);
+			$pagetext .= "</select>月";
+			// 開始日
+			$pagetext .= "<select name=begin_day>";
+			if (strlen($begin_day[2]) == 0) $begin_day[2] = $today["mday"];
+			$selected[number_format($begin_day[2])] = " selected";
+			for ($i = 1; $i <= 31; $i++){
+				$pagetext .= "<option value=".$i.$selected[$i].">".$i."</option>";
+			}
+			unset($selected);
+			$pagetext .= "</select>日</td>\n";
+			$pagetext .= "</TR>\n";
+			
+			$pagetext .= "<TR><TD>締切日:　&nbsp;</TD><td colspan=4>";
+			// 締切年
+			$pagetext .= "<select name=end_year>";
+			if (strlen($end_day[0]) == 0){
+				$end_year = $today["year"];
+			} else {
+				$end_year = $end_day[0];
+			}
+			$selected[$end_year] = " selected";
+			for ($i = $today["year"] - 5; $i <= $today["year"] + 5; $i++){
+				$pagetext .= "<option value=".$i.$selected[$i].">".$i."</option>";
+			}
+			unset($selected);
+			$pagetext .= "</select>年";
+			// 締切月
+			$pagetext .= "<select name=end_month>";
+			if (strlen($end_day[1]) == 0) $end_day[1] = $today["mon"];
+			$selected[number_format($end_day[1])] = " selected";
+			for ($i = 1; $i <= 12; $i++){
+				$pagetext .= "<option value=".$i.$selected[$i].">".$i."</option>";
+			}
+			unset($selected);
+			$pagetext .= "</select>月";
+			// 締切日
+			$pagetext .= "<select name=end_day>";
+			if (strlen($end_day[2]) == 0) $end_day[2] = $today["mday"];
+			$selected[number_format($end_day[2])] = " selected";
+			for ($i = 1; $i <= 31; $i++){
+				$pagetext .= "<option value=".$i.$selected[$i].">".$i."</option>";
+			}
+			unset($selected);
+			$pagetext .= "</select>日&nbsp;";
+			// 締切日未指定
+			$checked = "";
+			if (strlen($end_day[0]) == 0 && ($seqno == 0 || !empty($seqno))) $checked = " checked";
+			$pagetext .= "<input type=\"checkbox\" name=\"end_null_flg\"".$checked." onclick=\"editchkbox_click();\">締切日を設定しない</td>\n";
+			unset($checked);
+			$pagetext .= "</TR>\n";
+
+			$pagetext .= "<script language=\"javascript\">\n";
+			$pagetext .= "editchkbox_click();\n";
+			$pagetext .= "function editchkbox_click(){\n";
+			$pagetext .= "document.edit_form.end_year.disabled = document.edit_form.end_null_flg.checked;\n";
+			$pagetext .= "document.edit_form.end_month.disabled = document.edit_form.end_null_flg.checked;\n";
+			$pagetext .= "document.edit_form.end_day.disabled = document.edit_form.end_null_flg.checked;\n";
+			$pagetext .= "}\n";
+			$pagetext .= "</script>\n";
+
+			$pagetext .= "<TR><TD>達成率:　&nbsp;</TD><td colspan=4>";
+
+			if (strlen($_GET["v"]) != 0) $progress = $_GET["v"];
+			$pagetext .= "<input type=\"hidden\" name=\"progress\" value=\"".$progress."\">";
+			for ($j = 0; $j <= 100; $j = $j + 10){
+				if ($progress >= $j){
+					$bar[$j] = "■";
+				} else {
+					$bar[$j] = "□";
+				}
+			}
+
+//			$pagetext .= "<a href=\"./?seqno=".$seqno."&v=0&p=".$todo_s_p."\">未</a><a href=\"./?seqno=".$seqno."&v=10&p=".$todo_s_p."\">".$bar[10]."</a><a href=\"./?seqno=".$seqno."&v=20&p=".$todo_s_p."\">".$bar[20]."</a><a href=\"./?seqno=".$seqno."&v=30&p=".$todo_s_p."\">".$bar[30]."</a><a href=\"./?seqno=".$seqno."&v=40&p=".$todo_s_p."\">".$bar[40]."</a><a href=\"./?seqno=".$seqno."&v=50&p=".$todo_s_p."\">".$bar[50]."</a><a href=\"./?seqno=".$seqno."&v=60&p=".$todo_s_p."\">".$bar[60]."</a><a href=\"./?seqno=".$seqno."&v=70&p=".$todo_s_p."\">".$bar[70]."</a><a href=\"./?seqno=".$seqno."&v=80&p=".$todo_s_p."\">".$bar[80]."</a><a href=\"./?seqno=".$seqno."&v=90&p=".$todo_s_p."\">".$bar[90]."</a><a href=\"./?seqno=".$seqno."&v=100&p=".$todo_s_p."\">".$bar[100]."</a>";
+			$pagetext .= "<a href=\"javascript:progress_click(0);\" name=\"progressbar\">未</a><a href=\"javascript:progress_click(10);\" name=\"progressbar[10]\">".$bar[10]."</a><a href=\"javascript:progress_click(20);\" name=\"progressbar[20]\">".$bar[20]."</a><a href=\"javascript:progress_click(30);\" name=\"progressbar[30]\">".$bar[30]."</a><a href=\"javascript:progress_click(40);\" name=\"progressbar[40]\">".$bar[40]."</a><a href=\"javascript:progress_click(50);\" name=\"progressbar[50]\">".$bar[50]."</a><a href=\"javascript:progress_click(60);\" name=\"progressbar[60]\">".$bar[60]."</a><a href=\"javascript:progress_click(70);\" name=\"progressbar[70]\">".$bar[70]."</a><a href=\"javascript:progress_click(80);\" name=\"progressbar[80]\">".$bar[80]."</a><a href=\"javascript:progress_click(90);\" name=\"progressbar[90]\">".$bar[90]."</a><a href=\"javascript:progress_click(100);\" name=\"progressbar[100]\">".$bar[100]."</a>";
+		
+			$pagetext .= "</td>\n";
+			$pagetext .= "</TR></TABLE>";
+
+$pagetext .= "<script language=\"javascript\">\n";
+$pagetext .= "function progress_click(id){\n";
+$pagetext .= "document.edit_form.progress.value = id;\n";
+$pagetext .= "document.edit_form.action = \"./index.phtml?seqno=".$seqno."&v=\"+id;\n";
+$pagetext .= "document.edit_form.submit();\n";
+$pagetext .= "}\n";
+$pagetext .= "</script>\n";
+
+			$pagetext .= "</TD></TR>";
+
+			$pagetext .= "<TR><TD ALIGN=LEFT BGCOLOR=$td_back VALIGN=TOP>";
+			$pagetext .= "<TEXTAREA NAME=\"body\" COLS=52 ROWS=20 STYLE=\"width:440px;height:240px;ime-mode:active\">";
+			$pagetext .= $body;
+			$pagetext .= "</TEXTAREA>";
+
+			$pagetext .= "</TD></TR></TABLE>\n";
+
+			$pagetext .= "<BR>\n";
+
+			$pagetext .= "<TABLE BORDER=0 CELLPADDING=4 CELLSPACING=0 ALIGN=CENTER><TR>";
+
+			if ($seqno != 0){
+				$pagetext .= "<TD><INPUT TYPE=SUBMIT VALUE=\"更新\" accesskey=\"R\" style=\"width:100px\"></TD>\n";
+				$pagetext .= "<TD><INPUT TYPE=button VALUE=\"削除\" onclick=\"delwin('".$seqno."')\" accesskey=\"D\" style=\"width:60px;background-color:#FFCCCC\"></TD>\n";
+			} else {
+		        $pagetext .= "<TD><INPUT TYPE=SUBMIT VALUE=\"登録\" accesskey=\"R\" style=\"width:100px\"></TD>\n";
+      		}
+      	}
+
+		$pagetext .= "</TR></TABLE>";
+		$pagetext .= "</TD></TR></FORM></TABLE>";
+   	}
+
+	include "../../detail.inc.php";
+	include "../../footer.inc.php";
+?>

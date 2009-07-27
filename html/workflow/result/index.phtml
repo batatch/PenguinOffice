@@ -1,0 +1,409 @@
+<?php
+  include ("../../config.inc.php");
+  include ("../../lib.inc.php");
+
+  $kwd = stripslashes(urldecode($_COOKIE["workflow_kwd"]));
+
+  $no   = $_REQUEST["no"];
+  $note = textsafe($_POST["note"]);
+
+  $func = textsafe($_REQUEST["func"]);
+
+  // リンク用テキストの設定
+  $linktext  = "<A HREF=\"../../\" ALT=\"トップページ\" CLASS=\"BAR\">トップページ</A> &gt; ";
+  $linktext .= "<A HREF=\"../\" ALT=\"ワークフロー\" CLASS=\"BAR\">ワークフロー</A> &gt; ";
+  $linktext .= "<FONT COLOR=#FFFF00>案件の表示</FONT> ";
+
+  // 検索機能の使用?
+  $search = true;
+  $searchuri = "/workflow/";
+
+  // ヘッダ表示
+  include ("../../header.inc.php");
+
+#  // 機能別メニュー内容の取得
+#  include ("../menu.inc.php");
+
+  include ("../template.inc.php");
+
+  if ($login && sizeof($MES)==0) {
+    echo "<!--";
+    // エラーチェック
+    if (empty($no)) {
+      $DMES[] = "案件が選択されていません";
+    } else {
+      $sql = "SELECT * FROM workflow WHERE (user_id='$login_id' or flow_ids~*'(^|,)$login_id(,|$)') AND seqno=$no";
+      $res = pg_query($conn,$sql);
+      $cnt = pg_num_rows($res);
+      if ($cnt==0) {
+        // 案件なし
+        $DMES[] = "指定された案件は登録されていないか既に削除されています";
+      } else {
+        // 既読チェック処理
+        if (get_count("workflow_res","seqno=$no AND user_id='$login_id'")==0) {
+          $sql  = "INSERT INTO workflow_res (seqno,user_id,createstamp) VALUES ";
+          $sql .= "($no,'$login_id','now()')";
+        } else {
+          $sql  = "UPDATE workflow_res SET createstamp='now()' ";
+          $sql .= "WHERE seqno=$no AND user_id='$login_id'";
+        }
+        pg_query($conn,$sql);
+
+        // 案件の取得
+        $row = pg_fetch_array($res,0);
+
+        $seqno    = $row["seqno"];
+        $dirno    = strval($seqno); if (strlen($dirno)<8) $dirno = str_repeat("0",8-strlen($dirno)).$dirno;
+        $user_id  = $row["user_id"];
+        $user_no  = $row["user_seqno"];
+
+        $flow_ids = $row["flow_ids"];
+        $flow_pat = $row["flow_pat"];
+
+        $subject = str_highlight($kwd,$row["subject"]);
+        if ($row["retry_sign"]=="t") {
+          $subject .= " (再)";
+        }
+
+        $body1 = str_highlight($kwd,str_wiki($row["body1"]));
+        $body2 = str_highlight($kwd,$row["body2"]);
+        $body3 = str_highlight($kwd,$row["body3"]);
+        $body4 = str_highlight($kwd,str_wiki($row["body4"]));
+//
+        $user_name = get_first("users","name_ryaku","id='$user_id'","");
+
+        $result_sign = $row["result_sign"];
+        $resno       = $row["result_seqno"];
+
+        $create_datetime = date("Y年n月j日 H:i",datetime2timestamp($row["createstamp"]));
+      }
+    }
+
+    // ページ内容作成
+    $pagetext  = "";
+    if (sizeof($DMES)==0) {
+      $pagetext .= "
+<BR>
+<CENTER>
+
+<TABLE BORDER=0 CELLPADDING=4 CELLSPACING=1 width=480 BGCOLOR=#999999>
+<INPUT TYPE=HIDDEN NAME=\"no\" VALUE=\"$no\">
+</TD>";
+
+#      $pagetext .= "<TR>";
+#      $pagetext .= "<TD ALIGN=RIGHT WIDTH=90 NOWRAP VALIGN=TOP BGCOLOR=$td_back_left>立案No</TD>";
+#      $pagetext .= "<TD ALIGN=LEFT BGCOLOR=$td_back>";
+#      $pagetext .= $seqno;
+#      $pagetext .= "</TD></TR>";
+
+      if ($result_sign=="t" && $resno>0) {
+        $pagetext .= "
+<TR>
+<TD ALIGN=RIGHT WIDTH=90 NOWRAP VALIGN=TOP BGCOLOR=$td_back_left>決裁No</TD>
+<TD ALIGN=LEFT BGCOLOR=$td_back>
+$resno
+</TD></TR>
+";
+      }
+      $pagetext .= "
+<TR>
+<TD ALIGN=RIGHT WIDTH=90 NOWRAP VALIGN=TOP BGCOLOR=$td_back_left>立案者</TD>
+<TD ALIGN=LEFT BGCOLOR=$td_back>
+<A HREF=\"../../member/?id=$user_id\">$user_name</A> [$user_no]
+</TD></TR>
+
+<TR>
+<TD ALIGN=RIGHT WIDTH=90 NOWRAP VALIGN=TOP BGCOLOR=$td_back_left>件名</TD>
+<TD ALIGN=LEFT BGCOLOR=$td_back>
+$subject
+</TD></TR>
+
+<TR>
+<TD ALIGN=RIGHT WIDTH=90 NOWRAP VALIGN=TOP BGCOLOR=$td_back_left>".$title1."</TD>
+<TD ALIGN=LEFT BGCOLOR=$td_back NOWRAP>
+$body1
+</TD></TR>
+<TR>
+<TD ALIGN=RIGHT WIDTH=90 NOWRAP VALIGN=TOP BGCOLOR=$td_back_left>".$title2."</TD>
+<TD ALIGN=LEFT BGCOLOR=$td_back NOWRAP>
+$body2
+</TD></TR>
+<TR>
+<TD ALIGN=RIGHT WIDTH=90 NOWRAP VALIGN=TOP BGCOLOR=$td_back_left>".$title3."</TD>
+<TD ALIGN=LEFT BGCOLOR=$td_back NOWRAP>
+".number_format($body3)." 円
+</TD></TR>
+<TR>
+<TD ALIGN=RIGHT WIDTH=90 NOWRAP VALIGN=TOP BGCOLOR=$td_back_left>".$title4."</TD>
+<TD ALIGN=LEFT BGCOLOR=$td_back NOWRAP>
+$body4
+</TD></TR>
+";
+      // 添付ファイル情報
+      if (file_exists($workflowpath."/".$dirno)) {
+        $handle = opendir($workflowpath."/".$dirno);
+        while(false !== ($file = readdir($handle))){
+          if(!preg_match("/^\./", $file)){
+            if(is_dir($file)){
+              $dirs[]  = $file;
+            } else {
+              $files[] = $file;
+            }
+          }
+        }
+
+        if (sizeof($files)>0) {
+          // ファイルあり
+          $pagetext .= "<TR>\n";
+          $pagetext .= "<TD ALIGN=RIGHT WIDTH=90 NOWRAP VALIGN=TOP BGCOLOR=$td_back_left>添付ファイル</TD>\n";
+          $pagetext .= "<TD ALIGN=LEFT BGCOLOR=$td_back>\n";
+
+          $pagetext .= "<TABLE BORDER=0><TR>\n";
+          for ($i=0;$i<sizeof($files);$i++) {
+            $pagetext .= "<TD ALIGN=CENTER>";
+            $imageicon = ext_check($files[$i]);
+            $tmpsize   = filesize($workflowpath."/".$dirno."/".$files[$i]);
+            if ($tmpsize<1024) {
+              $filesize = number_format($tmpsize)."Byte";
+            } elseif ($tmpsize<1024000) {
+              $filesize = number_format(ceil($tmpsize/1024))."KB";
+            } else {
+              if ($tmpsize % 1024000 == 0) {
+                $filesize = number_format(floor($tmpsize/1024000))."MB";
+              } else {
+                $filesize = number_format(floor($tmpsize/1024000)).".".str_pad(floor(($tmpsize % 1024000)/10000),2,"00",STR_PAD_LEFT)."MB";
+              }
+            }
+            $pagetext .= "<A HREF=\"../download/?no=$seqno&file=".urlencode($files[$i])."\">";
+            $pagetext .= "<IMG SRC=\"".$imageicon."\" BORDER=0 ALT=\"".$files[$i]."\nサイズ:".$filesize."\" WIDTH=32 HEIGHT=32 VSPACE=2 HSPACE=2>";
+
+            $pagetext .= "<BR>";
+            $pagetext .= "<FONT STYLE=\"font-size:8pt\">".$files[$i];
+            $pagetext .= "</FONT></A></TD>\n";
+          }
+          $pagetext .= "</TR></TABLE>\n";
+
+          $pagetext .= "</TD></TR>\n";
+        }
+      }
+
+      // 返信・結果確認
+      $pagetext .= "<TR>\n";
+      $pagetext .= "<TD ALIGN=RIGHT WIDTH=90 NOWRAP VALIGN=TOP BGCOLOR=$td_back_left>決裁状況</TD>\n";
+      $pagetext .= "<TD ALIGN=LEFT BGCOLOR=$td_back>\n";
+
+      $flow_id_arr = split(",",$flow_ids);
+      $flow_id_cnt = sizeof($flow_id_arr);
+      
+      if ($flow_id_cnt>0) {
+        $pagetext .= "<TABLE BORDER=0 CELLPADDING=3 CELLSPACING=1 BGCOLOR=#666666>\n";
+        $pagetext .= "<TR BGCOLOR=#999999>";
+        $pagetext .= "<TD ALIGN=CENTER><FONT COLOR=#FFFFFF><B>承認先</TD>";
+        $pagetext .= "<TD ALIGN=CENTER><FONT COLOR=#FFFFFF><B>承認?</TD>";
+        $pagetext .= "<TD ALIGN=CENTER><FONT COLOR=#FFFFFF><B>日時</TD>";
+        $pagetext .= "<TD ALIGN=CENTER><FONT COLOR=#FFFFFF><B>コメント</TD>";
+        $pagetext .= "</TR>\n";
+
+        $c = 0;
+        for($i=0;$i<$flow_id_cnt;$i++){
+          $c++;
+
+          $note = "";
+
+          if ($i % 2 == 0) {
+            $pagetext .= "<TR BGCOLOR=$bg_light>";
+          } else {
+            $pagetext .= "<TR BGCOLOR=$bg_dark>";
+          }
+          $flow_id = $flow_id_arr[$i];
+
+          $sql_res = "SELECT * FROM workflow_ret WHERE refno=$seqno AND user_id='$flow_id'";
+          $res_res = pg_query($conn,$sql_res);
+          $cnt_res = pg_num_rows($res_res);
+          if ($cnt_res==0) {
+            $note = "";
+            $stamp = null;
+            $result = "f";
+            $recognize = "";
+          } else {
+            $row_res = pg_fetch_array($res_res,0);
+            $note = $row_res["note"];
+            $stamp = $row_res["createstamp"];
+            $result = $row_res["result_sign"];
+            $recognize = $row_res["recognize_sign"];
+          }
+
+          if ($flow_id == $login_id) {
+            // 自身
+            $pagetext .= "<TD ALIGN=LEFT NOWRAP VALIGN=TOP>"; // 名前
+            $pagetext .= "<A HREF=\"../../member/?id=$flow_id\">";
+            $pagetext .= get_first("users","name_ryaku","id='$flow_id'","不明");
+            $pagetext .= "</A></TD>\n";
+
+            $pagetext .= "<FORM ACTION=\"./post.phtml\" METHOD=POST>\n";
+            $pagetext .= "<INPUT TYPE=HIDDEN NAME=\"no\" VALUE=\"$seqno\">\n";
+            $pagetext .= "<INPUT TYPE=HIDDEN NAME=\"res\" VALUE=\"\">\n";
+            $pagetext .= "<TD ALIGN=CENTER NOWRAP VALIGN=TOP>"; // 回答?
+
+            $cnt_chk = get_count("workflow_ret","refno=$seqno AND seqno=$c");
+            if ($c>1) $cnt_before = get_count("workflow_ret","refno=$seqno AND seqno=$c-1");
+            if ($result_sign=="" && $cnt_chk==0 && ($c==1 || ($c>1 && $cnt_before>0))) {
+              $pagetext .= "<INPUT TYPE=SUBMIT NAME=\"ok\" VALUE=\"承認\" STYLE=\"width:60px;color:#FF0000;padding:2px\"><BR>";
+              $pagetext .= "<INPUT TYPE=SUBMIT NAME=\"ng\" VALUE=\"否認\" STYLE=\"width:60px;padding:1px\"><BR>";
+            } else {
+              if ($recognize=="t") {
+                $pagetext .= "<FONT COLOR=#FF0000>承認";
+              } elseif ($recognize=="f") {
+                $pagetext .= "<FONT COLOR=#000000>否認";
+              } else {
+                $pagetext .= "<FONT COLOR=#777755>未承認";
+              }
+            }
+            $pagetext .= "</TD>\n";
+
+            $pagetext .= "<TD ALIGN=LEFT NOWRAP VALIGN=TOP>"; // 処理日時
+            if (empty($stamp)) {
+              $pagetext .= "&nbsp;";
+            } else {
+#              $pagetext .= "処理済";
+              $pagetext .= date("n/j",datetime2timestamp($stamp));
+              $pagetext .= "(";
+              $pagetext .= $wname[date("w",datetime2timestamp($stamp))];
+              $pagetext .= ") ";
+              $pagetext .= date("H:i",datetime2timestamp($stamp));
+            }
+            $pagetext .= "</TD>\n";
+
+            $pagetext .= "<TD ALIGN=LEFT VALIGN=TOP STYLE=\"width:165px\">"; // コメント
+#            if ($result=="f") {
+            if ($result_sign=="" && $cnt_chk==0 && ($c==1 || ($c>1 && $cnt_before>0))) {
+              if ($c==1 || get_count("workflow_ret","recognize_sign","refno=$seqno AND seqno<$c-1")>0) {
+                $pagetext .= "<TEXTAREA NAME=\"note\" COLS=26 ROWS=3 STYLE=\"width:204px\">$note</TEXTAREA>";
+              }
+            } else {
+              $pagetext .= $note;
+            }
+            $pagetext .= "</TD>\n";
+            $pagetext .= "</FORM>\n";
+
+          } else {
+            // 以外
+            $pagetext .= "<TD ALIGN=LEFT NOWRAP VALIGN=TOP>"; // 名前
+            $pagetext .= "<A HREF=\"../../member/?id=$flow_id\">";
+            $pagetext .= get_first("users","name_ryaku","id='$flow_id'","不明");
+            $pagetext .= "</A></TD>\n";
+            $pagetext .= "<TD ALIGN=CENTER NOWRAP VALIGN=TOP>"; // 回答日時
+
+            if ($cnt_res==0) {
+              if ($row["result_sign"]=="") {
+                $pagetext .= "<FONT COLOR=#777755>承認待ち";
+              } else {
+                $pagetext .= "-";
+              }
+            } else {
+              if ($row_res["recognize_sign"]=="t") {
+                $pagetext .= "<FONT COLOR=#FF0000>承認";
+              } else {
+                $pagetext .= "<FONT COLOR=#000000>否認";
+              }
+            }
+
+            $pagetext .= "</TD>\n";
+
+            $pagetext .= "<TD ALIGN=LEFT NOWRAP VALIGN=TOP>"; // 処理日時
+            if (empty($stamp)) {
+              $pagetext .= "&nbsp;";
+            } else {
+#              $pagetext .= "処理済";
+              $pagetext .= date("n/j",datetime2timestamp($stamp));
+              $pagetext .= "(";
+              $pagetext .= $wname[date("w",datetime2timestamp($stamp))];
+              $pagetext .= ") ";
+              $pagetext .= date("H:i",datetime2timestamp($stamp));
+            }
+            $pagetext .= "</TD>\n";
+
+            $pagetext .= "<TD ALIGN=LEFT STYLE=\"width:165px\" VALIGN=TOP>"; // コメント
+            $pagetext .= $note;
+            $pagetext .= "</TD>\n";
+          }
+
+          $pagetext .= "</TR>\n";
+        }
+        $pagetext .= "</TABLE>";
+      }
+////////
+
+      $pagetext .= "</TD>\n";
+      $pagetext .= "</TR>\n";
+
+      $pagetext .= "
+</TABLE>
+
+<TABLE WIDTH=480><TR><TD ALIGN=RIGHT><FONT COLOR=#555555>立案日時 : $create_datetime</TD></TR></TABLE>
+
+<TABLE><FORM><TR>
+";
+#      if ($user_id != $login_id) {
+#        $pagetext .= "<TD>";
+#        $pagetext .= "<INPUT TYPE=SUBMIT VALUE=\"案件に返信する\" STYLE=\"width:140px\">";
+#        $pagetext .= "</TD>";
+#      }
+
+      // 再稟議ボタン(自身、否認時のみ)
+      if ($user_id==$login_id && $result_sign=="f") {
+        $pagetext .= "<SCRIPT language=\"JavaScript\">\n";
+        $pagetext .= "<!--\n";
+        $pagetext .= "function retry(no) {\n";
+        $pagetext .= "  if (confirm(\"案件を再稟議しますか？\")) {\n";
+        $pagetext .= "    location.href = '../retry/?no='+no;\n";
+        $pagetext .= "  }\n";
+        $pagetext .= "}\n";
+        $pagetext .= "//-->\n";
+        $pagetext .= "</SCRIPT>\n";
+        $pagetext .= "<TD><INPUT TYPE=BUTTON VALUE=\"案件の再稟議\" ONCLICK=\"retry(".$no.")\" style=\"width:140px\"></TD>\n";
+      }
+
+      // 削除ボタン(管理者のみ)
+      if ($admin_sign=="t") {
+        $pagetext .= "<SCRIPT language=\"JavaScript\">\n";
+        $pagetext .= "<!--\n";
+        $pagetext .= "function remove(no) {\n";
+        $pagetext .= "  if (confirm(\"案件を削除しますか？\\n注:削除された案件を元に戻すことはできません\")) {\n";
+        $pagetext .= "    location.href = '../remove/?no='+no;\n";
+        $pagetext .= "  }\n";
+        $pagetext .= "}\n";
+        $pagetext .= "//-->\n";
+        $pagetext .= "</SCRIPT>\n";
+        $pagetext .= "<TD><INPUT TYPE=BUTTON VALUE=\"削除\" ONCLICK=\"remove(".$no.")\" style=\"width:60px;background-color:#FFCCCC\"></TD>\n";
+      }
+
+      $pagetext .= "
+</TR></FORM></TABLE>
+</CENTER>
+";
+    } else {
+      // エラー時
+      $pagetext .= "<BR><BR>\n";
+      $pagetext .= "<CENTER>\n";
+      $pagetext .= "<FONT COLOR=#FF0000>\n";
+      while (list($key,$val)=each($DMES)) {
+        $pagetext .= $val."<BR>\n";
+      }
+      $pagetext .= "</FONT>\n";
+
+      $pagetext .= "<BR><FORM>\n";
+      $pagetext .= "<INPUT TYPE=BUTTON VALUE=\"戻る\" ONCLICK=\"history.back()\">\n";
+
+      $pagetext .= "</FORM>\n";
+      $pagetext .= "</CENTER>\n";
+    }
+    echo "-->";
+  }
+  
+  // 明細表示
+  include "../../detail.inc.php";
+
+  // フッタ表示
+  include "../../footer.inc.php";
+?>

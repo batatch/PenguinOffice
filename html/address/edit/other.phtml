@@ -1,0 +1,74 @@
+<?
+  include "../../config.inc.php"; include "../../lib.inc.php";
+
+  $linktext  = "<A HREF=\"../../\" CLASS=\"BAR\">トップページ</A> &gt; ";
+  $linktext .= "<A HREF=\"../\" CLASS=\"BAR\">住所録</A> &gt; ";
+  $linktext .= "<FONT COLOR=#FFFF00>住所の表示</FONT>";
+
+  // ログイン情報獲得(簡易版)
+  include "../../login_check.inc.php";
+
+	if ($address_flag>1) {
+		$MES[] = "住所録内の情報を更新することはできません";
+	}
+  // 前処理
+  $comment = textsafe($comment);
+
+  $kind_list = "";
+  if (sizeof($kind)>0) {
+    while (list($key,$val)=each($kind)) {
+      if ($kind_list != "") { $kind_list .= ","; }
+      $kind_list .= $val;
+    }
+  }
+  // エラーチェック
+  if ($comment != "") {
+    if (strlen($comment)>1000) {
+      $MES[]="コメントが長すぎます。500文字以内(半角1000文字)で指定してください";
+    }
+  }
+
+  // エラー無しならDB更新
+  if (sizeof($MES)==0) {
+    $sql  = "UPDATE address SET ";
+    $sql .= "kind_list='".$kind_list."',";
+    $sql .= "comment='".db_textsafe($comment)."',";
+    $sql .= "updatestamp='now' ";
+    $sql .= "WHERE seqno=".$seqno;
+
+    $res = pg_query($conn,$sql);
+    if ($res==false) {
+      $MES[] = "更新に失敗しました。";
+    }
+  }
+
+  if (sizeof($MES)==0) {
+    // 正常処理
+    header("Location: ./?now_type=O&s=".$seqno);
+  } else {
+    // エラーメッセージ出力
+    include "../../header.inc.php"; flush();
+
+    print "<BR>";
+    print "<CENTER><FONT COLOR=#FF0000>";
+    // エラーメッセージ出力
+    while (list($key,$val)=each($MES)) {
+      print $val."<BR>\n";
+    }
+    print "</FONT>\n";
+
+    print "<FORM NAME=\"error\" ACTION=\"./\" METHOD=POST>\n";
+
+    print "<INPUT TYPE=HIDDEN name=\"s\" value=\"".$seqno."\">\n";
+    print "<INPUT TYPE=HIDDEN name=\"now_type\" value=\"O\">\n";
+
+    print "<INPUT TYPE=HIDDEN name=\"kind_list\" value=\"".$kind_list."\">\n";
+    print "<INPUT TYPE=HIDDEN name=\"comment\" value=\"".$comment."\">\n";
+
+    print "<INPUT TYPE=SUBMIT value=\"戻る\" style=\"width:120px\">\n";
+    print "</FORM>\n";
+    print "</CENTER>\n";
+
+    include "../../footer.inc.php";
+  }
+?>

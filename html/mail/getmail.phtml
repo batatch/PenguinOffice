@@ -1,0 +1,92 @@
+<?php
+  include "../config.inc.php";  include "../lib.inc.php";
+  include "../language.inc.php";
+
+  $linktext  = "<A HREF=\"../\">トップページ</A> &gt; ";
+  $linktext  = "<A HREF=\"./\">伝言メモ</A> &gt; ";
+  $linktext .= "<FONT COLOR=#FFFF00>メール取得</FONT>";
+
+  include ("../header.inc.php"); flush();
+
+  if ($login && sizeof($MES)==0) {
+    $ret = exec('which fetchmail',$res);
+    if (sizeof($res)>0) {
+      $fetchmail = $res[0];
+      $res = "";
+      $storemail = $basedir."/bin/storemail.pl";
+      $homepath  = $basedir."/mail/".$login_id; // dummy
+      $confpath  = $basedir."/mail/".$login_id."/.fetchmailrc";
+      $idspath   = $basedir."/mail/".$login_id."/.fetchids";
+      if (file_exists($storemail)) {
+        print "<BR><CENTER>";
+
+        set_time_limit(60); print "メールの取得開始"; flush();
+
+        // メールの獲得 fetchmail+perl
+        $shelltype = getenv("SHELL");
+        if (preg_match("/\/(bash|ksh|sh)$/i",$shelltype)) {
+          $ret = exec("export HOME=".$homepath.""); // BASH / KSH / SH 用
+        } else {
+          $ret = exec("setenv HOME:".$homepath.""); // CSH / TSH 用
+        }
+
+        $ret = exec($fetchmail." -U -f ".$confpath." -i ".$idspath,$res);
+        print ".....完了<BR>"; flush();
+
+        // メールの取り込み
+        set_time_limit(60); print "メールの解読中"; flush();
+        $cnt = 0;
+        $dh = opendir($homepath);
+        while ($file = readdir($dh)) { 
+          if ($file != "." && $file != ".." && $file != ".fetchmailrc" && $file != ".fetchids") { 
+            if (is_file($homepath."/".$file)) {
+              // メールファイル解読
+              set_time_limit(60); print "."; flush();
+              passthru("cat ".$homepath."/".$file);
+
+              // メールファイル削除
+              unlink($homepath."/".$file);
+              $cnt++;
+            }
+          }
+        }
+        closedir($dh);
+        print "完了(".$cnt."件)<BR>"; flush();
+
+        print "</CENTER>";
+
+      } else {
+        $DMES[] = "fetchmail用の設定ファイルが生成されていません。正しいメールサーバー情報を登録して再度操作を行ってください。";
+      }
+    } else {
+      $DMES[] = "fetchmailがインストールされていないか見つかりません";
+    }
+    if (sizeof($DMES)>0) {
+      // エラー時
+      $pagetext .= "<BR><CENTER>\n";
+      $pagetext .= "<FONT COLOR=#FF0000>\n";
+      while (list($key,$val)=each($DMES)) {
+        $pagetext .= $val."<BR>\n";
+      }
+      $pagetext .= "</FONT>\n";
+      $pagetext .= "<FORM>\n";
+      $pagetext .= "<INPUT TYPE=BUTTON VALUE=\"戻る\" ONCLICK=\"history.back()\">\n";
+      $pagetext .= "</FORM>\n";
+      $pagetext .= "</CENTER>\n";
+
+    } else {
+      // 正常終了
+      $returl = "./";
+      $pagetext .= "<BR><CENTER>";
+      $pagetext .= "<A HREF=\"#\" ONCLICK=\"location.replace('$returl');location.href='$returl';\">≪一覧へ戻る≫</A>\n";
+      $pagetext .= "</CENTER><BR>\n";
+      $pagetext .= "<SCRIPT LANGUAGE=\"JavaScript\">\n";
+      $pagetext .= "<!--\n";
+      $pagetext .= "setTimeout(\"location.replace('$returl');location.href='$returl';\",10000);\n";
+      $pagetext .= "//-->\n";
+      $pagetext .= "</SCRIPT>\n";
+    }
+  }
+  include ("../detail.inc.php");
+  include ("../footer.inc.php");
+?>

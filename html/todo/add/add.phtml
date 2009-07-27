@@ -1,0 +1,148 @@
+<?
+include "../../config.inc.php"; include "../../lib.inc.php";
+
+$linktext  = "<A HREF=\"../../\" CLASS=\"BAR\">トップページ</A> &gt; ";
+$linktext .= "<A HREF=\"../\" CLASS=\"BAR\">備忘録</A> &gt; ";
+if (empty($seqno)) {
+	$linktext .= "<FONT COLOR=#FFFF00>メモの登録</FONT>";
+} else {
+	$linktext .= "<FONT COLOR=#FFFF00>メモの確認</FONT>";
+}
+
+include "../../login_check.inc.php";
+
+if ($login && sizeof($MES)==0) {
+	// 前処理
+	$subject = textsafe(stripslashes($subject));
+	$body = textsafe(stripslashes($body));
+	
+	// エラーチェック
+	if (trim($subject) == "") {
+		$DMES[] = "タイトルが入力されていません";
+	} elseif (strlen($subject) == 80) {
+		$DMES[] = "タイトルが長すぎます 40文字(全角80文字)までで入力してください";
+		$subject = mb_strcut($subject,0,80);
+	}
+	
+	if (empty($priority) || $priority == false) {
+		$DMES[] = "優先度が選択されていません";
+	}
+	
+	if ($_POST["begin_year"] <> "" or $_POST["begin_month"] <> "" or $_POST["begin_day"] <> ""){
+		if (!checkdate($_POST["begin_month"],$_POST["begin_day"],$_POST["begin_year"])){
+			$DMES[] = "開始日に正しい日付が入力されていません";
+		}
+	}
+
+	if ($_POST["end_null_flg"] != "on"){
+		if ($_POST["end_year"] <> "" or $_POST["end_month"] <> "" or $_POST["end_day"] <> ""){
+			if (!checkdate($_POST["end_month"],$_POST["end_day"],$_POST["end_year"])){
+				$DMES[] = "締切日に正しい日付が入力されていません";
+			}
+		}
+		
+		if (mktime(0, 0, 0, $_POST["begin_month"], $_POST["begin_day"], $_POST["begin_year"]) >
+		    mktime(0, 0, 0, $_POST["end_month"], $_POST["end_day"], $_POST["end_year"])){
+		    $DMES[] = "締切日が開始日よりも前に指定されています。";
+		}
+	}
+  
+	if (trim($body) == "") {
+		$DMES[] = "内容が入力されていません";
+	} elseif (strlen($body) == 8192) {
+		$DMES[] = "内容が長すぎます 8192文字までで入力してください";
+		$body = mb_strcut($body,0,8192);
+	}
+
+	// DB処理
+	if (sizeof($DMES)==0) {
+		if (!empty($seqno) and $seqno>0){
+			//編集
+			$sql  = "UPDATE todos SET ";
+			$sql .= "subject='".db_textsafe($subject)."',";
+			$sql .= "priority=".$priority.",";
+			$sql .= "body='".db_textsafe($body)."',";
+			$sql .= "begin_day='".$_POST["begin_year"]."-".$_POST["begin_month"]."-".$_POST["begin_day"]."',";
+			if ($_POST["end_null_flg"] == "on"){
+				$sql .= "end_day=null,";
+			} else {
+				$sql .= "end_day='".$_POST["end_year"]."-".$_POST["end_month"]."-".$_POST["end_day"]."',";
+			}
+			$sql .= "progress=".$_POST["progress"].",";
+			$sql .= "updatestamp='now'";
+			$sql .= " where user_id='".$login_id."' and seqno=".$seqno;
+			
+			$res = pg_query($conn,$sql);
+			if ($res==false || pg_affected_rows($res)==0) {
+				$DMES[] = "登録に失敗しました。";
+			}
+		} else {
+			// 追加
+			$seqno = get_last("todos","seqno","user_id='".$login_id."'",0)+1;
+			
+			$sql  = "INSERT INTO todos (";
+			$sql .= "seqno,user_id,subject,priority,body,createstamp,updatestamp,begin_day,end_day,progress";
+			$sql .= ") VALUES (";
+			$sql .= $seqno.",";
+			$sql .= "'".$login_id."',";
+			$sql .= "'".db_textsafe($subject)."',";
+			$sql .= "".$priority.",";
+			$sql .= "'".db_textsafe($body)."',";
+			$sql .= "'now',";
+			$sql .= "'now',";
+			$sql .= "'".$_POST["begin_year"]."-".$_POST["begin_month"]."-".$_POST["begin_day"]."',";
+			if ($_POST["end_null_flg"] == "on"){
+				$sql .= "null,";
+			} else {
+				$sql .= "'".$_POST["end_year"]."-".$_POST["end_month"]."-".$_POST["end_day"]."',";
+			}
+			$sql .= "'".$_POST["progress"]."'";
+			$sql .= ")";
+
+			$res = pg_query($conn,$sql);
+			
+			if ($res==false || pg_affected_rows($res)==0) {
+				$DMES[] = "登録に失敗しました。";
+			}
+		}
+	}
+	
+	
+	if (sizeof($DMES)>0) {
+		// エラー時
+		include "../../header.inc.php";
+		
+		$pagetext .= "<TABLE WIDTH=100% HEIGHT=445><TR><TD VALIGN=TOP ALIGN=CENTER>";
+		$pagetext .= "<FORM name=\"add\" action=\"./?p=".$p."\" method=\"post\">\n";
+		$pagetext .= "<INPUT TYPE=\"HIDDEN\" NAME=\"seqno\" value=\"".$seqno."\">\n";
+		$pagetext .= "<INPUT TYPE=\"HIDDEN\" NAME=\"subject\" value=\"".$subject."\">\n";
+		$pagetext .= "<INPUT TYPE=\"HIDDEN\" NAME=\"body\" value=\"".$body."\">\n";
+		$pagetext .= "<INPUT TYPE=\"HIDDEN\" NAME=\"priority\" value=\"".$priority."\">\n";
+		$pagetext .= "<INPUT TYPE=\"HIDDEN\" NAME=\"begin_year\" value=\"".$begin_year."\">\n";
+		$pagetext .= "<INPUT TYPE=\"HIDDEN\" NAME=\"begin_month\" value=\"".$begin_month."\">\n";
+		$pagetext .= "<INPUT TYPE=\"HIDDEN\" NAME=\"begin_day\" value=\"".$begin_day."\">\n";
+		$pagetext .= "<INPUT TYPE=\"HIDDEN\" NAME=\"end_year\" value=\"".$end_year."\">\n";
+		$pagetext .= "<INPUT TYPE=\"HIDDEN\" NAME=\"end_month\" value=\"".$end_month."\">\n";
+		$pagetext .= "<INPUT TYPE=\"HIDDEN\" NAME=\"end_day\" value=\"".$end_day."\">\n";
+		$pagetext .= "<INPUT TYPE=\"HIDDEN\" NAME=\"progress\" value=\"".$progress."\">\n";
+		$pagetext .= "<FONT COLOR=#FF0000>";
+		while (list($key,$val)=each($DMES)) {
+			$pagetext .= "<B>".$val."</B><BR>\n";
+		}
+		$pagetext .= "<BR>\n";
+		$pagetext .= "<input TYPE=SUBMIT VALUE=\"戻る\" STYLE=\"width:120px\">";
+		$pagetext .= "</TD></TR></TABLE>\n";
+		
+		include "../../detail.inc.php";
+		include "../../footer.inc.php";
+	} else {
+		// 正常処理
+		if ($p=="top") {
+			$returl = "../../";
+		} else {
+			$returl = "../?n=$seqno";
+		}
+		Header("Location: ".$returl);
+	}
+}
+?>

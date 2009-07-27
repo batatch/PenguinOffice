@@ -1,0 +1,234 @@
+<?
+  include "../../config.inc.php"; include "../../lib.inc.php";
+  include "../../language.inc.php";
+
+  $linktext  = "<A HREF=\"../../\" CLASS=\"BAR\">トップページ</A> &gt; ";
+  $linktext .= "<A HREF=\"../\" CLASS=\"BAR\">住所録</A> &gt; ";
+  $linktext .= "<FONT COLOR=#FFFF00>住所の登録</FONT>";
+
+  include "../../header.inc.php"; flush();
+
+	if ($address_flag>1) {
+		$DMES[] = "住所録情報を登録することはできません";
+	}
+
+  // 初期値
+  if ($corp_url=="") { $corp_url = "http://"; }
+  if ($corp_email=="") { $corp_email = "@"; }
+
+  // 前処理
+  if (!empty($q) && is_numeric($q)) {
+    // 選択ページから
+    $sql_select = "SELECT * FROM address WHERE seqno=".$q;
+    $res_select = pg_query($conn,$sql_select);
+    $cnt_select = pg_num_rows($res_select);
+    if ($cnt_select>0) {
+      $row_select = pg_fetch_array($res_select,0);
+      $corp_name   = trim($row_select["corp_name"]);
+      $corp_kana   = trim($row_select["corp_kana"]);
+      $corp_zip    = trim($row_select["corp_zip"]);
+      $corp_state  = trim($row_select["corp_state"]);
+      $corp_city   = trim($row_select["corp_city"]);
+      $corp_street = trim($row_select["corp_street"]);
+      $corp_build  = trim($row_select["corp_build"]);
+      $corp_tel    = trim($row_select["corp_tel"]);
+      $corp_fax    = trim($row_select["corp_fax"]);
+      $corp_url    = trim($row_select["corp_url"]);
+      $corp_email  = trim($row_select["corp_email"]);
+    } else {
+      $DMES[] = "コピー元情報が確認できませんでした";
+    }
+  }
+
+  if (!empty($qp) && is_numeric($qp)) {
+    // 選択ページから(個人ページ)
+    $sql_select = "SELECT * FROM address WHERE seqno=".$qp;
+    $res_select = pg_query($conn,$sql_select);
+    $cnt_select = pg_num_rows($res_select);
+    if ($cnt_select>0) {
+      $row_select = pg_fetch_array($res_select,0);
+      $corp_name       = trim($row_select["corp_name"]);
+      $corp_kana       = trim($row_select["corp_kana"]);
+      $corp_zip        = trim($row_select["corp_zip"]);
+      $corp_state      = trim($row_select["corp_state"]);
+      $corp_city       = trim($row_select["corp_city"]);
+      $corp_street     = trim($row_select["corp_street"]);
+      $corp_build      = trim($row_select["corp_build"]);
+      $corp_tel        = trim($row_select["corp_tel"]);
+      $corp_fax        = trim($row_select["corp_fax"]);
+      $corp_url        = trim($row_select["corp_url"]);
+      $corp_email      = trim($row_select["corp_email"]);
+      $person_name     = trim($row_select["person_name"]);
+      $person_kana     = trim($row_select["person_kana"]);
+      $person_sex      = trim($row_select["person_sex"]);
+      $person_email    = trim($row_select["person_email"]);
+      $person_email2   = trim($row_select["person_email2"]);
+      $person_birthday = trim($row_select["person_birthday"]);
+      $person_handy    = trim($row_select["person_handy"]);
+      $person_zip      = trim($row_select["person_zip"]);
+      $person_state    = trim($row_select["person_state"]);
+      $person_city     = trim($row_select["person_city"]);
+      $person_street   = trim($row_select["person_street"]);
+      $person_build    = trim($row_select["person_build"]);
+      $person_tel      = trim($row_select["person_tel"]);
+      $person_fax      = trim($row_select["person_fax"]);
+    } else {
+      $DMES[] = "コピー元情報が確認できませんでした";
+    }
+  }
+
+  // エラー処理
+  if (sizeof($DMES)>0) {
+    // エラーメッセージ出力
+    print "<BR><CENTER><FONT COLOR=#FF0000>";
+    // エラーメッセージ出力
+    while (list($key,$val)=each($DMES)) {
+      print $val."<BR>\n";
+    }
+    print "</FONT></CENTER>\n";
+  } else {
+?>
+<script language="JavaScript">
+<!--
+  function insorg(f,v) {
+    f.corp_name.value = f.corp_name.value + v;
+    f.corp_name.focus();
+  }
+//-->
+</script>
+
+<BR>
+
+<CENTER>
+<TABLE HEIGHT=445><TR><TD VALIGN=TOP ALIGN=CENTER>
+
+<FORM NAME="corp" ACTION="./person.phtml" METHOD=POST>
+<?
+  if (!empty($qp) && is_numeric($qp)) {
+    print "<INPUT TYPE=HIDDEN NAME=\"person_name\"     VALUE=\"$person_name\">\n";
+    print "<INPUT TYPE=HIDDEN NAME=\"person_kana\"     VALUE=\"$person_kana\">\n";
+    print "<INPUT TYPE=HIDDEN NAME=\"person_sex\"      VALUE=\"$person_sex\">\n";
+    print "<INPUT TYPE=HIDDEN NAME=\"person_email\"    VALUE=\"$person_email\">\n";
+    print "<INPUT TYPE=HIDDEN NAME=\"person_email2\"   VALUE=\"$person_email2\">\n";
+    print "<INPUT TYPE=HIDDEN NAME=\"person_birthday\" VALUE=\"$person_birthday\">\n";
+    print "<INPUT TYPE=HIDDEN NAME=\"person_handy\"    VALUE=\"$person_handy\">\n";
+    print "<INPUT TYPE=HIDDEN NAME=\"person_zip\"      VALUE=\"$person_zip\">\n";
+    print "<INPUT TYPE=HIDDEN NAME=\"person_state\"    VALUE=\"$person_state\">\n";
+    print "<INPUT TYPE=HIDDEN NAME=\"person_city\"     VALUE=\"$person_city\">\n";
+    print "<INPUT TYPE=HIDDEN NAME=\"person_street\"   VALUE=\"$person_street\">\n";
+    print "<INPUT TYPE=HIDDEN NAME=\"person_build\"    VALUE=\"$person_build\">\n";
+    print "<INPUT TYPE=HIDDEN NAME=\"person_tel\"      VALUE=\"$person_tel\">\n";
+    print "<INPUT TYPE=HIDDEN NAME=\"person_fax\"      VALUE=\"$person_fax\">\n";
+  }
+?>
+<TABLE BORDER=0 CELLPADDING=2 CELLSPACING=0 ALIGN=CENTER><TR><TD VALIGN=TOP ALIGN=CENTER>
+<?
+    // 正常処理
+    print "<TABLE BORDER=0 CELLPADDING=4 CELLSPACING=1 BGCOLOR=#999999>\n";
+    print "<TR>\n";
+    print "<TD ALIGN=RIGHT WIDTH=90 NOWRAP VALIGN=TOP BGCOLOR=$td_back_left>&nbsp;会社名&nbsp;<BR><FONT STYLE=\"font-size:80%\">または</FONT> 屋号&nbsp;<BR><A HREF=\"./corp.phtml\">&lt;COPY&gt;</A>&nbsp;</TD>\n";
+    print "<TD ALIGN=LEFT BGCOLOR=$td_back>";
+?>
+<INPUT TYPE=BUTTON VALUE="株" STYLE="width:22px" ONCLICK="insorg(this.form,'株式会社')">
+<INPUT TYPE=BUTTON VALUE="有" STYLE="width:22px" ONCLICK="insorg(this.form,'有限会社')">
+<INPUT TYPE=BUTTON VALUE="財" STYLE="width:22px" ONCLICK="insorg(this.form,'財団法人')">
+<INPUT TYPE=BUTTON VALUE="社" STYLE="width:22px" ONCLICK="insorg(this.form,'社団法人')">
+<INPUT TYPE=BUTTON VALUE="学" STYLE="width:22px" ONCLICK="insorg(this.form,'学校法人')">
+<INPUT TYPE=BUTTON VALUE="医" STYLE="width:22px" ONCLICK="insorg(this.form,'医療法人')">
+<INPUT TYPE=BUTTON VALUE="公" STYLE="width:22px" ONCLICK="insorg(this.form,'公益法人')">
+<INPUT TYPE=BUTTON VALUE="宗" STYLE="width:22px" ONCLICK="insorg(this.form,'宗教法人')">
+<INPUT TYPE=BUTTON VALUE="NPO" STYLE="width:31px" ONCLICK="insorg(this.form,'NPO法人')">
+<INPUT TYPE=BUTTON VALUE="合" STYLE="width:22px" ONCLICK="insorg(this.form,'合資会社')"><BR>
+<INPUT TYPE=TEXT NAME="corp_name" MAXLENGTH=80 SIZE=50 VALUE="<? echo $corp_name ?>" style="ime-mode:active">&nbsp;<FONT COLOR=#555555>漢字</FONT><BR>
+<INPUT TYPE=TEXT NAME="corp_kana" MAXLENGTH=80 SIZE=50 VALUE="<? echo $corp_kana ?>" style="ime-mode:active">&nbsp;<FONT COLOR=#555555>カナヨミ</FONT><BR>
+<font color=#555555>登録済み住所から会社情報をコピーする場合は<A HREF="./corp.phtml">こちら</A></TD>
+</TR>
+
+<?
+    print "<TR>\n";
+    print "<TD ALIGN=RIGHT WIDTH=90 NOWRAP VALIGN=TOP BGCOLOR=$td_back_left>&nbsp;所在地&nbsp;</TD>\n";
+    print "<TD ALIGN=LEFT BGCOLOR=$td_back>";
+?>
+〒<input TYPE=TEXT NAME=corp_zip MAXLENGTH=8 SIZE=9 value="<? echo $corp_zip ?>" STYLE="background-color:#EEEEEE" style="ime-mode:disabled"><BR>
+<?
+    print "<SELECT NAME=\"corp_state\" STYLE=\"background-color:#EEEEEE\">\n";
+    if ($row["state"]=="") {
+      print "<option value=\"\" selected>--------</option>\n";
+    } else {
+      print "<option value=\"\">--------</option>\n";
+    }
+    reset($STATE_ARR);
+    for ($i=0;$i<sizeof($STATE_ARR);$i++){
+      if ($corp_state == $STATE_ARR[$i]){
+        print "<option value = \"".$STATE_ARR[$i]."\" selected>".$STATE_ARR[$i]."</option>\n";
+      } elseif ($corp_state == "" && $admin_state == $STATE_ARR[$i]){
+        print "<option value = \"".$STATE_ARR[$i]."\" selected>".$STATE_ARR[$i]."</option>\n";
+      } else {
+        print "<option value = \"".$STATE_ARR[$i]."\">".$STATE_ARR[$i]."</option>\n";
+      }
+    }
+
+    print "</SELECT>";
+
+    print "<input MAXLENGTH=80 NAME=\"corp_city\" SIZE=34 value=\"".$corp_city."\" STYLE=\"background-color:#EEEEEE\" style=\"ime-mode:active\">";
+    print "&nbsp;<font color=#555555>市区郡</font><BR>\n";
+
+    print "<input MAXLENGTH=80 NAME=\"corp_street\" SIZE=50 value=\"".$corp_street."\" STYLE=\"background-color:#EEEEEE\" style=\"ime-mode:active\">";
+    print "&nbsp;<font color=#555555>町村・番地</font><BR>\n";
+
+    print "<input MAXLENGTH=80 NAME=\"corp_build\" SIZE=50 value=\"".$corp_build."\" STYLE=\"background-color:#EEEEEE\" style=\"ime-mode:active\">";
+    print "&nbsp;<font color=#555555>ビル名</font><BR>\n";
+?>
+</TD></TR>
+
+<?
+    print "<TR>\n";
+    print "<TD ALIGN=RIGHT WIDTH=90 NOWRAP VALIGN=TOP BGCOLOR=$td_back_left>&nbsp;TEL/FAX&nbsp;</TD>\n";
+    print "<TD ALIGN=LEFT BGCOLOR=$td_back>";
+    print "<input MAXLENGTH=15 NAME=\"corp_tel\" value=\"".$corp_tel."\" STYLE=\"background-color:#EEEEEE;ime-mode:disabled\">&nbsp;<font color=#555555>電話番号</font><BR>\n";
+    print "<input MAXLENGTH=15 NAME=\"corp_fax\" value=\"".$corp_fax."\" STYLE=\"background-color:#EEEEEE;ime-mode:disabled\">&nbsp;<font color=#555555>FAX番号</font>\n";
+?>
+</TD></TR>
+
+<?
+    print "<TR>\n";
+    print "<TD ALIGN=RIGHT WIDTH=90 NOWRAP VALIGN=TOP BGCOLOR=$td_back_left>&nbsp;ホームページ&nbsp;</TD>\n";
+    print "<TD ALIGN=LEFT BGCOLOR=$td_back>";
+    print "<INPUT TYPE=TEXT NAME=\"corp_url\" MAXLENGTH=80 SIZE=50 VALUE=\"".$corp_url."\" STYLE=\"background-color:#EEEEEE;ime-mode:disabled\"><BR>";
+?>
+<font color=#555555>例.http://www.penguin.ne.jp/</font>
+</TD></TR>
+
+<?
+    print "<TR>\n";
+    print "<TD ALIGN=RIGHT WIDTH=90 NOWRAP VALIGN=TOP BGCOLOR=$td_back_left>&nbsp;代表EMAIL&nbsp;</TD>\n";
+    print "<TD ALIGN=LEFT BGCOLOR=$td_back>";
+    print "<INPUT TYPE=TEXT NAME=\"corp_email\" MAXLENGTH=80 SIZE=42 VALUE=\"".$corp_email."\" STYLE=\"background-color:#EEEEEE;ime-mode:disabled\"><BR>";
+?>
+<font color=#555555>例.info@penguin.ne.jp/</font>
+</TD></TR>
+
+</TABLE>
+
+</TD></TR></TABLE>
+
+<CENTER><DIV ALIGN=CENTER>
+<TABLE BORDER=0 CELLPADDING=5 CELLSPACING=0 ALIGN=CENTER><TR><TD>
+<INPUT TYPE=SUBMIT VALUE="次へ" style="width:120px"><BR>
+</TD></TR></TABLE>
+
+<TABLE WIDTH=360 ALIGN=CENTER><TR><TD>
+住所録に登録したい方の「会社情報」を入力してください。<BR>
+登録されている中から登録情報をコピーしたい場合は、会社名欄のリンクをクリックして選択画面へ移ってください。
+</TD></TR></TABLE>
+
+</DIV></CENTER>
+</FORM>
+
+</TD></TR></TABLE>
+</CENTER>
+<?
+  }
+  // フッタ表示
+  include "../../footer.inc.php";
+?>
